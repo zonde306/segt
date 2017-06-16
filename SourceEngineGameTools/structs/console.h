@@ -225,7 +225,7 @@ class CDefaultAccessor : public IConCommandBaseAccessor
 public:
 	virtual bool RegisterConCommandBase(ConCommandBase *pVar)
 	{
-		printf_s("Registering ConVar %s", pVar->GetName());
+		printf_s("Registering ConVar %s\n", pVar->GetName());
 		Interfaces.Cvar->RegisterConCommand(pVar);
 		return true;
 	}

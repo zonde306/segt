@@ -152,7 +152,6 @@
     <ClInclude Include="structs\cliententlist.h" />
     <ClInclude Include="structs\console.h" />
     <ClInclude Include="structs\crc32.h" />
-    <ClInclude Include="structs\cvar.h" />
     <ClInclude Include="structs\debugoverlay.h" />
     <ClInclude Include="structs\engine.h" />
     <ClInclude Include="structs\event.h" />

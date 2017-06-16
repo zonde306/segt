@@ -32,14 +32,14 @@ public:
 	bool operator==(const Vector& v) { return true; }
 	bool operator!=(const Vector& v) { return true; }
 
-	inline Vector operator-(const Vector& v) { return Vector(x - v.x, y - v.y, z - v.z); }
-	inline Vector operator+(const Vector& v) { return Vector(x + v.x, y + v.y, z + v.z); }
-	inline Vector operator*(const Vector& v) { return Vector(x * v.x, y * v.y, z * v.z); }
-	inline Vector operator/(const Vector& v) { return Vector(x / v.x, y / v.y, z / v.z); }
-	inline Vector operator-(const float& f) { return Vector(x - f, y - f, z - f); }
-	inline Vector operator+(const float& f) { return Vector(x + f, y + f, z + f); }
-	inline Vector operator*(const float& f) { return Vector(x * f, y * f, z * f); }
-	inline Vector operator/(const float& f) { return Vector(x / f, y / f, z / f); }
+	inline Vector operator-(const Vector& v) const { return Vector(x - v.x, y - v.y, z - v.z); }
+	inline Vector operator+(const Vector& v) const { return Vector(x + v.x, y + v.y, z + v.z); }
+	inline Vector operator*(const Vector& v) const { return Vector(x * v.x, y * v.y, z * v.z); }
+	inline Vector operator/(const Vector& v) const { return Vector(x / v.x, y / v.y, z / v.z); }
+	inline Vector operator-(const float& f) const { return Vector(x - f, y - f, z - f); }
+	inline Vector operator+(const float& f) const { return Vector(x + f, y + f, z + f); }
+	inline Vector operator*(const float& f) const { return Vector(x * f, y * f, z * f); }
+	inline Vector operator/(const float& f) const { return Vector(x / f, y / f, z / f); }
 	// inline Vector operator*(const int n) { return Vector(x*n, y*n, z*n); }
 	// inline Vector operator*(const float n) { return Vector(x*n, y*n, z*n); }
 

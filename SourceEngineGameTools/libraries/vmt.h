@@ -1,4 +1,6 @@
 #pragma once
+#include <cassert>
+
 class CVMT
 {
 public:
@@ -127,10 +129,18 @@ private:
 	{
 		int index = 0;
 		void** table = ((void**)pOrgTable);
-		for (void* fn; (fn = table[index]) != nullptr; index++)
+		__try
 		{
-			if (!this->CanReadPointer(fn)) break;
+			for (void* fn; (fn = table[index]) != nullptr; index++)
+			{
+				if (!this->CanReadPointer(fn)) break;
+			}
 		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("VMT 0x%X access error %d\n", (DWORD)table, index--);
+		}
+		
 		return index;
 	}
 	int count;

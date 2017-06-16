@@ -1,29 +1,31 @@
 #pragma once
 #include "../../Utils.h"
+#include "../libraries/math.h"
+
 class CBaseEntity
 {
 public:
-	float Friction()
+	float& GetFriction()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_flFriction");
 		return *(float*)(this + offset);
 	}
 
-	int TeamNum()
+	int& GetTeam()
 	{
-		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iTeamNum");
+		static int offset = netVars->GetOffset("DT_BasePlayer", "m_iTeamNum");
 		return *(int*)(this + offset);
 	}
 
-	Vector Velocity()
+	Vector& GetVelocity()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_vecVelocity[0]");
 		return *(Vector*)(this + offset);
 	}
 
-	int Health()
+	int& GetHealth()
 	{
-		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iHealth");
+		static int offset = netVars->GetOffset("DT_BasePlayer", "m_iHealth");
 		return *(int*)(this + offset);
 	}
 
@@ -32,43 +34,25 @@ public:
 		return *(int*)((DWORD)this + 64);
 	}
 
-	int Flags()
+	int& GetFlags()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_fFlags");
 		return *(int*)(this + offset);
 	}
 
-	int Flags(int flags)
-	{
-		static int offset = netVars->GetOffset("DT_BasePlayer", "m_fFlags");
-		return (*(int*)(this + offset) = flags);
-	}
-
-	QAngle AimPunch()
+	QAngle& GetAimPunch()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_aimPunchAngle");
 		return *(QAngle*)(this + offset);
 	}
 
-	QAngle AimPunch(QAngle angles)
-	{
-		static int offset = netVars->GetOffset("DT_BasePlayer", "m_aimPunchAngle");
-		return (*(QAngle*)(this + offset) = angles);
-	}
-
-	QAngle ViewPunch()
+	QAngle& GetViewPunch()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_viewPunchAngle");
 		return *(QAngle*)(this + offset);
 	}
 
-	QAngle ViewPunch(QAngle angles)
-	{
-		static int offset = netVars->GetOffset("DT_BasePlayer", "m_viewPunchAngle");
-		return (*(QAngle*)(this + offset) = angles);
-	}
-
-	int TickBase()
+	int& GetTickBase()
 	{
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_nTickBase");
 		return *(int*)(this + offset);
@@ -76,10 +60,48 @@ public:
 
 	Vector GetEyePosition()
 	{
-
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_vecViewOffset[0]");
 		Vector vecViewOffset = *(Vector*)(this + offset);
 		return GetAbsOrigin() + vecViewOffset;
+	}
+
+	QAngle& GetEyeAngles() const
+	{
+		static int offset = netVars->GetOffset("DT_CSPlayer", "m_angEyeAngles[0]");
+		return *(Vector*)(this + offset);
+	}
+
+	void* ActiveWeapon()
+	{
+		static int offset = netVars->GetOffset("DT_BaseCombatCharacter", "m_hActiveWeapon");
+		return *(void**)(this + offset);
+	}
+
+	/*
+	const char* GetClassname()
+	{
+		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iClassname");
+		return *(const char**)(this + offset);
+	}
+
+	const char* GetModelName()
+	{
+		static int offset = netVars->GetOffset("DT_BaseEntity", "m_ModelName");
+		return *(const char**)(this + offset);
+	}
+
+	const char* GetName()
+	{
+		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iName");
+		return *(const char**)(this + offset);
+	}
+	*/
+
+	template<typename T>
+	T& GetNetProp(std::string prop, std::string table = "DT_BaseEntity") const
+	{
+		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+		return *(T*)(this + offset);
 	}
 
 	Vector& GetAbsOrigin()
@@ -111,7 +133,6 @@ public:
 
 	bool IsAlive()
 	{
-
 		static int offset = netVars->GetOffset("DT_BasePlayer", "m_lifeState");
 		BYTE lifestate = *(BYTE*)((DWORD)this + offset);
 		return (lifestate == 0);
@@ -131,10 +152,10 @@ public:
 		return ((OriginalFn)VMT.GetFunction(pRenderable, indexes::SetupBones))(pRenderable, pBoneToWorldOut, nMaxBones, boneMask, currentTime);
 	}
 
-	void* GetModel()
+	model_t* GetModel()
 	{
 		void *pRenderable = (void*)(this + 0x4);
-		typedef void*(__thiscall* OriginalFn)(PVOID);
+		typedef model_t*(__thiscall* OriginalFn)(PVOID);
 		return VMT.getvfunc<OriginalFn>(pRenderable, indexes::GetModel)(pRenderable);
 	}
 
@@ -142,5 +163,35 @@ public:
 	{
 		typedef int(__thiscall *OriginalFn)(PVOID);
 		return VMT.getvfunc<OriginalFn>(this, indexes::GetWeaponId)(this);
+	}
+
+	Vector GetHitboxPosition(int Hitbox)
+	{
+		VMatrix matrix[128];
+		if (!this->SetupBones(matrix, 128, 0x00000100, GetTickCount64())) return Vector(0, 0, 0);
+		const model_t* mod = this->GetModel();
+		if (!mod) return Vector(0, 0, 0);
+		studiohdr_t* hdr = Interfaces.ModelInfo->GetStudioModel(mod);
+		if (!hdr) return Vector(0, 0, 0);
+		mstudiohitboxset_t* set = hdr->pHitboxSet(0);
+		if (!set) return Vector(0, 0, 0);
+		mstudiobbox_t* hitbox = set->pHitbox(Hitbox);
+		if (!hitbox) return Vector(0, 0, 0);
+		Vector MIN, MAX, MIDDLE;
+		VectorTransform(hitbox->bbmin, matrix[hitbox->bone], MIN);
+		VectorTransform(hitbox->bbmax, matrix[hitbox->bone], MAX);
+		MIDDLE = (MIN + MAX) * 0.5f;
+		return MIDDLE;
+	}
+
+	Vector GetBonePosition(int bone)
+	{
+		VMatrix boneMatrix[128];
+		if (this->SetupBones(boneMatrix, 128, 0x00000100, GetTickCount64()))
+		{
+			return Vector(boneMatrix[bone][0][3], boneMatrix[bone][1][3], boneMatrix[bone][2][3]);
+		}
+
+		return Vector(0, 0, 0);
 	}
 };

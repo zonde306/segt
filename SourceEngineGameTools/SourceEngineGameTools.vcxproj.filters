@@ -48,9 +48,6 @@
     <ClInclude Include="structs\crc32.h">
       <Filter>structs</Filter>
     </ClInclude>
-    <ClInclude Include="structs\cvar.h">
-      <Filter>structs</Filter>
-    </ClInclude>
     <ClInclude Include="structs\engine.h">
       <Filter>structs</Filter>
     </ClInclude>

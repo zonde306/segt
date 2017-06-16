@@ -259,7 +259,7 @@ public:
 		int offset = GetProp(tableName, propName);
 		if (!offset)
 		{
-			printf("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
+			printf("ERROR: Failed to find offset for prop: %s from table: %s\n", propName, tableName);
 			return 0;
 		}
 
@@ -273,13 +273,13 @@ private:
 		RecvTable* recvTable = GetTable(tableName);
 		if (!recvTable)
 		{
-			printf("ERROR: Failed to find table: %s", tableName);
+			printf("ERROR: Failed to find table: %s\n", tableName);
 			return 0;
 		}
 		int offset = GetProp(recvTable, propName, prop);
 		if (!offset)
 		{
-			printf("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
+			printf("ERROR: Failed to find offset for prop: %s from table: %s\n", propName, tableName);
 			return 0;
 		}
 

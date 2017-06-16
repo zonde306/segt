@@ -14,11 +14,13 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		HMENU hMenu = GetSystemMenu(hwnd, FALSE);
 		if (hMenu) DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
 
-		SetConsoleTitleA("[Enigma]: Console");
+		SetConsoleTitleA("Console");
 		freopen("CONIN$", "r", stdin);
 		freopen("CONOUT$", "w", stdout);
-		printf("RUN\n");
+		// printf("RUN\n");
 		Interfaces.GetInterfaces();
+		netVars = new CNetVars();
+
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, NULL, NULL, NULL);
 	}
 	return true;
@@ -26,31 +28,38 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 
 typedef void(__fastcall* FnPaintTraverse)(void*, unsigned int, bool, bool);
 void __fastcall Hooked_PaintTraverse(void*, void*, unsigned int, bool, bool);
-FnPaintTraverse oPaintTraverse;
+static FnPaintTraverse oPaintTraverse;
 
 typedef bool(__stdcall* FnCreateMoveShared)(float, CUserCmd*);
 bool __stdcall Hooked_CreateMoveShared(float, CUserCmd*);
-FnCreateMoveShared oCreateMoveShared;
+static FnCreateMoveShared oCreateMoveShared;
 
 typedef void(__stdcall* FnCreateMove)(int, float, bool);
 void __stdcall Hooked_CreateMove(int, float, bool);
-FnCreateMove oCreateMove;
+static FnCreateMove oCreateMove;
 
 typedef void(__stdcall* FnFrameStageNotify)(ClientFrameStage_t);
 void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t);
-FnFrameStageNotify oFrameStageNotify;
+static FnFrameStageNotify oFrameStageNotify;
 
 typedef int(__stdcall* FnInKeyEvent)(int, ButtonCode_t, const char *);
 int __stdcall Hooked_InKeyEvent(int, ButtonCode_t, const char *);
-FnInKeyEvent oInKeyEvent;
+static FnInKeyEvent oInKeyEvent;
 
 typedef void(__stdcall* FnRunCommand)(CBaseEntity*, CUserCmd*, CMoveHelper*);
 void __stdcall Hooked_RunCommand(CBaseEntity*, CUserCmd*, CMoveHelper*);
-FnRunCommand oRunCommand;
+static FnRunCommand oRunCommand;
 
 typedef void(__stdcall* FnDrawModel)(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
 void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
-FnDrawModel oDrawModel;
+static FnDrawModel oDrawModel;
+
+static ConVar *sv_cheats, *r_drawothermodels, *cl_drawshadowtexture, *mat_fullbright;
+
+void bunnyHop();
+void autoPistol();
+void autoAim();
+void esp();
 
 void StartCheat()
 {
@@ -59,10 +68,26 @@ void StartCheat()
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
 	address = Utils::GetModuleBase("client.dll", &size);
+	printf("client.dll = 0x%X\n", address);
+
 	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, "B8 ? ? ? ? C3")) != nullptr)
 	{
 		Interfaces.ClientMode = GetClientModeNormal();
-		Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
+		if (Interfaces.ClientMode)
+		{
+			Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
+			printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+		}
+	}
+	else
+	{
+		Interfaces.ClientMode = (void*)(address + IClientModePointer);
+
+		if (Interfaces.ClientMode && (*(DWORD*)Interfaces.ClientMode) > address)
+		{
+			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
+			printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+		}
 	}
 	
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
@@ -107,6 +132,42 @@ void StartCheat()
 		printf("oDrawModel = 0x%X\n", (DWORD)oDrawModel);
 	}
 
+	if (Interfaces.Cvar)
+	{
+		sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
+		printf("sv_cheats = 0x%X\n", (DWORD)sv_cheats);
+
+		r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
+		printf("r_drawothermodels = 0x%X\n", (DWORD)r_drawothermodels);
+
+		cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cl_drawshadowtexture);
+
+		mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
+		printf("mat_fullbright = 0x%X\n", (DWORD)mat_fullbright);
+
+	}
+
+	for (;;)
+	{
+		if (Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible())
+		{
+			if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+				bunnyHop();
+
+			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+				autoPistol();
+
+			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+				esp();
+
+			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+				autoAim();
+		}
+
+		Sleep(1);
+	}
+
 }
 
 void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frametime, bool active)
@@ -138,7 +199,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		}
 		else if (cmd->buttons & IN_JUMP)
 		{
-			if (client->Flags() & FL_ONGROUND)
+			if (client->GetFlags() & FL_ONGROUND)
 			{
 				lastJump = true;
 				shouldFake = true;
@@ -156,7 +217,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		}
 
 		// strafe
-		if (!(client->Flags() & FL_ONGROUND))
+		if (!(client->GetFlags() & FL_ONGROUND))
 		{
 			if (cmd->mousedx < 0)
 				cmd->sidemove = -400.f;
@@ -172,6 +233,52 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 {
+	CBaseEntity* client = GetLocalClient();
+
+	if (!client || !cmd)
+		return false;
+
+	// 连跳
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	{
+		static bool lastJump = false;
+		static bool shouldFake = false;
+
+		if (!lastJump && shouldFake)
+		{
+			shouldFake = false;
+			cmd->buttons |= IN_JUMP;
+		}
+		else if (cmd->buttons & IN_JUMP)
+		{
+			if (client->GetFlags() & FL_ONGROUND)
+			{
+				lastJump = true;
+				shouldFake = true;
+			}
+			else
+			{
+				cmd->buttons &= ~IN_JUMP;
+				lastJump = false;
+			}
+		}
+		else
+		{
+			lastJump = false;
+			shouldFake = false;
+		}
+
+		// strafe
+		if (!(client->GetFlags() & FL_ONGROUND))
+		{
+			if (cmd->mousedx < 0)
+				cmd->sidemove = -400.f;
+
+			if (cmd->mousedx > 0)
+				cmd->sidemove = 400.f;
+		}
+	}
+
 	return oCreateMoveShared(flInputSampleTime, cmd);
 }
 
@@ -196,7 +303,9 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
 	{
-
+		Interfaces.Surface->SetDrawColor(255, 255, 255, 255);
+		Interfaces.Surface->DrawSetTextColor(255, 255, 128, 255);
+		Interfaces.Surface->DrawFilledRect(100, 100, 200, 200);
 	}
 
 	// ((FnPaintTraverse)Interfaces.PanelHook->GetOriginalFunction(indexes::PaintTraverse))(ecx, panel, forcePaint, allowForce);
@@ -209,16 +318,16 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	
 	if (stage == FRAME_RENDER_START && Interfaces.Engine->IsInGame())
 	{
-		aim = GetLocalClient()->AimPunch();
-		view = GetLocalClient()->ViewPunch();
+		aim = GetLocalClient()->GetAimPunch();
+		view = GetLocalClient()->GetViewPunch();
 	}
 
 	oFrameStageNotify(stage);
 
 	if (aim && view)
 	{
-		GetLocalClient()->AimPunch(aim);
-		GetLocalClient()->ViewPunch(view);
+		GetLocalClient()->GetAimPunch() = aim;
+		GetLocalClient()->GetViewPunch() = view;
 	}
 }
 
@@ -237,4 +346,173 @@ void __stdcall Hooked_RunCommand(CBaseEntity* pEntity, CUserCmd* pCmd, CMoveHelp
 void __stdcall Hooked_DrawModel(PVOID context, PVOID state, const ModelRenderInfo_t& pInfo, matrix3x4_t* pCustomBoneToWorld)
 {
 	oDrawModel(context, state, pInfo, pCustomBoneToWorld);
+}
+
+bool IsEnemyVisible(CBaseEntity* enemy)
+{
+	CBaseEntity* client = GetLocalClient();
+	Vector end = enemy->GetAbsOrigin();
+
+	trace_t trace;
+	Ray_t ray;
+
+	CTraceFilter filter;
+	filter.pSkip1 = client;
+
+	ray.Init(client->GetEyePosition(), end);
+	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+	if (trace.m_pEnt && trace.m_pEnt->GetTeam() != client->GetTeam() && trace.m_pEnt->GetHealth() > 0 &&
+		!trace.m_pEnt->IsDormant() && trace.physicsBone <= 128 && trace.physicsBone > 0)
+		return true;
+
+	return false;
+}
+
+void bunnyHop()
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+		client->IsAlive())
+	{
+		if (client->GetFlags() & FL_ONGROUND)
+			Interfaces.Engine->ClientCmd("+jump");
+		else
+			Interfaces.Engine->ClientCmd("-jump");
+
+		Sleep(10);
+	}
+
+	Sleep(1);
+}
+
+void autoPistol()
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+		client->IsAlive())
+	{
+		CBaseEntity* weapon = (CBaseEntity*)client->ActiveWeapon();
+		if(weapon)
+			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+		
+		if (weapon)
+		{
+			Interfaces.Engine->ClientCmd("+attack");
+			Sleep(10);
+			Interfaces.Engine->ClientCmd("-attack");
+			Sleep(9);
+		}
+
+		Sleep(1);
+	}
+
+	Sleep(1);
+}
+
+void autoAim()
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+		client->IsAlive())
+	{
+		CBaseEntity* weapon = (CBaseEntity*)client->ActiveWeapon();
+		if (weapon)
+			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+
+		if (weapon)
+		{
+			int team = client->GetTeam();
+			CBaseEntity* current = nullptr;
+			float distance = 32767.0f, dist;
+			Vector myOrigin = client->GetEyePosition();
+			Vector myAngles = client->GetEyeAngles();
+
+			// int max = Interfaces.ClientEntList->GetHighestEntityIndex();
+			for (int i = 1; i <= 64; ++i)
+			{
+				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+				if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
+					target->GetHealth() <= 0)
+					continue;
+
+				// 选择最近的敌人
+				dist = target->GetAbsOrigin().DistTo(myOrigin);
+				if (dist < distance)
+				{
+					current = target;
+					distance = dist;
+				}
+
+				/*
+				Vector angles = CalculateAim(client->GetEyePosition(), target->GetEyePosition());
+				angles.z = 0.0f;
+
+				client->GetEyeAngles() = angles;
+				break;
+				*/
+			}
+
+			if (current != nullptr)
+			{
+				Vector position = current->GetEyePosition();
+				int zombieClass = current->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				if (zombieClass == ZC_JOCKEY)
+					position.z = current->GetAbsOrigin().z + 30.0f;
+				else if (current->GetFlags() & FL_DUCKING)
+					position.z -= 25.0f;
+
+				/*
+				switch (zombieClass)
+				{
+				case ZC_SMOKER:
+				case ZC_HUNTER:
+				case ZC_TANK:
+					position = current->GetBonePosition(BONE_NECK);
+					break;
+				case ZC_BOOMER:
+					position = current->GetBonePosition(BONE_BOOMER_CHEST);
+					break;
+				case ZC_SPITTER:
+				case ZC_JOCKEY:
+					position = current->GetBonePosition(BONE_JOCKEY_HEAD);
+					break;
+				case ZC_CHARGER:
+					position = current->GetBonePosition(BONE_CHARGER_HEAD);
+					break;
+				default:
+					position = current->GetEyePosition();
+				}
+				*/
+
+				// VectorNormalize(position);
+				Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+			}
+		}
+
+		Sleep(1);
+	}
+
+	Sleep(1);
+}
+
+void esp()
+{
+	if (Interfaces.Engine->IsInGame())
+	{
+		for (int i = 1; i <= 64; ++i)
+		{
+			CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(i);
+			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0)
+				continue;
+
+			player->GetNetProp<int>("m_iGlowType", "DT_TerrorPlayer") = 3;
+			player->GetNetProp<int>("m_nGlowRange", "DT_TerrorPlayer") = 0;
+			player->GetNetProp<int>("m_glowColorOverride", "DT_TerrorPlayer") = 65535;
+			// player->GetNetProp<int>("m_bSurvivorGlowEnabled", "DT_TerrorPlayer") = 1;
+		}
+		
+		Sleep(1);
+	}
+
+	Sleep(1);
 }

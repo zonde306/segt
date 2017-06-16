@@ -45,8 +45,8 @@ void VectorNormalize(Vector& v)
 
 void AngleVectors(const QAngle &angles, Vector *forward)
 {
-	Assert(s_bMathlibInitialized);
-	Assert(forward);
+	// Assert(s_bMathlibInitialized);
+	// Assert(forward);
 
 	float	sp, sy, cp, cy;
 
@@ -60,7 +60,7 @@ void AngleVectors(const QAngle &angles, Vector *forward)
 
 void AngleVectors(const QAngle &angles, Vector *forward, Vector *right, Vector *up)
 {
-	Assert(s_bMathlibInitialized);
+	// Assert(s_bMathlibInitialized);
 
 	float sr, sp, sy, cr, cp, cy;
 
@@ -102,7 +102,7 @@ void AngleVectors(const QAngle &angles, Vector *forward, Vector *right, Vector *
 
 void AngleVectorsTranspose(const QAngle &angles, Vector *forward, Vector *right, Vector *up)
 {
-	Assert(s_bMathlibInitialized);
+	// Assert(s_bMathlibInitialized);
 	float sr, sp, sy, cr, cp, cy;
 
 	SinCos(DEG2RAD(angles[YAW]), &sy, &cy);
@@ -133,7 +133,7 @@ void AngleVectorsTranspose(const QAngle &angles, Vector *forward, Vector *right,
 
 void VectorAngles(const Vector& forward, QAngle &angles)
 {
-	Assert(s_bMathlibInitialized);
+	// Assert(s_bMathlibInitialized);
 	float	tmp, yaw, pitch;
 
 	if (forward[1] == 0 && forward[0] == 0)
@@ -203,9 +203,9 @@ void VectorAngles(const Vector & forward, const Vector & pseudoup, QAngle & angl
 
 void CrossProduct(const float* v1, const float* v2, float* cross)
 {
-	Assert(s_bMathlibInitialized);
-	Assert(v1 != cross);
-	Assert(v2 != cross);
+	// Assert(s_bMathlibInitialized);
+	// Assert(v1 != cross);
+	// Assert(v2 != cross);
 	cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
 	cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
 	cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
@@ -275,10 +275,10 @@ void VectorTransform(class Vector const &, struct matrix3x4_t const &, class Vec
 
 float QuaternionNormalize(Quaternion &q)
 {
-	Assert( s_bMathlibInitialized );
+	// Assert( s_bMathlibInitialized );
 	float radius, iradius;
 
-	Assert(q.IsValid());
+	// Assert(q.IsValid());
 
 	radius = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
 
@@ -373,4 +373,40 @@ void VectorVectors(const Vector & forward, Vector & right, Vector & up)
 		CrossProduct(right, forward, up);
 		VectorNormalize(up);
 	}
+}
+
+Vector CalculateAim(const Vector &origin, const Vector &target)
+{
+	Vector angles;
+	Vector deltaPos = target - origin;
+
+	angles.y = atan2(deltaPos.y, deltaPos.x) * 180 / M_PI;
+	angles.x = atan2(-(deltaPos.z), sqrt(deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y)) * 180 / M_PI;
+	angles.z = 0.0f;
+
+	return angles;
+}
+
+Vector CalcAngle(const Vector& source, const Vector& destination)
+{
+	Vector delta(source - destination);
+	Vector angles;
+
+	double hypotenuse = sqrt(delta.x * delta.x + delta.y * delta.y);
+
+	angles.x = static_cast<double>(atan(delta.z / hypotenuse) * M_PI);
+	angles.y = static_cast<double>(atan(delta.y / delta.z) * M_PI);
+	angles.z = 0.0;
+
+	if (delta.x >= 0.0)
+		angles.y += 180.0;
+
+	return angles;
+}
+
+inline void VectorTransform(const Vector& in1, const VMatrix &in2, Vector &out)
+{
+	out[0] = DotProduct(in1, Vector(in2[0][0], in2[0][1], in2[0][2])) + in2[0][3];
+	out[1] = DotProduct(in1, Vector(in2[1][0], in2[1][1], in2[1][2])) + in2[1][3];
+	out[2] = DotProduct(in1, Vector(in2[2][0], in2[2][1], in2[2][2])) + in2[2][3];
 }
