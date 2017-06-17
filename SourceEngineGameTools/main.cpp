@@ -55,6 +55,7 @@ void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x
 static FnDrawModel oDrawModel;
 
 static ConVar *sv_cheats, *r_drawothermodels, *cl_drawshadowtexture, *mat_fullbright;
+static CBaseEntity* pCurrentAiming;
 
 void bunnyHop();
 void autoPistol();
@@ -81,9 +82,8 @@ void StartCheat()
 	}
 	else
 	{
-		Interfaces.ClientMode = (void*)(address + IClientModePointer);
-
-		if (Interfaces.ClientMode && (*(DWORD*)Interfaces.ClientMode) > address)
+		Interfaces.ClientMode = *(void**)(address + IClientModePointer);
+		if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
 			printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
@@ -134,16 +134,16 @@ void StartCheat()
 
 	if (Interfaces.Cvar)
 	{
-		sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
+		sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
 		printf("sv_cheats = 0x%X\n", (DWORD)sv_cheats);
 
-		r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
+		r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
 		printf("r_drawothermodels = 0x%X\n", (DWORD)r_drawothermodels);
 
-		cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+		cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
 		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cl_drawshadowtexture);
 
-		mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
+		mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
 		printf("mat_fullbright = 0x%X\n", (DWORD)mat_fullbright);
 
 	}
@@ -163,6 +163,8 @@ void StartCheat()
 
 			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
 				autoAim();
+			else if (pCurrentAiming != nullptr)
+				pCurrentAiming = nullptr;
 		}
 
 		Sleep(1);
@@ -421,45 +423,68 @@ void autoAim()
 
 		if (weapon)
 		{
-			int team = client->GetTeam();
-			CBaseEntity* current = nullptr;
-			float distance = 32767.0f, dist;
+			// 当前位置
 			Vector myOrigin = client->GetEyePosition();
-			Vector myAngles = client->GetEyeAngles();
 
-			// int max = Interfaces.ClientEntList->GetHighestEntityIndex();
-			for (int i = 1; i <= 64; ++i)
+			// 检查是否需要选择新的敌人
+			if (pCurrentAiming == nullptr || !pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
 			{
-				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-				if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
-					target->GetHealth() <= 0)
-					continue;
+				Vector myAngles;
+				Interfaces.Engine->GetViewAngles(myAngles);
 
-				// 选择最近的敌人
-				dist = target->GetAbsOrigin().DistTo(myOrigin);
-				if (dist < distance)
+				int team = client->GetTeam();
+				float distance = 32767.0f, dist, fov;
+				
+				// int max = Interfaces.ClientEntList->GetHighestEntityIndex();
+				for (int i = 1; i <= 64; ++i)
 				{
-					current = target;
-					distance = dist;
+					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+					if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
+						target->GetHealth() <= 0)
+						continue;
+
+					/*
+					int classId = (int)target->GetClientClass();
+					if (classId != ET_BOOMER && classId != ET_JOCKEY && classId != ET_SPITTER &&
+						classId != ET_CHARGER && classId != ET_HUNTER && classId != ET_SMOKER &&
+						classId != ET_TANK && classId != ET_INFECTED)
+						continue;
+					*/
+
+					int zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+					if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
+						continue;
+
+					// 选择最近的敌人
+					dist = target->GetAbsOrigin().DistTo(myOrigin);
+					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
+					if (dist < distance && fov <= 30.f)
+					{
+						pCurrentAiming = target;
+						distance = dist;
+					}
+
+					/*
+					Vector angles = CalculateAim(client->GetEyePosition(), target->GetEyePosition());
+					angles.z = 0.0f;
+
+					client->GetEyeAngles() = angles;
+					break;
+					*/
 				}
-
-				/*
-				Vector angles = CalculateAim(client->GetEyePosition(), target->GetEyePosition());
-				angles.z = 0.0f;
-
-				client->GetEyeAngles() = angles;
-				break;
-				*/
 			}
 
-			if (current != nullptr)
+			if (pCurrentAiming != nullptr)
 			{
-				Vector position = current->GetEyePosition();
-				int zombieClass = current->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				// 目标位置
+				Vector position = pCurrentAiming->GetEyePosition();
+				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 				if (zombieClass == ZC_JOCKEY)
-					position.z = current->GetAbsOrigin().z + 30.0f;
+					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				/*
 				else if (current->GetFlags() & FL_DUCKING)
 					position.z -= 25.0f;
+				*/
 
 				/*
 				switch (zombieClass)
@@ -505,10 +530,10 @@ void esp()
 			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0)
 				continue;
 
-			player->GetNetProp<int>("m_iGlowType", "DT_TerrorPlayer") = 3;
-			player->GetNetProp<int>("m_nGlowRange", "DT_TerrorPlayer") = 0;
-			player->GetNetProp<int>("m_glowColorOverride", "DT_TerrorPlayer") = 65535;
-			// player->GetNetProp<int>("m_bSurvivorGlowEnabled", "DT_TerrorPlayer") = 1;
+			player->SetNetProp("m_iGlowType", 3, "DT_TerrorPlayer");
+			player->SetNetProp("m_nGlowRange", 65535, "DT_TerrorPlayer");
+			player->SetNetProp("m_glowColorOverride", 65535, "DT_TerrorPlayer");
+			// player->SetNetProp("m_bSurvivorGlowEnabled", true, "DT_TerrorPlayer");
 		}
 		
 		Sleep(1);

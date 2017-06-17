@@ -410,3 +410,31 @@ inline void VectorTransform(const Vector& in1, const VMatrix &in2, Vector &out)
 	out[1] = DotProduct(in1, Vector(in2[1][0], in2[1][1], in2[1][2])) + in2[1][3];
 	out[2] = DotProduct(in1, Vector(in2[2][0], in2[2][1], in2[2][2])) + in2[2][3];
 }
+
+float GetAnglesFieldOfView(const Vector& myAngles, const Vector& aimAngles)
+{
+	static auto getFov = [](float orgViewX, float orgViewY, float ViewX, float ViewY, float& fovX, float& fovY) -> void
+	{
+		fovX = std::abs(orgViewX - ViewX);
+		fovY = std::abs(orgViewY - ViewY);
+
+		if (fovY < -180) fovY += 360;
+
+		if (fovY > 180) fovY -= 360;
+	};
+
+	static auto getDistance = [](float Xhere, float Yhere) -> float
+	{
+		Xhere = std::abs(Xhere);
+		Yhere = std::abs(Yhere);
+
+		Xhere *= Xhere;
+		Yhere *= Yhere;
+		float combined = (Xhere + Yhere);
+		return sqrt(combined);
+	};
+
+	Vector toHim(0.0f, 0.0f, 0.0f);
+	getFov(myAngles.x, myAngles.y, aimAngles.x, aimAngles.y, toHim.x, toHim.y);
+	return getDistance(toHim.x, toHim.y);
+}

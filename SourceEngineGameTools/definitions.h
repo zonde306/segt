@@ -145,7 +145,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 //--------------L4D2-------------
 //----------------------------------
 //----------------------------------
-#define IClientModePointer			0x794148	// (IClientMode*)(client.dll + 0x837E78)
+#define IClientModePointer		0x7A5380		// (IClientMode*)(client.dll + 0x794148)
 
 enum EntityType_t
 {
@@ -171,8 +171,9 @@ enum ZombieClass_t
 	ZC_SPITTER = 4,
 	ZC_JOCKEY = 5,
 	ZC_CHARGER = 6,
+	ZC_WITCH = 7,
 	ZC_TANK = 8,
-	ZC_SURVIVORBOT = 9,
+	ZC_SURVIVORBOT = 9
 };
 
 enum SurvivorBone_t
@@ -185,7 +186,7 @@ enum SurvivorBone_t
 	BONE_FRANCIS_HEAD = 14,
 	BONE_ZOEY_HEAD = 14,
 	BONE_LOUIS_HEAD = 14,
-	BONE_BILL_HEAD = 14,
+	BONE_BILL_HEAD = 14
 };
 
 enum ZombieBone_t

@@ -108,6 +108,9 @@
     <ClInclude Include="structs\render.h">
       <Filter>structs</Filter>
     </ClInclude>
+    <ClInclude Include="libraries\xorstr.h">
+      <Filter>libraries</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="structs\checksum_md5.cpp">

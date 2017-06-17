@@ -48,13 +48,13 @@ public:
 		Panel = (CPanel*)GetPointer("vgui2.dll","VGUI_Panel");
 		Surface = (CSurface*)GetPointer("vguimatsurface.dll", "VGUI_Surface");
 		PlayerInfo = (CPlayerInfoManager*)GetPointer("server.dll", "PlayerInfoManager");
-		Cvar = (CCvar*)GetPointer("vstdlib.dll", "VEngineCvar");
 		Prediction = (CPrediction*)GetPointer("client.dll", "VClientPrediction");
 		GameMovement = (CGameMovement*)GetPointer("client.dll", "GameMovement");
 		DebugOverlay = (CDebugOverlay*)GetPointer("engine.dll", "VDebugOverlay");
 		GameEvent = (CGameEvent*)GetPointer("engine.dll", "GAMEEVENTSMANAGER");
 		ModelRender = (CModelRender*)GetPointer("engine.dll", "VEngineModel");
 		RenderView = (CRenderView*)GetPointer("engine.dll", "VEngineRenderView");
+		Cvar = (CCvar*)GetPointer("vstdlib.dll", "VEngineCvar");
 		
 		PDWORD pdwClient = (PDWORD)*(PDWORD)Client;
 		// Input = *(CInput**)((*(DWORD**)Client)[15] + 0x1);

@@ -144,6 +144,7 @@
     <ClInclude Include="libraries\interfaces.h" />
     <ClInclude Include="libraries\math.h" />
     <ClInclude Include="libraries\vmt.h" />
+    <ClInclude Include="libraries\xorstr.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="structs\angle.h" />
     <ClInclude Include="structs\baseentity.h" />

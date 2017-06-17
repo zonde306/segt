@@ -18,6 +18,7 @@
 using namespace std;
 #include "definitions.h"
 #include "indexes.h"
+#include "libraries\xorstr.h"
 
 #include "libraries\vmt.h"
 

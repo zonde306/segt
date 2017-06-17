@@ -104,6 +104,13 @@ public:
 		return *(T*)(this + offset);
 	}
 
+	template<typename T>
+	T& SetNetProp(std::string prop, const T& value, std::string table = "DT_BaseEntity") const
+	{
+		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+		return (*(T*)(this + offset) = value);
+	}
+
 	Vector& GetAbsOrigin()
 	{
 		typedef Vector& (__thiscall* OriginalFn)(void*);
