@@ -21,6 +21,7 @@ using namespace std;
 #include "libraries\xorstr.h"
 
 #include "libraries\vmt.h"
+#include "../gpud3dhook/main.h"
 
 #include "structs\vector.h"
 #include "structs\vmatrix.h"

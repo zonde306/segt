@@ -175,18 +175,38 @@ public:
 	Vector GetHitboxPosition(int Hitbox)
 	{
 		VMatrix matrix[128];
-		if (!this->SetupBones(matrix, 128, 0x00000100, GetTickCount64())) return Vector(0, 0, 0);
-		const model_t* mod = this->GetModel();
-		if (!mod) return Vector(0, 0, 0);
-		studiohdr_t* hdr = Interfaces.ModelInfo->GetStudioModel(mod);
-		if (!hdr) return Vector(0, 0, 0);
-		mstudiohitboxset_t* set = hdr->pHitboxSet(0);
-		if (!set) return Vector(0, 0, 0);
-		mstudiobbox_t* hitbox = set->pHitbox(Hitbox);
-		if (!hitbox) return Vector(0, 0, 0);
+		model_t* mod;
+		studiohdr_t* hdr;
+		mstudiohitboxset_t* set;
+		mstudiobbox_t* hitbox;
 		Vector MIN, MAX, MIDDLE;
+
+		__try
+		{
+			if (!this->SetupBones(matrix, 128, 0x00000100, GetTickCount64()))
+				return Vector(0, 0, 0);
+
+			if ((mod = this->GetModel()) == nullptr)
+				return Vector(0, 0, 0);
+
+			if ((hdr = Interfaces.ModelInfo->GetStudioModel(mod)) == nullptr)
+				return Vector(0, 0, 0);
+
+			if ((set = hdr->pHitboxSet(0)) == nullptr)
+				return Vector(0, 0, 0);
+
+			if ((hitbox = set->pHitbox(Hitbox)) == nullptr)
+				return Vector(0, 0, 0);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("CBaseEntity::GetHitboxPosition 发生了一些错误。");
+			return Vector(0, 0, 0);
+		}
+		
 		VectorTransform(hitbox->bbmin, matrix[hitbox->bone], MIN);
 		VectorTransform(hitbox->bbmax, matrix[hitbox->bone], MAX);
+
 		MIDDLE = (MIN + MAX) * 0.5f;
 		return MIDDLE;
 	}
@@ -194,9 +214,15 @@ public:
 	Vector GetBonePosition(int bone)
 	{
 		VMatrix boneMatrix[128];
-		if (this->SetupBones(boneMatrix, 128, 0x00000100, GetTickCount64()))
+		__try
 		{
-			return Vector(boneMatrix[bone][0][3], boneMatrix[bone][1][3], boneMatrix[bone][2][3]);
+			if (this->SetupBones(boneMatrix, 128, 0x00000100, GetTickCount64()))
+				return Vector(boneMatrix[bone][0][3], boneMatrix[bone][1][3], boneMatrix[bone][2][3]);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("CBaseEntity::GetBonePosition 发生了一些错误。");
+			return Vector(0, 0, 0);
 		}
 
 		return Vector(0, 0, 0);

@@ -60,7 +60,7 @@ public:
 	float LengthSqr(void) { return (x*x + y*y + z*z); }
 	operator bool() { return IsValid(); };
 
-	inline bool IsZero(float tolerance) { return (x > -tolerance && x < tolerance && y > -tolerance && y < tolerance && z > -tolerance && z < tolerance); }
+	inline bool IsZero(float tolerance = 1e-6f) { return (x > -tolerance && x < tolerance && y > -tolerance && y < tolerance && z > -tolerance && z < tolerance); }
 	inline bool WithinAABox(const Vector& boxmin, const Vector& boxmax) { return ((x >= boxmin.x) && (x <= boxmax.x) && (y >= boxmin.y) && (y <= boxmax.y) && (z >= boxmin.z) && (z <= boxmax.z)); }
 
 	float DistToSqr(const Vector& vOther)

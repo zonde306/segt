@@ -22,6 +22,8 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		netVars = new CNetVars();
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, NULL, NULL, NULL);
+		InitGPUD3DHook();
+		TryInitD3D(FindWindowA(NULL, "Left 4 Dead 2"));
 	}
 	return true;
 }
@@ -370,6 +372,60 @@ bool IsEnemyVisible(CBaseEntity* enemy)
 	return false;
 }
 
+Vector GetHeadPosition(CBaseEntity* player)
+{
+	Vector position;
+	int zombieClass = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+	if (zombieClass == ZC_SMOKER || zombieClass == ZC_HUNTER || zombieClass == ZC_TANK)
+		position = player->GetBonePosition(BONE_NECK);
+	else if (zombieClass == ZC_SPITTER || zombieClass == ZC_JOCKEY)
+		position = player->GetBonePosition(BONE_JOCKEY_HEAD);
+	else if (zombieClass == ZC_BOOMER)
+		position = player->GetBonePosition(BONE_BOOMER_CHEST);
+	else if (zombieClass == ZC_CHARGER)
+		position = player->GetBonePosition(BONE_CHARGER_HEAD);
+	else if (zombieClass == ZC_SURVIVORBOT)
+	{
+		int character = player->GetNetProp<int>("m_survivorCharacter", "DT_TerrorPlayer");
+		switch (character)
+		{
+		case 0:
+			position = player->GetBonePosition(BONE_NICK_HEAD);
+			break;
+		case 1:
+			position = player->GetBonePosition(BONE_ROCHELLE_HEAD);
+			break;
+		case 2:
+			position = player->GetBonePosition(BONE_COACH_HEAD);
+			break;
+		case 3:
+			position = player->GetBonePosition(BONE_ELLIS_HEAD);
+			break;
+		case 4:
+			position = player->GetBonePosition(BONE_BILL_HEAD);
+			break;
+		case 5:
+			position = player->GetBonePosition(BONE_ZOEY_HEAD);
+			break;
+		case 6:
+			position = player->GetBonePosition(BONE_FRANCIS_HEAD);
+			break;
+		case 7:
+			position = player->GetBonePosition(BONE_LOUIS_HEAD);
+			break;
+		}
+	}
+
+	if(!position.IsValid() || position.IsZero(1e-6f))
+	{
+		position = player->GetEyePosition();
+		if (zombieClass == ZC_JOCKEY)
+			position.z = player->GetAbsOrigin().z + 30.0f;
+	}
+
+	return position;
+}
+
 void bunnyHop()
 {
 	CBaseEntity* client = GetLocalClient();
@@ -440,7 +496,7 @@ void autoAim()
 				{
 					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
 					if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
-						target->GetHealth() <= 0)
+						target->GetHealth() <= 0 || target->IsDormant())
 						continue;
 
 					/*
@@ -458,7 +514,7 @@ void autoAim()
 					// 选择最近的敌人
 					dist = target->GetAbsOrigin().DistTo(myOrigin);
 					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
-					if (dist < distance && fov <= 30.f)
+					if (dist < distance && fov <= 25.f)
 					{
 						pCurrentAiming = target;
 						distance = dist;
@@ -478,12 +534,17 @@ void autoAim()
 			{
 				// 目标位置
 				Vector position = pCurrentAiming->GetEyePosition();
-				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-				if (zombieClass == ZC_JOCKEY)
-					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				if (pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer") == ZC_JOCKEY)
+					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;;
+				// Vector position = pCurrentAiming->GetHitboxPosition(0);
 				/*
-				else if (current->GetFlags() & FL_DUCKING)
-					position.z -= 25.0f;
+				if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)
+				{
+					position = pCurrentAiming->GetEyePosition();
+					
+					if (zombieClass == ZC_JOCKEY)
+						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				}
 				*/
 
 				/*
@@ -492,20 +553,22 @@ void autoAim()
 				case ZC_SMOKER:
 				case ZC_HUNTER:
 				case ZC_TANK:
-					position = current->GetBonePosition(BONE_NECK);
+					position = pCurrentAiming->GetBonePosition(BONE_NECK);
 					break;
 				case ZC_BOOMER:
-					position = current->GetBonePosition(BONE_BOOMER_CHEST);
+					position = pCurrentAiming->GetBonePosition(BONE_BOOMER_CHEST);
 					break;
 				case ZC_SPITTER:
 				case ZC_JOCKEY:
-					position = current->GetBonePosition(BONE_JOCKEY_HEAD);
+					position = pCurrentAiming->GetBonePosition(BONE_JOCKEY_HEAD);
 					break;
 				case ZC_CHARGER:
-					position = current->GetBonePosition(BONE_CHARGER_HEAD);
+					position = pCurrentAiming->GetBonePosition(BONE_CHARGER_HEAD);
 					break;
 				default:
-					position = current->GetEyePosition();
+					position = pCurrentAiming->GetEyePosition();
+					if (zombieClass == ZC_JOCKEY)
+						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
 				}
 				*/
 
@@ -527,7 +590,7 @@ void esp()
 		for (int i = 1; i <= 64; ++i)
 		{
 			CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(i);
-			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0)
+			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0 || player->IsDormant())
 				continue;
 
 			player->SetNetProp("m_iGlowType", 3, "DT_TerrorPlayer");
