@@ -33,6 +33,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define IN_GRENADE1					(1 << 23)
 #define IN_GRENADE2					(1 << 24)	
 #define	IN_ATTACK3					(1 << 25)
+
 #define	FL_ONGROUND					(1 << 0)	
 #define FL_DUCKING					(1 << 1)	
 #define	FL_WATERJUMP				(1 << 2)	

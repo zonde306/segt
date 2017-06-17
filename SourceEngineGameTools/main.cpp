@@ -22,10 +22,9 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		netVars = new CNetVars();
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, NULL, NULL, NULL);
-		InitGPUD3DHook();
-		TryInitD3D(FindWindowA(NULL, "Left 4 Dead 2"));
 	}
-	return true;
+
+	return TRUE;
 }
 
 typedef void(__fastcall* FnPaintTraverse)(void*, unsigned int, bool, bool);
@@ -56,6 +55,23 @@ typedef void(__stdcall* FnDrawModel)(PVOID, PVOID, const ModelRenderInfo_t&, mat
 void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
 static FnDrawModel oDrawModel;
 
+typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
+HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
+FnDrawIndexedPrimitive oDrawIndexedPrimitive;
+
+typedef HRESULT(WINAPI* FnEndScene)(IDirect3DDevice9*);
+HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9*);
+FnEndScene oEndScene;
+
+typedef HRESULT(WINAPI* FnCreateQuery)(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
+HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
+FnCreateQuery oCreateQuery;
+
+typedef HRESULT(WINAPI* FnReset)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
+HRESULT WINAPI Hooked_Reset(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
+FnReset oReset;
+
+static CVMTHookManager* gDirectXHook;
 static ConVar *sv_cheats, *r_drawothermodels, *cl_drawshadowtexture, *mat_fullbright;
 static CBaseEntity* pCurrentAiming;
 
@@ -148,6 +164,33 @@ void StartCheat()
 		mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
 		printf("mat_fullbright = 0x%X\n", (DWORD)mat_fullbright);
 
+	}
+
+	dh::gDeviceInternal = dh::FindDirexcXDevice();
+	if (dh::gDeviceInternal)
+	{
+		/*
+		DWORD* VMTable = *(DWORD**)dh::gDeviceInternal;
+		oReset = DetourFunction((FnReset)VMTable[16], Hooked_Reset, 5);
+		oEndScene = DetourFunction((FnEndScene)VMTable[42], Hooked_EndScene, 5);
+		oDrawIndexedPrimitive = DetourFunction((FnDrawIndexedPrimitive)VMTable[82], Hooked_DrawIndexedPrimitive, 12);
+		oCreateQuery = DetourFunction((FnCreateQuery)VMTable[118], Hooked_CreateQuery, 5);
+		*/
+
+		gDirectXHook = new CVMTHookManager(dh::gDeviceInternal);
+		oReset = gDirectXHook->SetupHook(16, Hooked_Reset);
+		oEndScene = gDirectXHook->SetupHook(42, Hooked_EndScene);
+		oDrawIndexedPrimitive = gDirectXHook->SetupHook(82, Hooked_DrawIndexedPrimitive);
+		oCreateQuery = gDirectXHook->SetupHook(118, Hooked_CreateQuery);
+
+		printf("Hook pD3DDevice 完毕。\n");
+		printf("oReset = 0x%X\n", (DWORD)oReset);
+		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
+		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
+		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
+
+		// printf("正在释放资源...\n");
+		// dh::ReleaseFakeDirectXDevice();
 	}
 
 	for (;;)
@@ -352,6 +395,44 @@ void __stdcall Hooked_DrawModel(PVOID context, PVOID state, const ModelRenderInf
 	oDrawModel(context, state, pInfo, pCustomBoneToWorld);
 }
 
+HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
+{
+	return oReset(device, pp);
+}
+
+HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
+{
+	return oEndScene(device);
+}
+
+HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIVETYPE type, INT baseIndex,
+	UINT minIndex, UINT numVertices, UINT startIndex, UINT primitiveCount)
+{
+	IDirect3DVertexBuffer9* stream = nullptr;
+	UINT offsetByte, stride;
+	device->GetStreamSource(0, &stream, &offsetByte, &stride);
+	if (l4d2_special(stride, numVertices, primitiveCount))
+	{
+		static DWORD oldZEnable;
+		device->GetRenderState(D3DRS_ZENABLE, &oldZEnable);
+		device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+		device->SetRenderState(D3DRS_ZFUNC, D3DCMP_NEVER);
+		oDrawIndexedPrimitive(device, type, baseIndex, minIndex, numVertices, startIndex, primitiveCount);
+		device->SetRenderState(D3DRS_ZENABLE, oldZEnable);
+		device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+	}
+	
+	return oDrawIndexedPrimitive(device, type, baseIndex, minIndex, numVertices, startIndex, primitiveCount);
+}
+
+HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, IDirect3DQuery9** query)
+{
+	if (type == D3DQUERYTYPE_OCCLUSION)
+		type = D3DQUERYTYPE_TIMESTAMP;
+	
+	return oCreateQuery(device, type, query);
+}
+
 bool IsEnemyVisible(CBaseEntity* enemy)
 {
 	CBaseEntity* client = GetLocalClient();
@@ -432,12 +513,34 @@ void bunnyHop()
 	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
 		client->IsAlive())
 	{
+		/*
 		if (client->GetFlags() & FL_ONGROUND)
 			Interfaces.Engine->ClientCmd("+jump");
 		else
 			Interfaces.Engine->ClientCmd("-jump");
-
-		Sleep(10);
+		*/
+		
+		static bool repeat = false;
+		int flags = client->GetFlags();
+		if (flags != FL_CLIENT && flags != (FL_DUCKING|FL_CLIENT) && flags != (FL_INWATER|FL_CLIENT) &&
+			flags != (FL_DUCKING|FL_CLIENT|FL_INWATER))
+		{
+			Interfaces.Engine->ClientCmd("+jump");
+			repeat = true;
+		}
+		else if (flags == FL_CLIENT || flags == (FL_DUCKING | FL_CLIENT) || flags == (FL_INWATER | FL_CLIENT) ||
+			flags == (FL_DUCKING | FL_CLIENT | FL_INWATER))
+		{
+			Interfaces.Engine->ClientCmd("-jump");
+			if (repeat)
+			{
+				Sleep(16);
+				Interfaces.Engine->ClientCmd("+jump");
+				Sleep(1);
+				Interfaces.Engine->ClientCmd("-jump");
+				repeat = false;
+			}
+		}
 	}
 
 	Sleep(1);
@@ -453,12 +556,13 @@ void autoPistol()
 		if(weapon)
 			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
 		
-		if (weapon)
+		float serverTime = client->GetTickBase() * Interfaces.Globals->interval_per_tick;
+		if (weapon && weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon") > 0 &&
+			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
 			Interfaces.Engine->ClientCmd("+attack");
 			Sleep(10);
 			Interfaces.Engine->ClientCmd("-attack");
-			Sleep(9);
 		}
 
 		Sleep(1);
@@ -603,4 +707,103 @@ void esp()
 	}
 
 	Sleep(1);
+}
+
+template<typename Fn>
+Fn * DetourFunction(Fn * src, Fn * dst, int len)
+{
+	/*
+	static auto func = [](BYTE* src, BYTE* dst, int len) -> void*
+	{
+	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
+	//BYTE *jmp = (BYTE*)malloc(len+5);
+	DWORD dwBack;
+
+	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
+	memcpy(jmp, src, len);
+	jmp += len;
+	jmp[0] = 0xE9;
+	*(DWORD*)(jmp + 1) = (DWORD)(src + len - jmp) - 5;
+	src[0] = 0xE9;
+	*(DWORD*)(src + 1) = (DWORD)(dst - src) - 5;
+	for (int i = 5; i<len; i++)  src[i] = 0x90;
+	VirtualProtect(src, len, dwBack, &dwBack);
+	return (jmp - len);
+	};
+	*/
+
+	Fn* result = nullptr;
+#if defined(EASYHOOK_API)
+	HOOK_TRACE_INFO hti = { 0 };
+	if (FAILED(LhInstallHook(src, dst, NULL, &hti)))
+		return nullptr;
+
+#elif defined(DETOURS_VERSION)
+	DetourRestoreAfterWith();
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	result = (Fn*)DetourAttach((PVOID*)&src, dst);
+	DetourTransactionCommit();
+#else
+	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
+	// BYTE *jmp = (BYTE*)malloc(len+5);
+	DWORD dwBack;
+
+	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
+	memcpy(jmp, src, len);
+	jmp += len;
+	jmp[0] = 0xE9;
+	*(DWORD*)(jmp + 1) = (DWORD)((BYTE*)src + len - jmp) - 5;
+	((BYTE*)src)[0] = 0xE9;
+	*(DWORD*)((BYTE*)src + 1) = (DWORD)((BYTE*)dst - (BYTE*)src) - 5;
+
+	for (int i = 5; i < len; i++)
+		((BYTE*)src)[i] = 0x90;
+
+	VirtualProtect(src, len, dwBack, &dwBack);
+	return (Fn*)(jmp - len);
+#endif
+
+	/*
+	Fn* result = nullptr;
+	#ifdef DETOURS_VERSION
+	#if DETOURS_VERSION >= 21000
+	DetourRestoreAfterWith();
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	result = (Fn*)DetourAttach((PVOID*)&src, dst);
+	DetourTransactionCommit();
+	#else
+	result = (Fn*)DetourFunction((BYTE*)src, (BYTE*)dst);
+	#endif
+
+	return result;
+	#else
+	return (Fn*)func((BYTE*)src, (BYTE*)dst, len);
+	#endif
+	*/
+
+#if defined(EASYHOOK_API) || defined(DETOURS_VERSION)
+	return result;
+#endif
+}
+
+template<typename Fn>
+Fn* RetourFunction(Fn* src, Fn* dst, int len)
+{
+	DWORD dwback;
+
+	if (!VirtualProtect(src, len, PAGE_READWRITE, &dwback))
+		return false;
+
+	if (!memcpy(src, dst, len))
+		return false;
+
+	dst[0] = 0xE9;
+	*(DWORD*)((BYTE*)dst + 1) = (DWORD)((BYTE*)src - (BYTE*)dst) - 5;
+
+	if (!VirtualProtect(src, len, dwback, &dwback))
+		return false;
+
+	return true;
 }

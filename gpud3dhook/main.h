@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <TlHelp32.h>
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <d3d9types.h>
@@ -25,6 +26,11 @@
 #pragma comment(lib, "d3d9")
 #pragma comment(lib, "d3dx9")
 #endif
+
+#define NAMESPACE_START(_x)		namespace _x {
+#define NAMESPACE_END			}
+
+NAMESPACE_START(dh)
 
 typedef HRESULT (APIENTRY FnOpenAdapter)(D3DDDIARG_OPENADAPTER*);
 typedef struct D3DHook
@@ -58,15 +64,41 @@ extern PFND3DDDI_UNLOCK oUnlock;
 extern PFND3DDDI_BLT oBlt;
 
 /*
-* 初始化 D3D 钩子，请在 DllMain 启动参数为 DLL_PROCESS_ATTACH 时调用
+* 初始化 D3D 钩子
 *
 * @return None
 */
 void InitGPUD3DHook();
 
 /*
+* 尝试初始化 Direct3D9
+*
+* @return			如果成功返回 true 否则 false
+*/
+bool InitDesktopDirectX(HWND window = nullptr);
+
+/*
+* 创建一个假的窗口，用户 hook 原函数
+*
+* @return			如果成功返回 true 否则 false
+*/
+bool InitFakeDirectXDevice();
+
+/*
+* 将假窗口释放掉
+*
+* @return			如果成功返回 true 否则 false
+*/
+bool ReleaseFakeDirectXDevice();
+
+// 尝试搜索 D3D Device 指针，但是非常慢
+IDirect3DDevice9* FindDirexcXDevice();
+
+NAMESPACE_END
+
+/*
 * 挂钩函数
-* 
+*
 * @param src		原函数
 * @param dst		你要修改到哪个函数
 * @param len		函数大小
@@ -77,8 +109,13 @@ template<typename Fn>
 Fn* DetourFunction(Fn* src, Fn* dst, int len);
 
 /*
-* 尝试初始化 Direct3D9
+* 重新挂钩函数
 *
-* @return			如果成功返回 true 否则 false
+* @param src		原函数
+* @param dst		你要修改到哪个函数
+* @param len		函数大小
+*
+* @return			原函数的地址
 */
-bool TryInitD3D(HWND window);
+template<typename Fn>
+Fn* RetourFunction(Fn* src, Fn* dst, int len);

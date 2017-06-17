@@ -138,6 +138,10 @@
 
 #define l4d2_zombies(_s,_n,_p)		(l4d2_common(_s,_n,_p) || l4d2_special(_s,_n,_p))
 
+NAMESPACE_START(dh)
+
+static HWND gFakeWindow = nullptr;
+static bool gIsInitialization = false;
 D3DPFNHooker gDetourFunc, gDetourFunc1;
 IDirect3D9* gD3D9Internal = nullptr;
 IDirect3DDevice9* gDeviceInternal = nullptr;
@@ -161,85 +165,6 @@ static HRESULT APIENTRY Hooked1_DrawIndexedPrimitive(HANDLE, D3DDDIARG_DRAWINDEX
 static HRESULT APIENTRY Hooked1_SetStreamSource(HANDLE, D3DDDIARG_SETSTREAMSOURCE*);
 static HRESULT APIENTRY Hooked1_CreateQuery(HANDLE, D3DDDIARG_CREATEQUERY*);
 static HRESULT APIENTRY Hooked1_Present(HANDLE, D3DDDIARG_PRESENT*);
-
-template<typename Fn>
-inline Fn * DetourFunction(Fn * src, Fn * dst, int len)
-{
-	/*
-	static auto func = [](BYTE* src, BYTE* dst, int len) -> void*
-	{
-		BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
-		//BYTE *jmp = (BYTE*)malloc(len+5);
-		DWORD dwBack;
-
-		VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
-		memcpy(jmp, src, len);
-		jmp += len;
-		jmp[0] = 0xE9;
-		*(DWORD*)(jmp + 1) = (DWORD)(src + len - jmp) - 5;
-		src[0] = 0xE9;
-		*(DWORD*)(src + 1) = (DWORD)(dst - src) - 5;
-		for (int i = 5; i<len; i++)  src[i] = 0x90;
-		VirtualProtect(src, len, dwBack, &dwBack);
-		return (jmp - len);
-	};
-	*/
-
-	Fn* result = nullptr;
-#if defined(EASYHOOK_API)
-	HOOK_TRACE_INFO hti = { 0 };
-	if (FAILED(LhInstallHook(src, dst, NULL, &hti)))
-		return nullptr;
-
-#elif defined(DETOURS_VERSION)
-	DetourRestoreAfterWith();
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	result = (Fn*)DetourAttach((PVOID*)&src, dst);
-	DetourTransactionCommit();
-#else
-	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
-	// BYTE *jmp = (BYTE*)malloc(len+5);
-	DWORD dwBack;
-
-	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
-	memcpy(jmp, src, len);
-	jmp += len;
-	jmp[0] = 0xE9;
-	*(DWORD*)(jmp + 1) = (DWORD)((BYTE*)src + len - jmp) - 5;
-	((BYTE*)src)[0] = 0xE9;
-	*(DWORD*)((BYTE*)src + 1) = (DWORD)((BYTE*)dst - (BYTE*)src) - 5;
-
-	for (int i = 5; i < len; i++)
-		((BYTE*)src)[i] = 0x90;
-
-	VirtualProtect(src, len, dwBack, &dwBack);
-	return (Fn*)(jmp - len);
-#endif
-
-	/*
-	Fn* result = nullptr;
-#ifdef DETOURS_VERSION
-	#if DETOURS_VERSION >= 21000
-		DetourRestoreAfterWith();
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		result = (Fn*)DetourAttach((PVOID*)&src, dst);
-		DetourTransactionCommit();
-	#else
-		result = (Fn*)DetourFunction((BYTE*)src, (BYTE*)dst);
-	#endif
-
-	return result;
-#else
-	return (Fn*)func((BYTE*)src, (BYTE*)dst, len);
-#endif
-	*/
-
-#if defined(EASYHOOK_API) || defined(DETOURS_VERSION)
-	return result;
-#endif
-}
 
 static void StartStrideChange()
 {
@@ -358,10 +283,7 @@ void InitGPUD3DHook()
 			OpenAdapter = (FnOpenAdapter*)GetProcAddress(module, "OpenAdapter");
 
 		if (OpenAdapter != nullptr)
-		{
 			oOpenAdapter = DetourFunction(OpenAdapter, Hooked_OpenAdapter, 9);
-
-		}
 
 	} while (OpenAdapter == nullptr);
 
@@ -371,7 +293,7 @@ void InitGPUD3DHook()
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)&StartStrideChange, NULL, NULL, NULL);
 }
 
-bool TryInitD3D(HWND window)
+bool InitDirectX(HWND window)
 {
 	D3DPRESENT_PARAMETERS pp;
 	HRESULT result = D3DERR_INVALIDCALL;
@@ -385,9 +307,98 @@ bool TryInitD3D(HWND window)
 	{
 		result = gD3D9Internal->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
 			D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &gDeviceInternal);
+		// 如果方法成功，返回值为D3D_OK。如果方法失败，返回值可以是以下之一：D3DERR_DEVICELOST，D3DERR_INVALIDCALL，D3DERR_NOTAVAILABLE，D3DERR_OUTOFVIDEOMEMORY。
+		if (result == D3DERR_DEVICELOST)
+			printf("失败：Device 已丢失。\n");
+		else if(result == D3DERR_INVALIDCALL)
+			printf("失败：参数不正确。\n");
+		else if(result == D3DERR_NOTAVAILABLE)
+			printf("失败：这个对象不支持查询技术。\n");
+		else if(result == D3DERR_OUTOFVIDEOMEMORY)
+			printf("失败：内存不足。\n");
 	}
 	
 	return (result == S_OK && gDeviceInternal != nullptr);
+}
+
+bool InitDesktopDirectX(HWND window)
+{
+	if (gIsInitialization)
+		return false;
+
+	return (gIsInitialization = InitDirectX(window));
+}
+
+static HINSTANCE gFakeInstance;
+static LRESULT CALLBACK FakeWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_DESTROY:
+		{
+			PostQuitMessage(0);
+			return 0;
+		}
+	}
+
+	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+bool InitFakeDirectXDevice()
+{
+	WNDCLASSEXA wc;
+	ZeroMemory(&wc, sizeof(wc));
+	wc.cbSize = sizeof(wc);
+	wc.style = CS_HREDRAW|CS_VREDRAW;
+	wc.lpfnWndProc = FakeWindowProc;
+	wc.hInstance = gFakeInstance;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
+	wc.lpszClassName = "FakeWindow";
+	RegisterClassExA(&wc);
+
+	gFakeWindow = CreateWindowExA(NULL, "FakeWindow", "Fake DirectX Window", WS_OVERLAPPEDWINDOW,
+		300, 300, 1024, 768, NULL, NULL, gFakeInstance, NULL);
+	if (!gFakeWindow)
+	{
+		UnregisterClassA("FakeWindow", gFakeInstance);
+		return false;
+	}
+
+	if (!InitDesktopDirectX(gFakeWindow))
+	{
+		gD3D9Internal->Release();
+		CloseWindow(gFakeWindow);
+		UnregisterClassA("FakeWindow", gFakeInstance);
+		return false;
+	}
+	
+	SetWindowLongA(gFakeWindow, GWL_STYLE, GetWindowLongA(gFakeWindow, GWL_STYLE)|WS_EX_NOPARENTNOTIFY);
+	return true;
+}
+
+bool ReleaseFakeDirectXDevice()
+{
+	if (gDeviceInternal)
+	{
+		gDeviceInternal->Release();
+		gDeviceInternal = nullptr;
+	}
+
+	if (gD3D9Internal)
+	{
+		gD3D9Internal->Release();
+		gD3D9Internal = nullptr;
+	}
+
+	if (gFakeWindow)
+	{
+		DestroyWindow(gFakeWindow);
+		UnregisterClassA("FakeWindow", gFakeInstance);
+		gFakeWindow = nullptr;
+	}
+	
+	return true;
 }
 
 static HANDLE CreateSurfaceforWDDM1_3(HANDLE hDevice, UINT width, UINT height)
@@ -647,4 +658,277 @@ static HRESULT APIENTRY Hooked1_DrawIndexedPrimitive(HANDLE pDevice, D3DDDIARG_D
 static HRESULT APIENTRY Hooked1_Present(HANDLE pDevice, D3DDDIARG_PRESENT* pPresent)
 {
 	return gDetourFunc1.oPresent(pDevice, pPresent);
+}
+
+DWORD BruteForceDevice(DWORD* pTable)
+{
+	DWORD dwResult, dwRounded;
+
+	for (DWORD i = 0; i < 0x7FFFFFFF; i += 0x4)
+	{
+		__try
+		{
+			if (*(DWORD*)i == (DWORD)pTable)
+			{
+				for (int k = 0; k < 42; k++)
+				{
+					if (*(DWORD*)(*(DWORD*)i + k * 4) == *(pTable + k) && k == 41)
+					{
+						dwResult = i;
+						i = 0x7FFFFFFF;
+						break;
+					}
+				}
+			}
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			dwRounded = (i + 128) / 256 * 256;
+			dwRounded += 256 - 4;
+			i = dwRounded;
+		}
+	}
+
+	return dwResult;
+}
+
+void* GetDirectXPointerFromMemory(void* pvReplica, DWORD dwVTable, DWORD dwAddress, DWORD dwSize)
+{
+	// don't know if it change something but the goal is avoid to do  (dwAddress + dwSize) at each iteration
+	DWORD limit = (dwAddress + dwSize);
+
+	for (DWORD* i = (DWORD*)dwAddress; (DWORD)i < limit; i++)
+	{
+		// I don't anticipate this will be an issue, if it is one use BYTE*
+		__try
+		{
+			DWORD dwValue = (DWORD)&i;
+			DWORD dwVTableAddress = *(DWORD*)dwValue;
+
+			// We don't want to catch the pointer WE created
+			if (dwValue == (DWORD)pvReplica)
+				continue;
+
+			if (dwVTableAddress == dwVTable)
+			{
+				printf("VTable Match (0x%X, 0x%X, 0x%X)\n", (DWORD)i, (DWORD)dwValue, (DWORD)dwVTableAddress);
+				return (IDirect3DDevice9*)dwValue;
+			}
+		}
+		__except(EXCEPTION_EXECUTE_HANDLER)
+		{
+			/* No other way to check for valid pointers */
+		}
+	}
+
+	return NULL;
+}
+
+void* FindHeapAddressWithVTable(void* pvReplica, DWORD dwVTable)
+{
+	printf("d3d9.dll = 0x%X\n", GetModuleHandleA("d3d9.dll"));
+
+	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPHEAPLIST, GetCurrentProcessId());
+
+	HEAPLIST32 lphl = { 0 };
+	lphl.dwSize = sizeof(HEAPLIST32);
+
+	if (Heap32ListFirst(hSnap, &lphl))
+	{
+		do
+		{
+			HEAPENTRY32 he = { 0 };
+			he.dwSize = sizeof(HEAPENTRY32);
+			if (Heap32First(&he, lphl.th32ProcessID, lphl.th32HeapID))
+			{
+				do
+				{
+					void* ptr = GetDirectXPointerFromMemory(pvReplica, dwVTable, he.dwAddress, he.dwBlockSize);
+					if (ptr)
+						return ptr;
+				}
+				while (Heap32Next(&he));
+			}
+
+		} while (Heap32ListNext(hSnap, &lphl));
+	}
+
+	printf("Failed.\n");
+	return NULL;
+}
+
+bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
+{
+	if (!d3d || !device)
+		return false;
+
+	*d3d = NULL;
+	*device = NULL;
+
+	IDirect3D9* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+
+	if (!pD3D)
+		return false;
+
+	HWND hWindow = GetDesktopWindow();
+
+	D3DPRESENT_PARAMETERS pp;
+	ZeroMemory(&pp, sizeof(pp));
+	pp.Windowed = TRUE;
+	pp.hDeviceWindow = hWindow;
+	pp.BackBufferCount = 1;
+	pp.BackBufferWidth = 4;
+	pp.BackBufferHeight = 4;
+	pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+	pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
+	IDirect3DDevice9* pDevice = NULL;
+
+	if (SUCCEEDED(pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWindow,
+		D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &pDevice)))
+	{
+		if (pDevice != NULL)
+		{
+			*d3d = pD3D;
+			*device = pDevice;
+		}
+	}
+
+	bool returnSuccess = (*d3d != NULL);
+
+	if (returnSuccess == FALSE)
+	{
+		if (pD3D)
+			pD3D->Release();
+	}
+
+	return returnSuccess;
+}
+
+IDirect3DDevice9* FindDirexcXDevice()
+{
+	while (!CreateSearchDevice(&gD3D9Internal, &gDeviceInternal))
+	{
+		printf("创建搜索用的 Device 失败。");
+		Sleep(1000);
+	}
+
+	printf("Created Search Device! (0x%X, 0x%X)\n", (DWORD)gD3D9Internal, (DWORD)gDeviceInternal);
+
+	IDirect3DDevice9* pDevice = nullptr;
+	do
+	{
+		pDevice = (IDirect3DDevice9*)FindHeapAddressWithVTable(gDeviceInternal, *(DWORD*)gDeviceInternal);
+		Sleep(1000);
+	} while (pDevice == nullptr);
+
+	printf("Found Device (0x%X)\n", (DWORD)pDevice);
+
+	if (gD3D9Internal)
+		gD3D9Internal->Release();
+	if (gDeviceInternal)
+		gDeviceInternal->Release();
+
+	return pDevice;
+}
+
+NAMESPACE_END
+
+template<typename Fn>
+Fn * DetourFunction(Fn * src, Fn * dst, int len)
+{
+	/*
+	static auto func = [](BYTE* src, BYTE* dst, int len) -> void*
+	{
+	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
+	//BYTE *jmp = (BYTE*)malloc(len+5);
+	DWORD dwBack;
+
+	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
+	memcpy(jmp, src, len);
+	jmp += len;
+	jmp[0] = 0xE9;
+	*(DWORD*)(jmp + 1) = (DWORD)(src + len - jmp) - 5;
+	src[0] = 0xE9;
+	*(DWORD*)(src + 1) = (DWORD)(dst - src) - 5;
+	for (int i = 5; i<len; i++)  src[i] = 0x90;
+	VirtualProtect(src, len, dwBack, &dwBack);
+	return (jmp - len);
+	};
+	*/
+
+	Fn* result = nullptr;
+#if defined(EASYHOOK_API)
+	HOOK_TRACE_INFO hti = { 0 };
+	if (FAILED(LhInstallHook(src, dst, NULL, &hti)))
+		return nullptr;
+
+#elif defined(DETOURS_VERSION)
+	DetourRestoreAfterWith();
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	result = (Fn*)DetourAttach((PVOID*)&src, dst);
+	DetourTransactionCommit();
+#else
+	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
+	// BYTE *jmp = (BYTE*)malloc(len+5);
+	DWORD dwBack;
+
+	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
+	memcpy(jmp, src, len);
+	jmp += len;
+	jmp[0] = 0xE9;
+	*(DWORD*)(jmp + 1) = (DWORD)((BYTE*)src + len - jmp) - 5;
+	((BYTE*)src)[0] = 0xE9;
+	*(DWORD*)((BYTE*)src + 1) = (DWORD)((BYTE*)dst - (BYTE*)src) - 5;
+
+	for (int i = 5; i < len; i++)
+		((BYTE*)src)[i] = 0x90;
+
+	VirtualProtect(src, len, dwBack, &dwBack);
+	return (Fn*)(jmp - len);
+#endif
+
+	/*
+	Fn* result = nullptr;
+	#ifdef DETOURS_VERSION
+	#if DETOURS_VERSION >= 21000
+	DetourRestoreAfterWith();
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	result = (Fn*)DetourAttach((PVOID*)&src, dst);
+	DetourTransactionCommit();
+	#else
+	result = (Fn*)DetourFunction((BYTE*)src, (BYTE*)dst);
+	#endif
+
+	return result;
+	#else
+	return (Fn*)func((BYTE*)src, (BYTE*)dst, len);
+	#endif
+	*/
+
+#if defined(EASYHOOK_API) || defined(DETOURS_VERSION)
+	return result;
+#endif
+}
+
+template<typename Fn>
+Fn* RetourFunction(Fn* src, Fn* dst, int len)
+{
+	DWORD dwback;
+
+	if (!VirtualProtect(src, len, PAGE_READWRITE, &dwback))
+		return false;
+
+	if (!memcpy(src, dst, len))
+		return false;
+
+	dst[0] = 0xE9;
+	*(DWORD*)((BYTE*)dst + 1) = (DWORD)((BYTE*)src - (BYTE*)dst) - 5;
+
+	if (!VirtualProtect(src, len, dwback, &dwback))
+		return false;
+
+	return true;
 }
