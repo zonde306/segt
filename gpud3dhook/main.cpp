@@ -726,7 +726,7 @@ void* GetDirectXPointerFromMemory(void* pvReplica, DWORD dwVTable, DWORD dwAddre
 
 void* FindHeapAddressWithVTable(void* pvReplica, DWORD dwVTable)
 {
-	printf("d3d9.dll = 0x%X\n", GetModuleHandleA("d3d9.dll"));
+	// printf("d3d9.dll = 0x%X\n", GetModuleHandleA("d3d9.dll"));
 
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPHEAPLIST, GetCurrentProcessId());
 
@@ -822,7 +822,7 @@ IDirect3DDevice9* FindDirexcXDevice()
 		Sleep(1000);
 	} while (pDevice == nullptr);
 
-	printf("Found Device (0x%X)\n", (DWORD)pDevice);
+	printf("Found Device 0x%X (0x%X)\n", (DWORD)pDevice, (DWORD)&pDevice);
 
 	if (gD3D9Internal)
 		gD3D9Internal->Release();
