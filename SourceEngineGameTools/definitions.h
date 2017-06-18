@@ -155,6 +155,21 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define r_drawothermodels		0x6F85E8		// client.dll
 #define cl_drawshadowtexture	0x7759B0		// client.dll
 #define mat_fullbright			0xFE3F0			// materialsystem.dll
+#define mp_gamemode				0x79679C		// client.dll - char*
+
+enum WeaponID_t
+{
+	Weapon_Pistol = 1,				// 小手枪(包括双持) 手枪
+	Weapon_ShotgunPump = 3,			// 木喷 半自动
+	Weapon_ShotAuto = 4,			// 连喷 连点加快射速
+	Weapon_SniperHunting = 6,		// 猎枪 半自动
+	Weapon_ShotgunChrome = 8,		// 铁喷 半自动
+	Weapon_SniperMilitary = 10,		// 连狙 半自动
+	Weapon_ShotgunSpas = 11,		// 高级连喷 连点加快射速
+	Weapon_PistolMagnum = 32,		// 马格南 手枪
+	Weapon_SniperAWP = 35,			// 大鸟 半自动
+	Weapon_SniperScout = 36			// 鸟狙 半自动
+};
 
 enum EntityType_t
 {

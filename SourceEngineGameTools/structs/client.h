@@ -270,7 +270,8 @@ struct RecvTable {
 
 };
 
-struct ClientClass {
+struct ClientClass
+{
 	char _padding[ 8 ];
 	char *m_pNetworkName;
 	RecvTable *m_pRecvTable;

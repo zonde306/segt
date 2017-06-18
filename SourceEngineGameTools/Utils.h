@@ -277,8 +277,12 @@ public:
 				else
 					finalAddress = currentAddress;
 
+#ifdef DEBUG
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
 					printf("错误：恢复地址 0x%X 的保护失败。\n", currentAddress);
+#else
+				VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, &oldProtect);
+#endif
 
 				// 将当前地址设置为最后的地址
 				currentAddress = finalAddress;
@@ -337,8 +341,12 @@ public:
 				else
 					finalAddress = currentAddress;
 
+#ifdef DEBUG
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
 					printf("错误：恢复地址 0x%X 的保护失败。\n", currentAddress);
+#else
+				VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, &oldProtect);
+#endif
 
 				// 将当前地址设置为最后的地址
 				currentAddress = finalAddress;

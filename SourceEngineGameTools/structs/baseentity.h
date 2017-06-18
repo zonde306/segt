@@ -123,10 +123,10 @@ public:
 		return ((OriginalFn)VMT.GetFunction(this, indexes::GetAbsAngles))(this);
 	}
 
-	void* GetClientClass()
+	ClientClass* GetClientClass()
 	{
 		void* Networkable = (void*)(this + 0x8);
-		typedef void* (__thiscall* OriginalFn)(void*);
+		typedef ClientClass* (__thiscall* OriginalFn)(void*);
 		return ((OriginalFn)VMT.GetFunction(Networkable, indexes::GetClientClass))(Networkable);
 	}
 	

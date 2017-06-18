@@ -222,12 +222,10 @@ void StartCheat()
 			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 				autoPistol();
 
-			/*
-			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
 				esp();
-			*/
 
-			if (GetAsyncKeyState(VK_XBUTTON1) & 0x8000)
+			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
 				autoAim();
 			else if (pCurrentAiming != nullptr)
 				pCurrentAiming = nullptr;
@@ -262,7 +260,27 @@ void StartCheat()
 				Sleep(1000);
 			}
 
-			
+			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
+			{
+				char* mode = Utils::readMemory<char*>(client + mp_gamemode);
+				if (mode != nullptr)
+				{
+					DWORD oldProtect = NULL;
+					
+					if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
+					{
+						if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+							strcpy_s(mode, 16, "coop");
+						else
+							strcpy_s(mode, 16, "versus");
+						VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
+					}
+					else
+						printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
+
+					Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+				}
+			}
 		}
 
 		Sleep(1);
@@ -637,12 +655,18 @@ void autoPistol()
 		if (weapon && weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon") > 0 &&
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
-			Interfaces.Engine->ClientCmd("+attack");
-			Sleep(10);
-			Interfaces.Engine->ClientCmd("-attack");
+			int weaponId = weapon->GetWeaponID();
+			if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
+				weaponId == Weapon_ShotAuto || weaponId == Weapon_SniperHunting ||
+				weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
+				weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
+				weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
+			{
+				Interfaces.Engine->ClientCmd("+attack");
+				Sleep(10);
+				Interfaces.Engine->ClientCmd("-attack");
+			}
 		}
-
-		Sleep(1);
 	}
 
 	Sleep(1);
@@ -717,8 +741,6 @@ void autoAim()
 				Vector position = pCurrentAiming->GetEyePosition();
 				if (pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer") == ZC_JOCKEY)
 					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-				else
-					position.z -= 5.0f;
 
 				// Vector position = GetHeadPosition(pCurrentAiming);
 				// Vector position = pCurrentAiming->GetHitboxPosition(0);
@@ -779,9 +801,23 @@ void esp()
 				continue;
 
 			player->SetNetProp("m_iGlowType", 3, "DT_TerrorPlayer");
-			player->SetNetProp("m_nGlowRange", 65535, "DT_TerrorPlayer");
-			player->SetNetProp("m_glowColorOverride", 65535, "DT_TerrorPlayer");
-			// player->SetNetProp("m_bSurvivorGlowEnabled", true, "DT_TerrorPlayer");
+			// player->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
+			// player->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
+			player->SetNetProp("m_glowColorOverride", 16777215, "DT_TerrorPlayer");
+			// player->SetNetProp("m_bSurvivorGlowEnabled", 1, "DT_TerrorPlayer");
+
+			/*
+			CBaseEntity* glow = player->GetNetProp<CBaseEntity*>("m_Glow", "DT_BaseEntity");
+			if (glow)
+				glow = Interfaces.ClientEntList->GetClientEntityFromHandle(glow);
+			if (glow)
+			{
+				glow->SetNetProp("m_iGlowType", 3, "DT_GlowProperty");
+				// glow->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
+				// glow->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
+				glow->SetNetProp("m_glowColorOverride", 16777215, "DT_GlowProperty");
+			}
+			*/
 		}
 		
 		Sleep(1);
