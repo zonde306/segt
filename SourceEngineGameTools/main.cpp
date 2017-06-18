@@ -222,8 +222,10 @@ void StartCheat()
 			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 				autoPistol();
 
+			/*
 			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
 				esp();
+			*/
 
 			if (GetAsyncKeyState(VK_XBUTTON1) & 0x8000)
 				autoAim();
@@ -714,7 +716,9 @@ void autoAim()
 				// Ä¿±êÎ»ÖÃ
 				Vector position = pCurrentAiming->GetEyePosition();
 				if (pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer") == ZC_JOCKEY)
-					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;;
+					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				else
+					position.z -= 5.0f;
 
 				// Vector position = GetHeadPosition(pCurrentAiming);
 				// Vector position = pCurrentAiming->GetHitboxPosition(0);
