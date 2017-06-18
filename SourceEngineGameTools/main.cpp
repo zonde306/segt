@@ -57,23 +57,29 @@ static FnDrawModel oDrawModel;
 
 typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
 HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
-FnDrawIndexedPrimitive oDrawIndexedPrimitive;
+static FnDrawIndexedPrimitive oDrawIndexedPrimitive;
 
 typedef HRESULT(WINAPI* FnEndScene)(IDirect3DDevice9*);
 HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9*);
-FnEndScene oEndScene;
+static FnEndScene oEndScene;
 
 typedef HRESULT(WINAPI* FnCreateQuery)(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
 HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
-FnCreateQuery oCreateQuery;
+static FnCreateQuery oCreateQuery;
 
 typedef HRESULT(WINAPI* FnReset)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
 HRESULT WINAPI Hooked_Reset(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
-FnReset oReset;
+static FnReset oReset;
+
+typedef HRESULT(WINAPI* FnPresent)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
+HRESULT WINAPI Hooked_Present(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
+static FnPresent oPresent;
 
 static CVMTHookManager* gDirectXHook;
 static ConVar *sv_cheats, *r_drawothermodels, *cl_drawshadowtexture, *mat_fullbright;
 static CBaseEntity* pCurrentAiming;
+
+DetourXS dDrawIndexedPrimitive, dEndScene, dReset, dCreateQuery, dPresent;
 
 void bunnyHop();
 void autoPistol();
@@ -166,17 +172,10 @@ void StartCheat()
 
 	}
 
+	/*
 	dh::gDeviceInternal = dh::FindDirexcXDevice();
 	if (dh::gDeviceInternal)
 	{
-		/*
-		DWORD* VMTable = *(DWORD**)dh::gDeviceInternal;
-		oReset = DetourFunction((FnReset)VMTable[16], Hooked_Reset, 5);
-		oEndScene = DetourFunction((FnEndScene)VMTable[42], Hooked_EndScene, 5);
-		oDrawIndexedPrimitive = DetourFunction((FnDrawIndexedPrimitive)VMTable[82], Hooked_DrawIndexedPrimitive, 12);
-		oCreateQuery = DetourFunction((FnCreateQuery)VMTable[118], Hooked_CreateQuery, 5);
-		*/
-
 		gDirectXHook = new CVMTHookManager(dh::gDeviceInternal);
 		oReset = gDirectXHook->SetupHook(16, Hooked_Reset);
 		oEndScene = gDirectXHook->SetupHook(42, Hooked_EndScene);
@@ -188,10 +187,28 @@ void StartCheat()
 		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
 		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
 		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
-
-		// printf("正在释放资源...\n");
-		// dh::ReleaseFakeDirectXDevice();
 	}
+	*/
+	
+	dh::StartDeviceHook([&](IDirect3D9* pD3D, IDirect3DDevice9* pDevice, DWORD* pVMT) -> void
+	{
+		dReset = DetourXS((void*)pVMT[16], Hooked_Reset);
+		oReset = (FnReset)dReset.GetTrampoline();
+		dEndScene = DetourXS((void*)pVMT[42], Hooked_EndScene);
+		oEndScene = (FnEndScene)dEndScene.GetTrampoline();
+		dDrawIndexedPrimitive = DetourXS((void*)pVMT[82], Hooked_DrawIndexedPrimitive);
+		oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
+		dCreateQuery = DetourXS((void*)pVMT[118], Hooked_CreateQuery);
+		oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
+		dPresent = DetourXS((void*)pVMT[17], Hooked_Present);
+		oPresent = (FnPresent)dPresent.GetTrampoline();
+
+		printf("Hook pD3DDevice 完毕。\n");
+		printf("oReset = 0x%X\n", (DWORD)oReset);
+		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
+		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
+		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
+	});
 
 	for (;;)
 	{
@@ -431,6 +448,11 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 		type = D3DQUERYTYPE_TIMESTAMP;
 	
 	return oCreateQuery(device, type, query);
+}
+
+HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, const RECT* dest, HWND window, const RGNDATA* region)
+{
+	return oPresent(device, source, dest, window, region);
 }
 
 bool IsEnemyVisible(CBaseEntity* enemy)

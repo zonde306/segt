@@ -762,8 +762,8 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 	if (!d3d || !device)
 		return false;
 
-	*d3d = NULL;
-	*device = NULL;
+	*d3d = nullptr;
+	*device = nullptr;
 
 	IDirect3D9* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
 
@@ -795,12 +795,8 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 	}
 
 	bool returnSuccess = (*d3d != NULL);
-
-	if (returnSuccess == FALSE)
-	{
-		if (pD3D)
-			pD3D->Release();
-	}
+	if (!returnSuccess && pD3D)
+		pD3D->Release();
 
 	return returnSuccess;
 }
@@ -829,7 +825,29 @@ IDirect3DDevice9* FindDirexcXDevice()
 	if (gDeviceInternal)
 		gDeviceInternal->Release();
 
+	gD3D9Internal = nullptr;
+	gDeviceInternal = nullptr;
+
 	return pDevice;
+}
+
+void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)> func)
+{
+	while (!CreateSearchDevice(&gD3D9Internal, &gDeviceInternal))
+	{
+		printf("´´½¨ Device Ê§°Ü¡£");
+		Sleep(1000);
+	}
+
+	func(gD3D9Internal, gDeviceInternal, *(DWORD**)gDeviceInternal);
+
+	if (gD3D9Internal)
+		gD3D9Internal->Release();
+	if (gDeviceInternal)
+		gDeviceInternal->Release();
+
+	gD3D9Internal = nullptr;
+	gDeviceInternal = nullptr;
 }
 
 NAMESPACE_END

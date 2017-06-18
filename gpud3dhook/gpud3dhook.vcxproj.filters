@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="detourxs.cpp">
+      <Filter>detour</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="d3dukmdt.h" />
+    <ClInclude Include="d3dumddi.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="detourxs.h">
+      <Filter>detour</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="detour">
+      <UniqueIdentifier>{aa2c06d8-9489-4589-be56-5471ebe121f7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="hook.def">
+      <Filter>detour</Filter>
+    </None>
+    <None Include="LDE64x64.asm">
+      <Filter>detour</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="LDE64.asm">
+      <Filter>detour</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

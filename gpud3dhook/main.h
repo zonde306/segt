@@ -6,6 +6,8 @@
 #include <d3d9types.h>
 #include "d3dumddi.h"
 #include <cstdio>
+#include <functional>
+#include "detourxs.h"
 // #include <detours.h>
 // #include <easyhook.h>
 
@@ -90,6 +92,17 @@ bool InitFakeDirectXDevice();
 * @return			如果成功返回 true 否则 false
 */
 bool ReleaseFakeDirectXDevice();
+
+/*
+* 开始一个 IDirect3DDevice9 挂钩
+* 如果成功，则会调用 func 作为 Hook 函数
+*
+* @param func		挂钩用的函数，其中 IDirect3D9* 为 pD3D， IDirect3DDevice9* 为 pD3DDevice，
+*					DWORD* 为虚函数表指针，直接使用这个来作 Hook 用途
+*
+* @return			None
+*/
+void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)> func);
 
 // 尝试搜索 D3D Device 指针，但是非常慢
 IDirect3DDevice9* FindDirexcXDevice();
