@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="24">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>0</ID>
+      <Description>"sv_cheats"</Description>
+      <LastState Value="1" RealAddress="577E0758"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>engine.dll+670758</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>1</ID>
+      <Description>"sv_pure"</Description>
+      <LastState Value="0" RealAddress="577B307C"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>engine.dll+64307C</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"sv_consistency"</Description>
+      <LastState Value="0" RealAddress="577E0998"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>engine.dll+670998</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>3</ID>
+      <Description>"r_drawothermodels"</Description>
+      <LastState Value="1" RealAddress="524D85E8"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>client.dll+6F85E8</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>4</ID>
+      <Description>"cl_drawshadowtexture"</Description>
+      <LastState Value="0" RealAddress="525559B0"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>client.dll+7759B0</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>5</ID>
+      <Description>"mat_fullbright"</Description>
+      <LastState Value="0" RealAddress="59D2E3F0"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>materialsystem.dll+FE3F0</Address>
+    </CheatEntry>
+  </CheatEntries>
+  <UserdefinedSymbols/>
+</CheatTable>

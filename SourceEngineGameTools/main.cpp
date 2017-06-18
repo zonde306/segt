@@ -75,16 +75,14 @@ typedef HRESULT(WINAPI* FnPresent)(IDirect3DDevice9*, const RECT*, const RECT*, 
 HRESULT WINAPI Hooked_Present(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
 static FnPresent oPresent;
 
-static CVMTHookManager* gDirectXHook;
-static ConVar *sv_cheats, *r_drawothermodels, *cl_drawshadowtexture, *mat_fullbright;
 static CBaseEntity* pCurrentAiming;
-
 DetourXS dDrawIndexedPrimitive, dEndScene, dReset, dCreateQuery, dPresent;
 
 void bunnyHop();
 void autoPistol();
 void autoAim();
 void esp();
+void pure(void*);
 
 void StartCheat()
 {
@@ -158,18 +156,12 @@ void StartCheat()
 
 	if (Interfaces.Cvar)
 	{
-		sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
-		printf("sv_cheats = 0x%X\n", (DWORD)sv_cheats);
-
-		r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
-		printf("r_drawothermodels = 0x%X\n", (DWORD)r_drawothermodels);
-
-		cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
-		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cl_drawshadowtexture);
-
-		mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
-		printf("mat_fullbright = 0x%X\n", (DWORD)mat_fullbright);
-
+		printf("sv_cheats = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_cheats"));
+		printf("r_drawothermodels = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("r_drawothermodels"));
+		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("cl_drawshadowtexture"));
+		printf("mat_fullbright = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("mat_fullbright"));
+		printf("sv_pure = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_pure"));
+		printf("sv_consistency = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_consistency"));
 	}
 
 	/*
@@ -208,7 +200,17 @@ void StartCheat()
 		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
 		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
 		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
+		printf("oPresent = 0x%X\n", (DWORD)oPresent);
 	});
+
+	DWORD client, engine, material;
+	client = Utils::GetModuleBase("client.dll");
+	engine = Utils::GetModuleBase("engine.dll");
+	material = Utils::GetModuleBase("materialsystem.dll");
+	printf("client.dll = 0x%X\n", client);
+	printf("engine.dll = 0x%X\n", engine);
+	printf("materialsystem.dll = 0x%X\n", material);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 
 	for (;;)
 	{
@@ -223,15 +225,65 @@ void StartCheat()
 			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
 				esp();
 
-			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+			if (GetAsyncKeyState(VK_XBUTTON1) & 0x8000)
 				autoAim();
 			else if (pCurrentAiming != nullptr)
 				pCurrentAiming = nullptr;
+
+			if (GetAsyncKeyState(VK_INSERT) & 0x01)
+			{
+				if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
+				{
+					Utils::writeMemory(1, client + r_drawothermodels);
+					Utils::writeMemory(0, client + cl_drawshadowtexture);
+				}
+				else
+				{
+					Utils::writeMemory(2, client + r_drawothermodels);
+					Utils::writeMemory(1, client + cl_drawshadowtexture);
+				}
+
+				Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+					Utils::readMemory<int>(client + r_drawothermodels));
+				Sleep(1000);
+			}
+
+			if (GetAsyncKeyState(VK_HOME) & 0x01)
+			{
+				if(Utils::readMemory<int>(material + mat_fullbright) == 1)
+					Utils::writeMemory(0, material + mat_fullbright);
+				else
+					Utils::writeMemory(1, material + mat_fullbright);
+
+				Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+					Utils::readMemory<int>(material + mat_fullbright));
+				Sleep(1000);
+			}
+
+			
 		}
 
 		Sleep(1);
 	}
 
+}
+
+void pure(void* engine)
+{
+	for (;;)
+	{
+		if (Utils::readMemory<int>((DWORD)engine + sv_pure) != 0 ||
+			Utils::readMemory<int>((DWORD)engine + sv_consistency) != 0)
+		{
+			Utils::writeMemory(0, (DWORD)engine + sv_pure);
+			Utils::writeMemory(0, (DWORD)engine + sv_consistency);
+
+			Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+				Utils::readMemory<int>((DWORD)engine + sv_pure));
+		}
+
+		Sleep(100);
+	}
 }
 
 void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frametime, bool active)
@@ -437,6 +489,7 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 		oDrawIndexedPrimitive(device, type, baseIndex, minIndex, numVertices, startIndex, primitiveCount);
 		device->SetRenderState(D3DRS_ZENABLE, oldZEnable);
 		device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		oDrawIndexedPrimitive(device, type, baseIndex, minIndex, numVertices, startIndex, primitiveCount);
 	}
 	
 	return oDrawIndexedPrimitive(device, type, baseIndex, minIndex, numVertices, startIndex, primitiveCount);
@@ -662,6 +715,8 @@ void autoAim()
 				Vector position = pCurrentAiming->GetEyePosition();
 				if (pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer") == ZC_JOCKEY)
 					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;;
+
+				// Vector position = GetHeadPosition(pCurrentAiming);
 				// Vector position = pCurrentAiming->GetHitboxPosition(0);
 				/*
 				if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)

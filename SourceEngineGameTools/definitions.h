@@ -148,6 +148,14 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 //----------------------------------
 #define IClientModePointer		0x7A5380		// (IClientMode*)(client.dll + 0x794148)
 
+// ConVar
+#define sv_cheats				0x670758		// engine.dll
+#define sv_pure					0x64307C		// engine.dll
+#define sv_consistency			0x670998		// engine.dll
+#define r_drawothermodels		0x6F85E8		// client.dll
+#define cl_drawshadowtexture	0x7759B0		// client.dll
+#define mat_fullbright			0xFE3F0			// materialsystem.dll
+
 enum EntityType_t
 {
 	ET_INVALID = -1,

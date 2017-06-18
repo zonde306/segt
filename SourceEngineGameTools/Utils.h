@@ -9,7 +9,7 @@ class Utils
 {
 public:
 
-	// GBK è½¬ UTF-8
+	// GBK ×ª UTF-8
 	static std::string g2u(const std::string& strGBK)
 	{
 		string strOutUTF8 = "";
@@ -28,7 +28,7 @@ public:
 		return strOutUTF8;
 	}
 
-	// UTF-8 è½¬ GBK
+	// UTF-8 ×ª GBK
 	static std::string u2g(const std::string& strUTF8)
 	{
 		int len = MultiByteToWideChar(CP_UTF8, 0, strUTF8.c_str(), -1, NULL, 0);
@@ -47,7 +47,7 @@ public:
 		return strTemp;
 	}
 
-	// UTF-8 è½¬ GB2312
+	// UTF-8 ×ª GB2312
 	static char* utg(const char* utf8)
 	{
 		int len = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
@@ -62,7 +62,7 @@ public:
 		return str;
 	}
 
-	// GB2312 è½¬ UTF-8
+	// GB2312 ×ª UTF-8
 	static char* gtu(const char* gb2312)
 	{
 		int len = MultiByteToWideChar(CP_ACP, 0, gb2312, -1, NULL, 0);
@@ -77,7 +77,7 @@ public:
 		return str;
 	}
 
-	// wchar è½¬ char
+	// wchar ×ª char
 	static std::string w2c(const std::wstring& ws)
 	{
 		size_t convertedChars = 0;
@@ -96,7 +96,7 @@ public:
 		return result;
 	}
 
-	// char è½¬ wchar
+	// char ×ª wchar
 	static std::wstring c2w(const std::string& s)
 	{
 		size_t convertedChars = 0;
@@ -115,8 +115,8 @@ public:
 		return result;
 	}
 
-	// æœç´¢ç‰¹å¾ç ï¼Œä¾‹å¦‚ 8B 0D 74 8D 70 10 8B 01 8B 90 F8 01 00 00 FF D2 8B 04 85 4C 41 78 10 C3
-	// å‚æ•° dwAddress ä¸ºå¼€å§‹åœ°å€ï¼Œå‚æ•° dwLength éœ€è¦æœç´¢çš„èŒƒå›´ï¼Œå‚æ•° szPattern ä¸ºç‰¹å¾ç 
+	// ËÑË÷ÌØÕ÷Âë£¬ÀıÈç 8B 0D 74 8D 70 10 8B 01 8B 90 F8 01 00 00 FF D2 8B 04 85 4C 41 78 10 C3
+	// ²ÎÊı dwAddress Îª¿ªÊ¼µØÖ·£¬²ÎÊı dwLength ĞèÒªËÑË÷µÄ·¶Î§£¬²ÎÊı szPattern ÎªÌØÕ÷Âë
 	static DWORD FindPattern(DWORD dwAddress, DWORD dwLength, std::string szPattern)
 	{
 		const char *pat = szPattern.c_str();
@@ -158,7 +158,7 @@ public:
 		return hmModuleHandle;
 	}
 
-	// è·å– dll åœ°å€
+	// »ñÈ¡ dll µØÖ·
 	static DWORD GetModuleBase(std::string ModuleName, DWORD ProcessID = 0)
 	{
 		if (ProcessID == 0)
@@ -210,7 +210,7 @@ public:
 		return NULL;
 	}
 
-	// æ ¹æ®è¿›ç¨‹åè·å–è¿›ç¨‹id
+	// ¸ù¾İ½ø³ÌÃû»ñÈ¡½ø³Ìid
 	static DWORD FindProccess(std::string proccessName)
 	{
 		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
@@ -227,6 +227,132 @@ public:
 		}
 
 		return 0;
+	}
+
+	template<typename T, size_t len>
+	static inline int GetArrayLength(const T(&arr)[len])
+	{
+		return (int)len;
+	}
+
+	template<typename T, typename ...Arg>
+	static T readMemory(Arg... offset)
+	{
+		DWORD offsetList[] = { (DWORD)offset... };
+		DWORD currentAddress = 0, finalAddress = 0, oldProtect = 0;
+		int len = GetArrayLength(offsetList);
+		if (len <= 0)
+		{
+			printf("ÇëÌá¹©ÖÁÉÙÒ»¸öµØÖ·£¡\n");
+			return T();
+		}
+
+		__try
+		{
+			for (int i = 0; i < len; ++i)
+			{
+				/*
+				if (i == len - 1 || offsetList[i] == NULL)
+				{
+					if (finalAddress != NULL)
+						return *(T*)finalAddress;
+
+					printf("ÕÒ²»µ½ÈÎºÎ¶«Î÷¡£\n");
+					return T();
+				}
+				*/
+
+				currentAddress += offsetList[i];
+				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), PAGE_EXECUTE_READWRITE, &oldProtect) == FALSE)
+				{
+					printf("´íÎó£ºĞŞ¸ÄµØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					return T();
+				}
+
+				if (i < len - 1)
+				{
+					finalAddress = *(DWORD*)currentAddress;
+					// memcpy_s(&finalAddress, sizeof(finalAddress), (void*)current, sizeof(current));
+				}
+				else
+					finalAddress = currentAddress;
+
+				if (!VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
+					printf("´íÎó£º»Ö¸´µØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+
+				// ½«µ±Ç°µØÖ·ÉèÖÃÎª×îºóµÄµØÖ·
+				currentAddress = finalAddress;
+			}
+
+			if (finalAddress != NULL)
+				return *(T*)finalAddress;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("´íÎó£º¶ÁÈ¡µØÖ·Îª 0x%X µÄÄÚÈİÊ§°Ü¡£\n", currentAddress);
+		}
+
+		return T();
+	}
+
+	template<typename T, typename ...Arg>
+	static T writeMemory(T value, Arg... offset)
+	{
+		DWORD offsetList[] = { (DWORD)offset... };
+		DWORD currentAddress = 0, finalAddress = 0, oldProtect = 0;
+		int len = GetArrayLength(offsetList);
+		if (len <= 0)
+		{
+			printf("ÇëÌá¹©ÖÁÉÙÒ»¸öµØÖ·£¡\n");
+			return T();
+		}
+
+		__try
+		{
+			for (int i = 0; i < len; ++i)
+			{
+				/*
+				if (i == len - 1 || offsetList[i] == NULL)
+				{
+					if (finalAddress != NULL)
+						return (*(T*)finalAddress = value);
+
+					printf("ÕÒ²»µ½ÈÎºÎ¶«Î÷¡£\n");
+					return T();
+				}
+				*/
+
+				currentAddress += offsetList[i];
+				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), PAGE_EXECUTE_READWRITE, &oldProtect) == FALSE)
+				{
+					printf("´íÎó£ºĞŞ¸ÄµØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					return T();
+				}
+
+				if (i < len - 1)
+				{
+					finalAddress = *(DWORD*)currentAddress;
+					// memcpy_s(&finalAddress, sizeof(finalAddress), (void*)current, sizeof(current));
+				}
+				else
+					finalAddress = currentAddress;
+
+				if (!VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
+					printf("´íÎó£º»Ö¸´µØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+
+				// ½«µ±Ç°µØÖ·ÉèÖÃÎª×îºóµÄµØÖ·
+				currentAddress = finalAddress;
+			}
+
+			if (finalAddress != NULL)
+				return (*(T*)finalAddress = value);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("´íÎó£º¶ÁÈ¡µØÖ·Îª 0x%X µÄÄÚÈİÊ§°Ü¡£\n", currentAddress);
+		}
+
+		return T();
 	}
 };
 
