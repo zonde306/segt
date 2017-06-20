@@ -82,6 +82,7 @@ void bunnyHop();
 void autoPistol();
 void autoAim();
 void esp();
+void bindAlias(int);
 void pure(void*);
 
 void StartCheat()
@@ -203,7 +204,7 @@ void StartCheat()
 		printf("oPresent = 0x%X\n", (DWORD)oPresent);
 	});
 
-	DWORD client, engine, material;
+	DWORD client, engine, material, fmWait;
 	client = Utils::GetModuleBase("client.dll");
 	engine = Utils::GetModuleBase("engine.dll");
 	material = Utils::GetModuleBase("materialsystem.dll");
@@ -211,6 +212,9 @@ void StartCheat()
 	printf("engine.dll = 0x%X\n", engine);
 	printf("materialsystem.dll = 0x%X\n", material);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
+	
+	fmWait = 45;
+	bindAlias(fmWait);
 
 	for (;;)
 	{
@@ -245,6 +249,7 @@ void StartCheat()
 
 				Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
 					Utils::readMemory<int>(client + r_drawothermodels));
+
 				Sleep(1000);
 			}
 
@@ -257,6 +262,7 @@ void StartCheat()
 
 				Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
 					Utils::readMemory<int>(material + mat_fullbright));
+
 				Sleep(1000);
 			}
 
@@ -280,6 +286,22 @@ void StartCheat()
 
 					Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
 				}
+
+				Sleep(1000);
+			}
+
+			if (GetAsyncKeyState(VK_ADD) & 0x01)
+			{
+				Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
+				Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+				Sleep(1000);
+			}
+
+			if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
+			{
+				Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
+				Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+				Sleep(1000);
 			}
 		}
 
@@ -739,8 +761,12 @@ void autoAim()
 			{
 				// Ä¿±êÎ»ÖÃ
 				Vector position = pCurrentAiming->GetEyePosition();
-				if (pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer") == ZC_JOCKEY)
+
+				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				if (zombieClass == ZC_JOCKEY)
 					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				else if(zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+					position.z -= 12.0f;
 
 				// Vector position = GetHeadPosition(pCurrentAiming);
 				// Vector position = pCurrentAiming->GetHitboxPosition(0);
@@ -923,4 +949,41 @@ Fn* RetourFunction(Fn* src, Fn* dst, int len)
 		return false;
 
 	return true;
+}
+
+void bindAlias(int wait)
+{
+	Interfaces.Engine->ClientCmd("echo \"========= alias begin =========\"");
+	Interfaces.Engine->ClientCmd("alias +autofire \"alias autofire_launcher autofire_loop; autofire_launcher\"");
+	Interfaces.Engine->ClientCmd("alias -autofire \"alias autofire_launcher autofire_stop\"");
+	Interfaces.Engine->ClientCmd("alias autofire_launcher autofire_loop");
+	Interfaces.Engine->ClientCmd("alias autofire_loop \"+attack; wait 5; -attack; wait 5; autofire_launcher\"");
+	Interfaces.Engine->ClientCmd("alias autofire_stop \"-attack\"");
+	Interfaces.Engine->ClientCmd("alias +autojump \"alias autojump_launcher autojump_loop; autojump_launcher\"");
+	Interfaces.Engine->ClientCmd("alias -autojump \"alias autojump_launcher autojump_stop\"");
+	Interfaces.Engine->ClientCmd("alias autojump_launcher autojump_loop");
+	Interfaces.Engine->ClientCmd("alias autojump_loop \"+jump; wait 5; -jump; wait 5; autojump_launcher\"");
+	Interfaces.Engine->ClientCmd("alias autojump_stop \"-jump\"");
+	Interfaces.Engine->ClientCmd("alias +bigjump \"+jump; +duck\"");
+	Interfaces.Engine->ClientCmd("alias -bigjump \"-jump; -duck\"");
+	Interfaces.Engine->ClientCmd("alias +pistolspam \"alias pistolspam dopistolspam; dopistolspam\"");
+	Interfaces.Engine->ClientCmd("alias -pistolspam \"alias pistolspam -use\"");
+	Interfaces.Engine->ClientCmd("alias dopistolspam \"+use; wait 3; -use; wait 3; pistolspam\"");
+	Interfaces.Engine->ClientCmd("alias +fastmelee \"alias fastmelee_launcher fastmelee_loop; fastmelee_launcher\"");
+	Interfaces.Engine->ClientCmd("alias fastmelee_launcher fastmelee_loop");
+	Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", wait);
+	Interfaces.Engine->ClientCmd("alias fastmelee_stop \"-attack\"");
+	Interfaces.Engine->ClientCmd("alias -fastmelee \"alias fastmelee_launcher fastmelee_stop\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_toggle \"thirdperson_enable\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_enable \"alias thirdperson_toggle thirdperson_disable; thirdpersonshoulder\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_disable \"alias thirdperson_toggle thirdperson_enable; thirdpersonshoulder; c_thirdpersonshoulder 0\"");
+	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderoffset 0");
+	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderaimdist 720");
+	Interfaces.Engine->ClientCmd("cam_ideallag 0");
+	Interfaces.Engine->ClientCmd("cam_idealdist 40");
+	Interfaces.Engine->ClientCmd("bind leftarrow \"incrementvar cam_idealdist 30 130 10\"");
+	Interfaces.Engine->ClientCmd("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\"");
+	Interfaces.Engine->ClientCmd("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\"");
+	Interfaces.Engine->ClientCmd("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\"");
+	Interfaces.Engine->ClientCmd("echo \"========= alias end =========\"");
 }
