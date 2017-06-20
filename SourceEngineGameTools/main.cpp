@@ -84,6 +84,8 @@ void esp();
 void bindAlias(int);
 void pure(void*);
 void meleeAttack();
+void thirdPerson();
+void showSpectator();
 
 void StartCheat()
 {
@@ -295,6 +297,12 @@ void StartCheat()
 
 				Sleep(1000);
 			}
+
+			if (GetAsyncKeyState(VK_NEXT) & 0x01)
+				thirdPerson();
+
+			if (GetAsyncKeyState(VK_TAB) & 0x01)
+				showSpectator();
 
 			if (GetAsyncKeyState(VK_ADD) & 0x01)
 			{
@@ -906,6 +914,198 @@ void meleeAttack()
 		tookoutTime = 0.0f;
 	
 	Sleep(1);
+}
+
+void thirdPerson()
+{
+	CBaseEntity* local = GetLocalClient();
+	if (local && local->IsAlive())
+	{
+		/*
+		if (local->GetNetProp<float>("m_TimeForceExternalView", "DT_TerrorPlayer") > 0.0)
+		local->SetNetProp<float>("m_TimeForceExternalView", 99999.3, "DT_TerrorPlayer");
+		else
+		local->SetNetProp<float>("m_TimeForceExternalView", 0.0, "DT_TerrorPlayer");
+		*/
+
+		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
+		{
+			// 切换到第三人称
+			local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
+			local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
+			local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
+		}
+		else if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == 0)
+		{
+			// 切换到第一人称
+			local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
+			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
+			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
+		}
+	}
+
+	Sleep(1000);
+}
+
+void showSpectator()
+{
+	CBaseEntity* local = GetLocalClient();
+	if (local && local->IsAlive())
+	{
+		player_info_t info;
+		CBaseEntity* player = nullptr, *target = nullptr;
+
+		Interfaces.Engine->ClientCmd("echo \"========= player list =========\"");
+
+		for (int i = 1; i < 64; ++i)
+		{
+			player = Interfaces.ClientEntList->GetClientEntity(i);
+			if (player == nullptr)
+				continue;
+
+			int team = player->GetTeam();
+			int mode = player->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer");
+			Interfaces.Engine->GetPlayerInfo(player->GetIndex(), &info);
+
+			if (team == 1)
+			{
+				// 观察者
+				if (mode != 4 && mode != 5)
+					continue;
+				
+				target = (CBaseEntity*)player->GetNetProp<void*>("m_iObserverMode", "DT_BasePlayer");
+				if (target && (int)target != -1)
+					target = Interfaces.ClientEntList->GetClientEntityFromHandle(target);
+				
+				if (target == nullptr || (int)target == -1)
+					continue;
+				
+				if (target->GetIndex() == local->GetIndex())
+				{
+					// 正在观察本地玩家
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+				}
+				else
+				{
+					// 正在观察其他玩家
+					player_info_t other;
+					Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+				}
+			}
+			else if (team == 2)
+			{
+				// 生还者
+				if (player->IsAlive())
+				{
+					// 活着
+					Interfaces.Engine->ClientCmd("echo \"[survivor] player %s is alive (%d + %.0f)\"",
+						info.name, player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
+				}
+				else
+				{
+					// 死亡
+					if (mode != 4 && mode != 5)
+						continue;
+					
+					target = (CBaseEntity*)player->GetNetProp<void*>("m_iObserverMode", "DT_BasePlayer");
+					if (target && (int)target != -1)
+						target = Interfaces.ClientEntList->GetClientEntityFromHandle(target);
+
+					if (target == nullptr || (int)target == -1)
+						continue;
+
+					if (target->GetIndex() == local->GetIndex())
+					{
+						// 正在观察本地玩家
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+					}
+					else
+					{
+						// 正在观察其他玩家
+						player_info_t other;
+						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+					}
+				}
+			}
+			else if (team == 3)
+			{
+				// 感染者
+				int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				char zombieName[32];
+				switch (zombie)
+				{
+				case ZC_SMOKER:
+					strcpy_s(zombieName, "smoker");
+					break;
+				case ZC_BOOMER:
+					strcpy_s(zombieName, "boomer");
+					break;
+				case ZC_HUNTER:
+					strcpy_s(zombieName, "hunter");
+					break;
+				case ZC_SPITTER:
+					strcpy_s(zombieName, "spitter");
+					break;
+				case ZC_JOCKEY:
+					strcpy_s(zombieName, "jockey");
+					break;
+				case ZC_CHARGER:
+					strcpy_s(zombieName, "charger");
+					break;
+				case ZC_TANK:
+					strcpy_s(zombieName, "tank");
+					break;
+				default:
+					ZeroMemory(zombieName, 32);
+				}
+
+				if (player->IsAlive())
+				{
+					// 活着
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is %s (%d)\"",
+						info.name, zombieName, player->GetHealth());
+				}
+				else if (player->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"))
+				{
+					// 幽灵状态
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is ghost %s (%d)\"",
+						info.name, zombieName, player->GetHealth());
+				}
+				else
+				{
+					// 死亡
+					if (mode != 4 && mode != 5)
+						continue;
+
+					target = (CBaseEntity*)player->GetNetProp<void*>("m_iObserverMode", "DT_BasePlayer");
+					if (target && (int)target != -1)
+						target = Interfaces.ClientEntList->GetClientEntityFromHandle(target);
+
+					if (target == nullptr || (int)target == -1)
+						continue;
+
+					if (target->GetIndex() == local->GetIndex())
+					{
+						// 正在观察本地玩家
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+					}
+					else
+					{
+						// 正在观察其他玩家
+						player_info_t other;
+						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+					}
+				}
+			}
+		}
+
+		Interfaces.Engine->ClientCmd("echo \"========= list end =========\"");
+	}
+
+	Sleep(1000);
 }
 
 void bindAlias(int wait)

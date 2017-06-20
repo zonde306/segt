@@ -194,7 +194,6 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 // 获取当前服务器时间
 #define GetServerTime()				(Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())->GetTickBase() * Interfaces.Globals->interval_per_tick)
 
-
 enum WeaponID_t
 {
 	Weapon_Pistol = 1,				// 小手枪(包括双持) 手枪
