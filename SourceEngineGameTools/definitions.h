@@ -157,15 +157,54 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define mat_fullbright			0xFE3F0			// materialsystem.dll
 #define mp_gamemode				0x79679C		// client.dll - char*
 
+// cbaseentity offset
+#define m_iCrosshairsId			0x19D8
+#define m_iLastCrosshairsId		0x19E8
+
+// 获取本地玩家
+#define GetLocalClient()			Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())
+
+// 倒地
+#define IsFallDown(_e)				(_e->GetNetProp<int>("m_isIncapacitated", "DT_TerrorPlayer") > 0)
+
+// 挂边
+#define IsHangingFromLedge(_e)		(_e->GetNetProp<int>("m_isHangingFromLedge", "DT_TerrorPlayer") > 0)
+
+// 被舌头拉
+#define IsVictimSmoker(_e)			(_e->GetNetProp<int>("m_tongueOwner", "DT_TerrorPlayer") > 0)
+
+// 被猴骑
+#define IsVictimJockey(_e)			(_e->GetNetProp<int>("m_jockeyAttacker", "DT_TerrorPlayer") > 0)
+
+// 被猎人扑
+#define IsVictimHunter(_e)			(_e->GetNetProp<int>("m_pounceAttacker", "DT_TerrorPlayer") > 0)
+
+// 被牛抓住锤地板
+#define IsVictimCharger(_e)			(_e->GetNetProp<int>("m_pummelAttacker", "DT_TerrorPlayer") > 0)
+
+// 被控
+#define IsControlled(_e)			(IsVictimSmoker(_e) || IsVictimJockey(_e) || IsVictimHunter(_e) || IsVictimCharger(_e))
+
+// 无法移动(倒地挂边)
+#define IsIncapacitated(_e)			(IsFallDown(_e) || IsHangingFromLedge(_e))
+
+// 是否需要队友救援
+#define IsNeedRescue(_e)			(IsIncapacitated(_e) || IsControlled(_e))
+
+// 获取当前服务器时间
+#define GetServerTime()				(Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())->GetTickBase() * Interfaces.Globals->interval_per_tick)
+
+
 enum WeaponID_t
 {
 	Weapon_Pistol = 1,				// 小手枪(包括双持) 手枪
 	Weapon_ShotgunPump = 3,			// 木喷 半自动
-	Weapon_ShotAuto = 4,			// 连喷 连点加快射速
+	Weapon_ShotgunAuto = 4,			// 连喷 连点加快射速
 	Weapon_SniperHunting = 6,		// 猎枪 半自动
 	Weapon_ShotgunChrome = 8,		// 铁喷 半自动
 	Weapon_SniperMilitary = 10,		// 连狙 半自动
 	Weapon_ShotgunSpas = 11,		// 高级连喷 连点加快射速
+	Weapon_Melee = 19,				// 近战武器
 	Weapon_PistolMagnum = 32,		// 马格南 手枪
 	Weapon_SniperAWP = 35,			// 大鸟 半自动
 	Weapon_SniperScout = 36			// 鸟狙 半自动

@@ -71,7 +71,7 @@ public:
 		return *(Vector*)(this + offset);
 	}
 
-	void* ActiveWeapon()
+	void* GetActiveWeapon()
 	{
 		static int offset = netVars->GetOffset("DT_BaseCombatCharacter", "m_hActiveWeapon");
 		return *(void**)(this + offset);

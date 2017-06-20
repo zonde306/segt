@@ -1,6 +1,5 @@
 #include "main.h"
 
-#define GetLocalClient()	Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())
 void StartCheat();
 
 BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
@@ -84,6 +83,7 @@ void autoAim();
 void esp();
 void bindAlias(int);
 void pure(void*);
+void meleeAttack();
 
 void StartCheat()
 {
@@ -211,6 +211,7 @@ void StartCheat()
 	printf("client.dll = 0x%X\n", client);
 	printf("engine.dll = 0x%X\n", engine);
 	printf("materialsystem.dll = 0x%X\n", material);
+	printf("localPlayer = 0x%X\n", (DWORD)GetLocalClient());
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 	
 	fmWait = 45;
@@ -233,6 +234,11 @@ void StartCheat()
 				autoAim();
 			else if (pCurrentAiming != nullptr)
 				pCurrentAiming = nullptr;
+
+			/*
+			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
+				meleeAttack();
+			*/
 
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
@@ -669,24 +675,39 @@ void autoPistol()
 	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
 		client->IsAlive())
 	{
-		CBaseEntity* weapon = (CBaseEntity*)client->ActiveWeapon();
+		CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
 		if(weapon)
 			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
 		
-		float serverTime = client->GetTickBase() * Interfaces.Globals->interval_per_tick;
 		if (weapon && weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon") > 0 &&
-			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
+			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= GetServerTime())
 		{
 			int weaponId = weapon->GetWeaponID();
-			if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
-				weaponId == Weapon_ShotAuto || weaponId == Weapon_SniperHunting ||
-				weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
-				weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
-				weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
+			int aiming = *(int*)(client + m_iCrosshairsId);
+			CBaseEntity* target = (aiming > 0 ? Interfaces.ClientEntList->GetClientEntity(aiming) : nullptr);
+			if (target == nullptr || target->GetTeam() != client->GetTeam() || IsNeedRescue(target))
 			{
-				Interfaces.Engine->ClientCmd("+attack");
-				Sleep(10);
+				// 检查当前武器是否需要连点才能持续开枪
+				// 因为这个连点开枪效率并不好，对于自动武器来说，会降低射击速度
+				// 连发霰弹枪连点可以加快射速
+				if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
+					weaponId == Weapon_ShotgunAuto || weaponId == Weapon_SniperHunting ||
+					weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
+					weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
+					weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
+				{
+					Interfaces.Engine->ClientCmd("+attack");
+					Sleep(10);
+					Interfaces.Engine->ClientCmd("-attack");
+				}
+			}
+			else
+			{
+				// 当前瞄准的是队友，并且队友不需要帮助
+				// 在这里停止开枪，防止队友伤害
 				Interfaces.Engine->ClientCmd("-attack");
+
+				// printf("current weapon id = %d\n", weaponId);
 			}
 		}
 	}
@@ -700,7 +721,7 @@ void autoAim()
 	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
 		client->IsAlive())
 	{
-		CBaseEntity* weapon = (CBaseEntity*)client->ActiveWeapon();
+		CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
 		if (weapon)
 			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
 
@@ -762,14 +783,17 @@ void autoAim()
 				// 目标位置
 				Vector position = pCurrentAiming->GetEyePosition();
 
+				// 根据不同的情况确定高度
 				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 				if (zombieClass == ZC_JOCKEY)
 					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
 				else if(zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
 					position.z -= 12.0f;
 
+				// 使用这个方法可以有效的瞄准头部，但是会 boom
 				// Vector position = GetHeadPosition(pCurrentAiming);
 				// Vector position = pCurrentAiming->GetHitboxPosition(0);
+
 				/*
 				if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)
 				{
@@ -826,6 +850,7 @@ void esp()
 			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0 || player->IsDormant())
 				continue;
 
+			// 没有任何效果...
 			player->SetNetProp("m_iGlowType", 3, "DT_TerrorPlayer");
 			// player->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
 			// player->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
@@ -852,103 +877,35 @@ void esp()
 	Sleep(1);
 }
 
-template<typename Fn>
-Fn * DetourFunction(Fn * src, Fn * dst, int len)
+void meleeAttack()
 {
-	/*
-	static auto func = [](BYTE* src, BYTE* dst, int len) -> void*
+	CBaseEntity* client = GetLocalClient();
+	static float tookoutTime;
+
+	if (client != nullptr && client->IsAlive())
 	{
-	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
-	//BYTE *jmp = (BYTE*)malloc(len+5);
-	DWORD dwBack;
+		CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
+		if (weapon)
+			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
 
-	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
-	memcpy(jmp, src, len);
-	jmp += len;
-	jmp[0] = 0xE9;
-	*(DWORD*)(jmp + 1) = (DWORD)(src + len - jmp) - 5;
-	src[0] = 0xE9;
-	*(DWORD*)(src + 1) = (DWORD)(dst - src) - 5;
-	for (int i = 5; i<len; i++)  src[i] = 0x90;
-	VirtualProtect(src, len, dwBack, &dwBack);
-	return (jmp - len);
-	};
-	*/
 
-	Fn* result = nullptr;
-#if defined(EASYHOOK_API)
-	HOOK_TRACE_INFO hti = { 0 };
-	if (FAILED(LhInstallHook(src, dst, NULL, &hti)))
-		return nullptr;
-
-#elif defined(DETOURS_VERSION)
-	DetourRestoreAfterWith();
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	result = (Fn*)DetourAttach((PVOID*)&src, dst);
-	DetourTransactionCommit();
-#else
-	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
-	// BYTE *jmp = (BYTE*)malloc(len+5);
-	DWORD dwBack;
-
-	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
-	memcpy(jmp, src, len);
-	jmp += len;
-	jmp[0] = 0xE9;
-	*(DWORD*)(jmp + 1) = (DWORD)((BYTE*)src + len - jmp) - 5;
-	((BYTE*)src)[0] = 0xE9;
-	*(DWORD*)((BYTE*)src + 1) = (DWORD)((BYTE*)dst - (BYTE*)src) - 5;
-
-	for (int i = 5; i < len; i++)
-		((BYTE*)src)[i] = 0x90;
-
-	VirtualProtect(src, len, dwBack, &dwBack);
-	return (Fn*)(jmp - len);
-#endif
-
-	/*
-	Fn* result = nullptr;
-	#ifdef DETOURS_VERSION
-	#if DETOURS_VERSION >= 21000
-	DetourRestoreAfterWith();
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	result = (Fn*)DetourAttach((PVOID*)&src, dst);
-	DetourTransactionCommit();
-	#else
-	result = (Fn*)DetourFunction((BYTE*)src, (BYTE*)dst);
-	#endif
-
-	return result;
-	#else
-	return (Fn*)func((BYTE*)src, (BYTE*)dst, len);
-	#endif
-	*/
-
-#if defined(EASYHOOK_API) || defined(DETOURS_VERSION)
-	return result;
-#endif
-}
-
-template<typename Fn>
-Fn* RetourFunction(Fn* src, Fn* dst, int len)
-{
-	DWORD dwback;
-
-	if (!VirtualProtect(src, len, PAGE_READWRITE, &dwback))
-		return false;
-
-	if (!memcpy(src, dst, len))
-		return false;
-
-	dst[0] = 0xE9;
-	*(DWORD*)((BYTE*)dst + 1) = (DWORD)((BYTE*)src - (BYTE*)dst) - 5;
-
-	if (!VirtualProtect(src, len, dwback, &dwback))
-		return false;
-
-	return true;
+		float serverTime = GetServerTime();
+		if (weapon && weapon->GetWeaponID() == Weapon_Melee && tookoutTime <= serverTime &&
+			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
+		{
+			Interfaces.Engine->ClientCmd("+attack");
+			Sleep(10);
+			Interfaces.Engine->ClientCmd("-attack");
+			Interfaces.Engine->ClientCmd("slot1");
+			Sleep(10);
+			Interfaces.Engine->ClientCmd("slot2");
+			tookoutTime = GetServerTime() + 0.5f;
+		}
+	}
+	else
+		tookoutTime = 0.0f;
+	
+	Sleep(1);
 }
 
 void bindAlias(int wait)
