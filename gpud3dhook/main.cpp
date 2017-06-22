@@ -886,15 +886,17 @@ static LRESULT CALLBACK OverlayProcedure(HWND window, UINT msg, WPARAM wp, LPARA
 
 static void OverlayMessage(Overlay* overlay)
 {
-	for (;;)
+	UpdateWindow(overlay->overlayWindow);
+	while(overlay->message.message != WM_QUIT)
 	{
 		if (PeekMessageA(&overlay->message, overlay->overlayWindow, 0, 0, PM_REMOVE))
 		{
 			DispatchMessageA(&overlay->message);
 			TranslateMessage(&overlay->message);
+			overlay->MakeTargetWindow();
+			continue;
 		}
 
-		overlay->MakeTargetWindow();
 		overlay->Render();
 		Sleep(1);
 	}
