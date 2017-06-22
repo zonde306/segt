@@ -13,17 +13,20 @@
     <ClInclude Include="detourxs.h">
       <Filter>detour</Filter>
     </ClInclude>
+    <ClInclude Include="overlay.h">
+      <Filter>overlay</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="detour">
       <UniqueIdentifier>{aa2c06d8-9489-4589-be56-5471ebe121f7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="overlay">
+      <UniqueIdentifier>{40ac59d9-0afb-49f5-94e1-3f3d7f6de1ab}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="hook.def">
-      <Filter>detour</Filter>
-    </None>
-    <None Include="LDE64x64.asm">
       <Filter>detour</Filter>
     </None>
   </ItemGroup>
@@ -31,5 +34,6 @@
     <CustomBuild Include="LDE64.asm">
       <Filter>detour</Filter>
     </CustomBuild>
+    <CustomBuild Include="LDE64x64.asm" />
   </ItemGroup>
 </Project>

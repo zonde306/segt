@@ -148,6 +148,7 @@
     <ClInclude Include="d3dumddi.h" />
     <ClInclude Include="detourxs.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="overlay.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="hook.def" />

@@ -1,5 +1,6 @@
 #include "main.h"
 
+// #define USE_PLAYER_INFO
 void StartCheat();
 
 BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
@@ -921,13 +922,13 @@ void thirdPerson()
 	CBaseEntity* local = GetLocalClient();
 	if (local && local->IsAlive())
 	{
-		/*
-		if (local->GetNetProp<float>("m_TimeForceExternalView", "DT_TerrorPlayer") > 0.0)
-		local->SetNetProp<float>("m_TimeForceExternalView", 99999.3, "DT_TerrorPlayer");
+		
+		if (local->GetNetProp<float>("m_TimeForceExternalView", "DT_TerrorPlayer") > 0.0f)
+			local->SetNetProp<float>("m_TimeForceExternalView", 99999.3f, "DT_TerrorPlayer");
 		else
-		local->SetNetProp<float>("m_TimeForceExternalView", 0.0, "DT_TerrorPlayer");
-		*/
-
+			local->SetNetProp<float>("m_TimeForceExternalView", 0.0f, "DT_TerrorPlayer");
+		
+		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
 			// 切换到第三人称
@@ -942,6 +943,7 @@ void thirdPerson()
 			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
 			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
 		}
+		*/
 	}
 
 	Sleep(1000);
@@ -952,7 +954,10 @@ void showSpectator()
 	CBaseEntity* local = GetLocalClient();
 	if (local && local->IsAlive())
 	{
+#ifdef USE_PLAYER_INFO
 		player_info_t info;
+#endif
+
 		CBaseEntity* player = nullptr, *target = nullptr;
 
 		Interfaces.Engine->ClientCmd("echo \"========= player list =========\"");
@@ -965,7 +970,10 @@ void showSpectator()
 
 			int team = player->GetTeam();
 			int mode = player->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer");
+
+#ifdef USE_PLAYER_INFO
 			Interfaces.Engine->GetPlayerInfo(player->GetIndex(), &info);
+#endif
 
 			if (team == 1)
 			{
@@ -983,14 +991,26 @@ void showSpectator()
 				if (target->GetIndex() == local->GetIndex())
 				{
 					// 正在观察本地玩家
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+#ifdef USE_PLAYER_INFO
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s you\"",
+						info.name, (mode == 4 ? "watching" : "following"));
+#else
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s you\"",
+						player->GetIndex(), (mode == 4 ? "watching" : "following"));
+#endif
 				}
 				else
 				{
 					// 正在观察其他玩家
+#ifdef USE_PLAYER_INFO
 					player_info_t other;
 					Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s %s\"",
+						info.name, (mode == 4 ? "watching" : "following"), other.name);
+#else
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s %d\"",
+						player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+#endif
 				}
 			}
 			else if (team == 2)
@@ -999,8 +1019,13 @@ void showSpectator()
 				if (player->IsAlive())
 				{
 					// 活着
+#ifdef USE_PLAYER_INFO
 					Interfaces.Engine->ClientCmd("echo \"[survivor] player %s is alive (%d + %.0f)\"",
 						info.name, player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
+#else
+					Interfaces.Engine->ClientCmd("echo \"[survivor] player %d is alive (%d + %.0f)\"",
+						player->GetIndex(), player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
+#endif
 				}
 				else
 				{
@@ -1018,14 +1043,26 @@ void showSpectator()
 					if (target->GetIndex() == local->GetIndex())
 					{
 						// 正在观察本地玩家
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+#ifdef USE_PLAYER_INFO
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s you\"",
+							info.name, (mode == 4 ? "watching" : "following"));
+#else
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s you\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"));
+#endif
 					}
 					else
 					{
 						// 正在观察其他玩家
+#ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s %s\"",
+							info.name, (mode == 4 ? "watching" : "following"), other.name);
+#else
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s %d\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+#endif
 					}
 				}
 			}
@@ -1064,14 +1101,24 @@ void showSpectator()
 				if (player->IsAlive())
 				{
 					// 活着
+#ifdef USE_PLAYER_INFO
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is %s (%d)\"",
 						info.name, zombieName, player->GetHealth());
+#else
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is %s (%d)\"",
+						player->GetIndex(), zombieName, player->GetHealth());
+#endif
 				}
 				else if (player->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"))
 				{
 					// 幽灵状态
+#ifdef USE_PLAYER_INFO
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is ghost %s (%d)\"",
 						info.name, zombieName, player->GetHealth());
+#else
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is ghost %s (%d)\"",
+						player->GetIndex(), zombieName, player->GetHealth());
+#endif
 				}
 				else
 				{
@@ -1089,14 +1136,26 @@ void showSpectator()
 					if (target->GetIndex() == local->GetIndex())
 					{
 						// 正在观察本地玩家
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"", info.name, (mode == 4 ? "watching" : "following"));
+#ifdef USE_PLAYER_INFO
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
+							info.name, (mode == 4 ? "watching" : "following"));
+#else
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"));
+#endif
 					}
 					else
 					{
 						// 正在观察其他玩家
+#ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s %s\"", other.name, (mode == 4 ? "watching" : "following"));
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s %s\"",
+							info.name, (mode == 4 ? "watching" : "following"), other.name);
+#else
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %d %s %d\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+#endif
 					}
 				}
 			}

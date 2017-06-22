@@ -140,6 +140,7 @@
 
 NAMESPACE_START(dh)
 
+Overlay* gOverlay = nullptr;
 static HWND gFakeWindow = nullptr;
 static bool gIsInitialization = false;
 D3DPFNHooker gDetourFunc, gDetourFunc1;
@@ -499,7 +500,7 @@ static HRESULT SurfaceBltInternal(HANDLE hDevice, HANDLE hDestSurf, RECT destSur
 			{
 				CHAR *pDest = (CHAR*)lockdata.pSurfData;
 				CHAR *pSrc = (CHAR*)lockedRC.pBits;
-				for (UINT i = 0; i < destSurfRC.bottom - destSurfRC.top; i++)
+				for (int i = 0; i < destSurfRC.bottom - destSurfRC.top; i++)
 				{
 
 					CopyMemory(pDest, pSrc, lockedRC.Pitch < lockdata.Pitch ? lockedRC.Pitch : lockdata.Pitch);
@@ -850,6 +851,50 @@ void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)>
 	gDeviceInternal = nullptr;
 }
 
+static LRESULT CALLBACK OverlayProcedure(HWND window, UINT msg, WPARAM wp, LPARAM lp)
+{
+	switch (msg)
+	{
+	case WM_PAINT:
+		gOverlay->Render();
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(1);
+		break;
+	default:
+		return DefWindowProc(window, msg, wp, lp);
+	}
+
+	return 0;
+}
+
+static void OverlayMessage(Overlay* overlay)
+{
+	for (;;)
+	{
+		if (PeekMessageA(&overlay->message, overlay->overlayWindow, 0, 0, PM_REMOVE))
+		{
+			DispatchMessageA(&overlay->message);
+			TranslateMessage(&overlay->message);
+		}
+
+		Sleep(1);
+		overlay->MakeTargetWindow();
+	}
+}
+
+void CreateOverlay(HWND window)
+{
+	gOverlay = new Overlay();
+	gOverlay->CheckDWM();
+	gOverlay->MakeTargetWindow(window);
+	gOverlay->CreateClass("FakeWindow", OverlayProcedure);
+	gOverlay->CreateOverlay("fake window");
+	gOverlay->InitOverlayDirextX();
+
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)OverlayMessage, gOverlay, NULL, NULL);
+}
+
 NAMESPACE_END
 
 template<typename Fn>
@@ -950,3 +995,109 @@ Fn* RetourFunction(Fn* src, Fn* dst, int len)
 
 	return true;
 }
+
+bool Overlay::CheckDWM()
+{
+	BOOL enabled;
+	if (FAILED(DwmIsCompositionEnabled(&enabled)) && enabled)
+		printf("Please make sure your Windows Aero is enabled!\n\nSupported Systems:\n* Windows Vista\n* Windows 7\n* Windows 8 / 8.1");
+
+	return (enabled == TRUE);
+}
+
+WNDCLASSEXA Overlay::CreateClass(const char * classname, WNDPROC wndproc)
+{
+	strcpy_s(className, classname);
+
+	ZeroMemory(&overlayClass, sizeof(overlayClass));
+	overlayClass.cbClsExtra = 0;
+	overlayClass.cbSize = sizeof(overlayClass);
+	overlayClass.cbWndExtra = 0;
+	overlayClass.hbrBackground = (HBRUSH)CreateSolidBrush(RGB(0, 0, 0));
+	overlayClass.hCursor = LoadCursor(0, IDC_ARROW);
+	overlayClass.hIcon = LoadIcon(0, IDI_APPLICATION);
+	overlayClass.hIconSm = LoadIcon(0, IDI_APPLICATION);
+	overlayClass.hInstance = instance;
+	overlayClass.lpfnWndProc = wndproc;
+	overlayClass.lpszClassName = className;
+	overlayClass.lpszMenuName = className;
+	overlayClass.style = CS_HREDRAW | CS_VREDRAW;
+
+	RegisterClassExA(&overlayClass);
+}
+
+bool Overlay::CreateOverlay(const char* title)
+{
+	overlayWindow = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT,
+		overlayClass.lpszClassName, title, WS_POPUP, 1, 1, width, height, 0, 0, instance, 0);
+	SetLayeredWindowAttributes(overlayWindow, RGB(0, 0, 0), 255, LWA_COLORKEY | LWA_ALPHA);
+	ShowWindow(overlayWindow, SW_SHOW);
+	DwmExtendFrameIntoClientArea(overlayWindow, &margin);
+}
+
+void Overlay::MakeTargetWindow(HWND window)
+{
+	if (window != nullptr)
+		targetWindow = window;
+	if (targetWindow == nullptr)
+		return;
+
+	RECT rect;
+	GetWindowRect(targetWindow, &rect);
+	width = rect.right - rect.left;
+	height = rect.bottom - rect.top;
+
+	if (GetWindowLongA(targetWindow, GWL_STYLE) & WS_BORDER)
+	{
+		rect.top += 23;
+		height -= 23;
+	}
+
+	MoveWindow(targetWindow, rect.left, rect.top, width, height, true);
+	margin = { 0, 0, width, height };
+}
+
+bool Overlay::InitOverlayDirextX()
+{
+	if (FAILED(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3d)))
+		return false;
+
+	ZeroMemory(&param, sizeof(param));
+	param.Windowed = TRUE;
+	param.BackBufferFormat = D3DFMT_A8R8G8B8;
+	param.BackBufferWidth = width;
+	param.BackBufferHeight = height;
+	param.EnableAutoDepthStencil = TRUE;
+	param.AutoDepthStencilFormat = D3DFMT_D16;
+	param.MultiSampleQuality = D3DMULTISAMPLE_NONE;
+	param.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
+	if (FAILED(d3d->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, overlayWindow,
+		D3DCREATE_HARDWARE_VERTEXPROCESSING, &param, 0, &device)))
+	{
+		if (d3d)
+		{
+			d3d->Release();
+			d3d = nullptr;
+		}
+
+		return false;
+	}
+
+	return true;
+}
+
+void Overlay::Render()
+{
+	device->BeginScene();
+
+	if (GetForegroundWindow() == targetWindow)
+	{
+
+	}
+
+	device->EndScene();
+	device->PresentEx(0, 0, 0, 0, 0);
+	device->Clear(0, 0, D3DCLEAR_TARGET, 0, 1.f, 0);
+}
+

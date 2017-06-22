@@ -7,7 +7,10 @@
 #include "d3dumddi.h"
 #include <cstdio>
 #include <functional>
+#include <dwmapi.h>
 #include "detourxs.h"
+#include "overlay.h"
+
 // #include <detours.h>
 // #include <easyhook.h>
 
@@ -27,6 +30,10 @@
 #ifdef D3D_SDK_VERSION
 #pragma comment(lib, "d3d9")
 #pragma comment(lib, "d3dx9")
+#endif
+
+#ifdef DWMAPI
+#pragma comment(lib, "dwmapi")
 #endif
 
 #define NAMESPACE_START(_x)		namespace _x {
@@ -50,6 +57,7 @@ typedef struct D3DHook
 	DWORD iStride;
 } D3DPFNHooker;
 
+extern Overlay* gOverlay;
 extern IDirect3D9* gD3D9Internal;
 extern IDirect3DDevice9* gDeviceInternal;
 extern FnOpenAdapter* oOpenAdapter;
@@ -106,6 +114,16 @@ void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)>
 
 // 尝试搜索 D3D Device 指针，但是非常慢
 IDirect3DDevice9* FindDirexcXDevice();
+
+/*
+* 开始一个 IDirect3DDevice9 挂钩
+* 如果成功，则会调用 func 作为 Hook 函数
+*
+* @param window		被覆盖的窗口
+*
+* @return			None
+*/
+void CreateOverlay(HWND window);
 
 NAMESPACE_END
 
