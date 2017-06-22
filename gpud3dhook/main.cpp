@@ -507,7 +507,7 @@ static HRESULT SurfaceBltInternal(HANDLE hDevice, HANDLE hDestSurf, RECT destSur
 				for (int i = 0; i < destSurfRC.bottom - destSurfRC.top; i++)
 				{
 
-					CopyMemory(pDest, pSrc, lockedRC.Pitch < lockdata.Pitch ? lockedRC.Pitch : lockdata.Pitch);
+					CopyMemory(pDest, pSrc, (UINT)(lockedRC.Pitch) < lockdata.Pitch ? lockedRC.Pitch : lockdata.Pitch);
 					pDest += lockdata.Pitch;
 					pSrc += lockedRC.Pitch;
 				}
@@ -869,6 +869,14 @@ static LRESULT CALLBACK OverlayProcedure(HWND window, UINT msg, WPARAM wp, LPARA
 		SetFocus(gOverlay->targetWindow);
 		// SetCapture(gOverlay->targetWindow);
 		break;
+	case WM_SIZE:
+		if (gOverlay->device != nullptr && wp != SIZE_MINIMIZED)
+		{
+			gOverlay->param.BackBufferWidth = LOWORD(lp);
+			gOverlay->param.BackBufferHeight = HIWORD(lp);
+			gOverlay->device->Reset(&gOverlay->param);
+		}
+		break;
 	default:
 		return DefWindowProcA(window, msg, wp, lp);
 	}
@@ -886,8 +894,9 @@ static void OverlayMessage(Overlay* overlay)
 			TranslateMessage(&overlay->message);
 		}
 
-		Sleep(1);
 		overlay->MakeTargetWindow();
+		overlay->Render();
+		Sleep(1);
 	}
 }
 
@@ -1238,8 +1247,8 @@ void Overlay::DrawCircle(int x, int y, int radius, D3DCOLOR color)
 	{
 		float PointOriginX = x + radius * cosf(i);
 		float PointOriginY = y + radius * sinf(i);
-		float PointOriginX2 = radius * cosf(i + 0.1) + x;
-		float PointOriginY2 = radius * sinf(i + 0.1) + y;
+		float PointOriginX2 = radius * cosf(i + 0.1f) + x;
+		float PointOriginY2 = radius * sinf(i + 0.1f) + y;
 		DotPoints[Points] = D3DXVECTOR2(PointOriginX, PointOriginY);
 		DotPoints[Points + 1] = D3DXVECTOR2(PointOriginX2, PointOriginY2);
 		Points += 2;

@@ -334,6 +334,11 @@ void StartCheat()
 			}
 		}
 
+		if (GetAsyncKeyState(VK_END) & 0x01)
+			ExitProcess(0);
+		if (GetAsyncKeyState(VK_DELETE) & 0x01)
+			Interfaces.Engine->ClientCmd("disconnect");
+
 		Sleep(1);
 	}
 
