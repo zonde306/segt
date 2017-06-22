@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 
 class Overlay
 {
@@ -11,6 +12,13 @@ public:
 	bool InitOverlayDirextX();
 	void Render();
 
+	void DrawString(int x, int y, const std::string& text, D3DCOLOR color);
+	void DrawRect(int x, int y, int width, int height, D3DCOLOR color);
+	void DrawBorderedRect(int x, int y, int width, int height, D3DCOLOR filled, D3DCOLOR color);
+	void DrawLine(int x, int y, int x2, int y2, D3DCOLOR color);
+	void DrawFilledRect(int x, int y, int width, int height, D3DCOLOR color);
+	void DrawCircle(int x, int y, int radius, D3DCOLOR color);
+
 	WNDCLASSEXA overlayClass;
 	HWND overlayWindow, targetWindow;
 	MSG message;
@@ -22,4 +30,11 @@ public:
 	IDirect3D9Ex* d3d;
 	IDirect3DDevice9Ex* device;
 	D3DPRESENT_PARAMETERS param;
+	ID3DXFont* font;
+	ID3DXLine* line;
+
+	std::map<std::string, std::function<bool(IDirect3D9Ex*, IDirect3DDevice9Ex*)>> renderCallbackPre;
+	std::map<std::string, std::function<void(IDirect3D9Ex*, IDirect3DDevice9Ex*)>> renderCallbackPost;
+	std::map<std::string, std::function<bool(IDirect3D9Ex*, IDirect3DDevice9Ex*)>> swapCallbackPre;
+	std::map<std::string, std::function<void(IDirect3D9Ex*, IDirect3DDevice9Ex*)>> swapCallbackPost;
 };

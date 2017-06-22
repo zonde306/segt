@@ -138,6 +138,10 @@
 
 #define l4d2_zombies(_s,_n,_p)		(l4d2_common(_s,_n,_p) || l4d2_special(_s,_n,_p))
 
+#ifndef M_PI
+#define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
+#endif
+
 NAMESPACE_START(dh)
 
 Overlay* gOverlay = nullptr;
@@ -861,8 +865,12 @@ static LRESULT CALLBACK OverlayProcedure(HWND window, UINT msg, WPARAM wp, LPARA
 	case WM_DESTROY:
 		PostQuitMessage(1);
 		break;
+	case WM_SETFOCUS:
+		SetFocus(gOverlay->targetWindow);
+		// SetCapture(gOverlay->targetWindow);
+		break;
 	default:
-		return DefWindowProc(window, msg, wp, lp);
+		return DefWindowProcA(window, msg, wp, lp);
 	}
 
 	return 0;
@@ -1021,21 +1029,25 @@ bool Overlay::CreateClass(const char * classname, WNDPROC wndproc)
 	overlayClass.lpfnWndProc = wndproc;
 	overlayClass.lpszClassName = className;
 	overlayClass.lpszMenuName = className;
-	overlayClass.style = CS_HREDRAW | CS_VREDRAW;
+	overlayClass.style = CS_HREDRAW|CS_VREDRAW;
 
 	return RegisterClassExA(&overlayClass);
 }
 
 bool Overlay::CreateOverlay(const char* title)
 {
-	overlayWindow = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT,
-		overlayClass.lpszClassName, title, WS_POPUP, 1, 1, width, height, 0, 0, instance, 0);
+	overlayWindow = CreateWindowExA(WS_EX_TOPMOST|WS_EX_LAYERED|WS_EX_TRANSPARENT|WS_EX_TOOLWINDOW/*|WS_EX_ACCEPTFILES*/,
+		overlayClass.lpszClassName, title, WS_POPUP/*|WS_VISIBLE|WS_TABSTOP*/, 1, 1, width, height, 0, 0, instance, 0);
 	if (overlayWindow == nullptr)
 		return false;
 
 	SetLayeredWindowAttributes(overlayWindow, RGB(0, 0, 0), 255, LWA_COLORKEY | LWA_ALPHA);
 	ShowWindow(overlayWindow, SW_SHOW);
 	DwmExtendFrameIntoClientArea(overlayWindow, &margin);
+
+	// 去除窗口边框
+	SetWindowLongA(overlayWindow, GWL_STYLE,
+		GetWindowLongA(overlayWindow, GWL_STYLE) & ~(WS_CAPTION|WS_SYSMENU|WS_SIZEBOX));
 
 	return true;
 }
@@ -1058,7 +1070,13 @@ void Overlay::MakeTargetWindow(HWND window)
 		height -= 23;
 	}
 
-	MoveWindow(targetWindow, rect.left, rect.top, width, height, true);
+	if (overlayWindow != nullptr)
+	{
+		// MoveWindow(overlayWindow, rect.left, rect.top, width, height, true);
+		SetWindowPos(overlayWindow, HWND_TOP, rect.left, rect.top, width, height,
+			SWP_NOACTIVATE|SWP_NOCOPYBITS|SWP_NOSIZE|SWP_SHOWWINDOW);
+	}
+
 	margin = { 0, 0, width, height };
 }
 
@@ -1070,6 +1088,7 @@ bool Overlay::InitOverlayDirextX()
 	ZeroMemory(&param, sizeof(param));
 	param.Windowed = TRUE;
 	param.BackBufferFormat = D3DFMT_A8R8G8B8;
+	param.BackBufferCount = 2;
 	param.BackBufferWidth = width;
 	param.BackBufferHeight = height;
 	param.EnableAutoDepthStencil = TRUE;
@@ -1089,6 +1108,12 @@ bool Overlay::InitOverlayDirextX()
 		return false;
 	}
 
+	
+	D3DXCreateFontA(device, 16, 0, 0, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY,
+		DEFAULT_PITCH, "Fixedsys", &font);
+
+	D3DXCreateLine(device, &line);
+
 	return true;
 }
 
@@ -1096,13 +1121,128 @@ void Overlay::Render()
 {
 	device->BeginScene();
 
+	bool donotRender = false;
 	if (GetForegroundWindow() == targetWindow)
 	{
+		for (auto callback : renderCallbackPre)
+		{
+			// pre
+			if (!callback.second(d3d, device))
+			{
+				// 不要渲染
+				donotRender = true;
+			}
+		}
 
+		if (!donotRender)
+		{
+			// TODO: 在这里进行一些绘制
+		}
+
+		for (auto callback : renderCallbackPost)
+		{
+			// post
+			callback.second(d3d, device);
+		}
 	}
 
 	device->EndScene();
-	device->PresentEx(0, 0, 0, 0, 0);
+
+	donotRender = false;
+	for (auto callback : swapCallbackPre)
+	{
+		if (!callback.second(d3d, device))
+		{
+			// 不要显示渲染
+			donotRender = true;
+		}
+	}
+
+	if(!donotRender)
+		device->PresentEx(0, 0, 0, 0, 0);
+
+	for (auto callback : swapCallbackPost)
+	{
+		// post
+		callback.second(d3d, device);
+	}
+
 	device->Clear(0, 0, D3DCLEAR_TARGET, 0, 1.f, 0);
 }
 
+void Overlay::DrawString(int x, int y, const std::string & text, D3DCOLOR color)
+{
+	RECT Position;
+	Position.left = x + 1;
+	Position.top = y + 1;
+	font->DrawTextA(0, text.c_str(), text.length(), &Position, DT_NOCLIP, D3DCOLOR_ARGB(255, 0, 0, 0));
+	Position.left = x;
+	Position.top = y;
+	font->DrawTextA(0, text.c_str(), text.length(), &Position, DT_NOCLIP, color);
+}
+
+void Overlay::DrawRect(int x, int y, int width, int height, D3DCOLOR color)
+{
+	D3DXVECTOR2 Rect[5];
+	Rect[0] = D3DXVECTOR2((float)x, (float)y);
+	Rect[1] = D3DXVECTOR2((float)(x + width), (float)y);
+	Rect[2] = D3DXVECTOR2((float)(x + width), (float)(y + height));
+	Rect[3] = D3DXVECTOR2((float)x, (float)(y + height));
+	Rect[4] = D3DXVECTOR2((float)x, (float)y);
+	line->SetWidth(1);
+	line->Draw(Rect, 5, color);
+}
+
+void Overlay::DrawBorderedRect(int x, int y, int width, int height, D3DCOLOR filled, D3DCOLOR color)
+{
+	D3DXVECTOR2 Fill[2];
+	Fill[0] = D3DXVECTOR2((float)(x + width / 2), (float)y);
+	Fill[1] = D3DXVECTOR2((float)(x + width / 2), (float)(y + height));
+	line->SetWidth((float)width);
+	line->Draw(Fill, 2, filled);
+
+	D3DXVECTOR2 Rect[5];
+	Rect[0] = D3DXVECTOR2((float)x, (float)y);
+	Rect[1] = D3DXVECTOR2((float)(x + width), (float)y);
+	Rect[2] = D3DXVECTOR2((float)(x + width), (float)(y + height));
+	Rect[3] = D3DXVECTOR2((float)x, (float)(y + height));
+	Rect[4] = D3DXVECTOR2((float)x, (float)y);
+	line->SetWidth(1);
+	line->Draw(Rect, 5, color);
+}
+
+void Overlay::DrawLine(int x, int y, int x2, int y2, D3DCOLOR color)
+{
+	D3DXVECTOR2 Line[2];
+	Line[0] = D3DXVECTOR2((float)x, (float)y);
+	Line[1] = D3DXVECTOR2((float)x2, (float)y2);
+	line->SetWidth(1.0f);
+	line->Draw(Line, 2, color);
+}
+
+void Overlay::DrawFilledRect(int x, int y, int width, int height, D3DCOLOR color)
+{
+	D3DXVECTOR2 Rect[2];
+	Rect[0] = D3DXVECTOR2((float)(x + width / 2), (float)y);
+	Rect[1] = D3DXVECTOR2((float)(x + width / 2), (float)(y + height));
+	line->SetWidth((float)width);
+	line->Draw(Rect, 2, color);
+}
+
+void Overlay::DrawCircle(int x, int y, int radius, D3DCOLOR color)
+{
+	D3DXVECTOR2 DotPoints[128];
+	D3DXVECTOR2 Line[128];
+	int Points = 0;
+	for (float i = 0; i < M_PI * 2.0f; i += 0.1f)
+	{
+		float PointOriginX = x + radius * cosf(i);
+		float PointOriginY = y + radius * sinf(i);
+		float PointOriginX2 = radius * cosf(i + 0.1) + x;
+		float PointOriginY2 = radius * sinf(i + 0.1) + y;
+		DotPoints[Points] = D3DXVECTOR2(PointOriginX, PointOriginY);
+		DotPoints[Points + 1] = D3DXVECTOR2(PointOriginX2, PointOriginY2);
+		Points += 2;
+	}
+	line->Draw(DotPoints, Points, color);
+}

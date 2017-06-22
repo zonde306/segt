@@ -1,4 +1,5 @@
 #include "main.h"
+#include <ctime>
 
 // #define USE_PLAYER_INFO
 void StartCheat();
@@ -187,6 +188,15 @@ void StartCheat()
 	*/
 	
 	dh::CreateOverlay(FindWindowA(NULL, "Left 4 Dead 2"));
+	dh::gOverlay->renderCallbackPost["showtime"] = [&](IDirect3D9Ex* pD3D, IDirect3DDevice9Ex* pDevice) -> void
+	{
+		char times[64];
+		time_t t = time(NULL);
+
+		// 年/月/日 时:分:秒 星期(0=星期日)
+		strftime(times, 64, u8"%Y/%m/%d %H:%M:%S %w", localtime(&t));
+		dh::gOverlay->DrawString(25, 25, times, D3DCOLOR_RGBA(255, 255, 255, 255));
+	};
 
 	/*
 	dh::StartDeviceHook([&](IDirect3D9* pD3D, IDirect3DDevice9* pDevice, DWORD* pVMT) -> void
