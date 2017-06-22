@@ -16,6 +16,12 @@
     <ClInclude Include="overlay.h">
       <Filter>overlay</Filter>
     </ClInclude>
+    <ClInclude Include="..\detours\detours.h">
+      <Filter>detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\detours\detver.h">
+      <Filter>detour</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="detour">

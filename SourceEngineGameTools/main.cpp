@@ -2,7 +2,31 @@
 #include <ctime>
 
 // #define USE_PLAYER_INFO
-void StartCheat();
+void StartCheat(HINSTANCE instance);
+
+typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
+HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
+static FnDrawIndexedPrimitive oDrawIndexedPrimitive;
+
+typedef HRESULT(WINAPI* FnEndScene)(IDirect3DDevice9*);
+HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9*);
+static FnEndScene oEndScene;
+
+typedef HRESULT(WINAPI* FnCreateQuery)(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
+HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
+static FnCreateQuery oCreateQuery;
+
+typedef HRESULT(WINAPI* FnReset)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
+HRESULT WINAPI Hooked_Reset(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
+static FnReset oReset;
+
+typedef HRESULT(WINAPI* FnPresent)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
+HRESULT WINAPI Hooked_Present(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
+static FnPresent oPresent;
+
+#ifdef __DETOURXS_H
+DetourXS dDrawIndexedPrimitive, dEndScene, dReset, dCreateQuery, dPresent;
+#endif
 
 BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 {
@@ -22,7 +46,46 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, NULL, NULL, NULL);
+		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
+
+		dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
+		{
+#ifdef __DETOURXS_H
+			
+			dReset.Create(&(PVOID&)pVMT[16], Hooked_Reset);
+			oReset = (FnReset)dReset.GetTrampoline();
+			dEndScene.Create(&(PVOID&)pVMT[42], Hooked_EndScene);
+			oEndScene = (FnEndScene)dEndScene.GetTrampoline();
+			dDrawIndexedPrimitive.Create(&(PVOID&)pVMT[82], Hooked_DrawIndexedPrimitive);
+			oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
+			dCreateQuery.Create(&(PVOID&)pVMT[118], Hooked_CreateQuery);
+			oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
+			dPresent.Create(&(PVOID&)pVMT[17], Hooked_Present);
+			oPresent = (FnPresent)dPresent.GetTrampoline();
+#elif defined(DETOURS_VERSION)
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+#endif
+			printf("Hook pD3DDevice Íê±Ï¡£\n");
+			printf("oReset = 0x%X\n", (DWORD)oReset);
+			printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
+			printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
+			printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
+			printf("oPresent = 0x%X\n", (DWORD)oPresent);
+		});
+	}
+	else if (Reason == DLL_PROCESS_DETACH)
+	{
+		if (dReset.Created())
+			dReset.Destroy();
+		if (dEndScene.Created())
+			dEndScene.Destroy();
+		if (dDrawIndexedPrimitive.Created())
+			dDrawIndexedPrimitive.Destroy();
+		if (dCreateQuery.Created())
+			dCreateQuery.Destroy();
+		if (dPresent.Created())
+			dPresent.Destroy();
 	}
 
 	return TRUE;
@@ -56,28 +119,7 @@ typedef void(__stdcall* FnDrawModel)(PVOID, PVOID, const ModelRenderInfo_t&, mat
 void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
 static FnDrawModel oDrawModel;
 
-typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
-HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
-static FnDrawIndexedPrimitive oDrawIndexedPrimitive;
-
-typedef HRESULT(WINAPI* FnEndScene)(IDirect3DDevice9*);
-HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9*);
-static FnEndScene oEndScene;
-
-typedef HRESULT(WINAPI* FnCreateQuery)(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
-HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9*, D3DQUERYTYPE, IDirect3DQuery9**);
-static FnCreateQuery oCreateQuery;
-
-typedef HRESULT(WINAPI* FnReset)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
-HRESULT WINAPI Hooked_Reset(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
-static FnReset oReset;
-
-typedef HRESULT(WINAPI* FnPresent)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
-HRESULT WINAPI Hooked_Present(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
-static FnPresent oPresent;
-
 static CBaseEntity* pCurrentAiming;
-DetourXS dDrawIndexedPrimitive, dEndScene, dReset, dCreateQuery, dPresent;
 
 void bunnyHop();
 void autoPistol();
@@ -89,7 +131,7 @@ void meleeAttack();
 void thirdPerson();
 void showSpectator();
 
-void StartCheat()
+void StartCheat(HINSTANCE instance)
 {
 	// GetClientModeNormal B8 ? ? ? ? C3
 	typedef void*(__stdcall* FnGetClientMode)();
@@ -187,7 +229,8 @@ void StartCheat()
 	}
 	*/
 	
-	dh::CreateOverlay(FindWindowA(NULL, "Left 4 Dead 2"));
+	/*
+	dh::CreateOverlay(FindWindowA(NULL, "Left 4 Dead 2"), instance);
 	dh::gOverlay->renderCallbackPost["showtime"] = [&](IDirect3D9Ex* pD3D, IDirect3DDevice9Ex* pDevice) -> void
 	{
 		char times[64];
@@ -197,28 +240,6 @@ void StartCheat()
 		strftime(times, 64, u8"%Y/%m/%d %H:%M:%S %w", localtime(&t));
 		dh::gOverlay->DrawString(25, 25, times, D3DCOLOR_RGBA(255, 255, 255, 255));
 	};
-
-	/*
-	dh::StartDeviceHook([&](IDirect3D9* pD3D, IDirect3DDevice9* pDevice, DWORD* pVMT) -> void
-	{
-		dReset = DetourXS((void*)pVMT[16], Hooked_Reset);
-		oReset = (FnReset)dReset.GetTrampoline();
-		dEndScene = DetourXS((void*)pVMT[42], Hooked_EndScene);
-		oEndScene = (FnEndScene)dEndScene.GetTrampoline();
-		dDrawIndexedPrimitive = DetourXS((void*)pVMT[82], Hooked_DrawIndexedPrimitive);
-		oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
-		dCreateQuery = DetourXS((void*)pVMT[118], Hooked_CreateQuery);
-		oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
-		dPresent = DetourXS((void*)pVMT[17], Hooked_Present);
-		oPresent = (FnPresent)dPresent.GetTrampoline();
-
-		printf("Hook pD3DDevice Íê±Ï¡£\n");
-		printf("oReset = 0x%X\n", (DWORD)oReset);
-		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
-		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
-		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
-		printf("oPresent = 0x%X\n", (DWORD)oPresent);
-	});
 	*/
 
 	DWORD client, engine, material, fmWait;

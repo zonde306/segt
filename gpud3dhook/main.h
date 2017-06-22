@@ -8,10 +8,9 @@
 #include <cstdio>
 #include <functional>
 #include <dwmapi.h>
-#include "detourxs.h"
 #include "overlay.h"
 
-// #include <detours.h>
+// #include "../detours/detours.h"
 // #include <easyhook.h>
 
 #ifdef EASYHOOK_API
@@ -20,11 +19,12 @@
 #else
 	#pragma comment(lib, "EasyHook32")
 #endif
-
 #endif
 
 #ifdef DETOURS_VERSION
 #pragma comment(lib, "detours")
+#else
+#include "detourxs.h"
 #endif
 
 #ifdef D3D_SDK_VERSION
@@ -110,7 +110,7 @@ bool ReleaseFakeDirectXDevice();
 *
 * @return			None
 */
-void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)> func);
+void StartDeviceHook(std::function<void(IDirect3D9*&, IDirect3DDevice9*&, DWORD*&)> func);
 
 // 尝试搜索 D3D Device 指针，但是非常慢
 IDirect3DDevice9* FindDirexcXDevice();
@@ -123,7 +123,7 @@ IDirect3DDevice9* FindDirexcXDevice();
 *
 * @return			None
 */
-void CreateOverlay(HWND window);
+void CreateOverlay(HWND window, HINSTANCE instance);
 
 NAMESPACE_END
 

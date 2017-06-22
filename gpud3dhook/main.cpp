@@ -836,7 +836,7 @@ IDirect3DDevice9* FindDirexcXDevice()
 	return pDevice;
 }
 
-void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)> func)
+void StartDeviceHook(std::function<void(IDirect3D9*&, IDirect3DDevice9*&, DWORD*&)> func)
 {
 	while (!CreateSearchDevice(&gD3D9Internal, &gDeviceInternal))
 	{
@@ -844,7 +844,8 @@ void StartDeviceHook(std::function<void(IDirect3D9*, IDirect3DDevice9*, DWORD*)>
 		Sleep(1000);
 	}
 
-	func(gD3D9Internal, gDeviceInternal, *(DWORD**)gDeviceInternal);
+	DWORD* pVMT = *(DWORD**)gDeviceInternal;
+	func(gD3D9Internal, gDeviceInternal, pVMT);
 
 	if (gD3D9Internal)
 		gD3D9Internal->Release();
@@ -902,9 +903,10 @@ static void OverlayMessage(Overlay* overlay)
 	}
 }
 
-void CreateOverlay(HWND window)
+void CreateOverlay(HWND window, HINSTANCE instance)
 {
 	gOverlay = new Overlay();
+	gOverlay->instance = instance;
 	gOverlay->CheckDWM();
 	gOverlay->MakeTargetWindow(window);
 	gOverlay->CreateClass("FakeWindow", OverlayProcedure);
@@ -1017,9 +1019,12 @@ Fn* RetourFunction(Fn* src, Fn* dst, int len)
 
 bool Overlay::CheckDWM()
 {
-	BOOL enabled;
+	BOOL enabled = FALSE;
 	if (FAILED(DwmIsCompositionEnabled(&enabled)) && enabled)
+	{
 		printf("Please make sure your Windows Aero is enabled!\n\nSupported Systems:\n* Windows Vista\n* Windows 7\n* Windows 8 / 8.1");
+		// MessageBoxA(NULL, "请开启 Aero 效果", "提示", 0);
+	}
 
 	return (enabled == TRUE);
 }
@@ -1047,7 +1052,7 @@ bool Overlay::CreateClass(const char * classname, WNDPROC wndproc)
 
 bool Overlay::CreateOverlay(const char* title)
 {
-	overlayWindow = CreateWindowExA(WS_EX_TOPMOST|WS_EX_LAYERED|WS_EX_TRANSPARENT|WS_EX_TOOLWINDOW/*|WS_EX_ACCEPTFILES*/,
+	overlayWindow = CreateWindowExA(WS_EX_TOPMOST|WS_EX_LAYERED|WS_EX_TRANSPARENT/*|WS_EX_TOOLWINDOW|WS_EX_ACCEPTFILES*/,
 		overlayClass.lpszClassName, title, WS_POPUP/*|WS_VISIBLE|WS_TABSTOP*/, 1, 1, width, height, 0, 0, instance, 0);
 	if (overlayWindow == nullptr)
 		return false;
