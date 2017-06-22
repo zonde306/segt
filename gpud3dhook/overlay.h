@@ -4,7 +4,7 @@ class Overlay
 {
 public:
 	static bool CheckDWM();
-	WNDCLASSEXA CreateClass(const char* classname, WNDPROC wndproc = [](HWND window, UINT msg, WPARAM wp, LPARAM lp) ->LRESULT
+	bool CreateClass(const char* classname, WNDPROC wndproc = [](HWND window, UINT msg, WPARAM wp, LPARAM lp) ->LRESULT
 	{return DefWindowProc(window, msg, wp, lp); });
 	bool CreateOverlay(const char* title = "");
 	void MakeTargetWindow(HWND window = nullptr);

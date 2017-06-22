@@ -1005,7 +1005,7 @@ bool Overlay::CheckDWM()
 	return (enabled == TRUE);
 }
 
-WNDCLASSEXA Overlay::CreateClass(const char * classname, WNDPROC wndproc)
+bool Overlay::CreateClass(const char * classname, WNDPROC wndproc)
 {
 	strcpy_s(className, classname);
 
@@ -1023,16 +1023,21 @@ WNDCLASSEXA Overlay::CreateClass(const char * classname, WNDPROC wndproc)
 	overlayClass.lpszMenuName = className;
 	overlayClass.style = CS_HREDRAW | CS_VREDRAW;
 
-	RegisterClassExA(&overlayClass);
+	return RegisterClassExA(&overlayClass);
 }
 
 bool Overlay::CreateOverlay(const char* title)
 {
 	overlayWindow = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT,
 		overlayClass.lpszClassName, title, WS_POPUP, 1, 1, width, height, 0, 0, instance, 0);
+	if (overlayWindow == nullptr)
+		return false;
+
 	SetLayeredWindowAttributes(overlayWindow, RGB(0, 0, 0), 255, LWA_COLORKEY | LWA_ALPHA);
 	ShowWindow(overlayWindow, SW_SHOW);
 	DwmExtendFrameIntoClientArea(overlayWindow, &margin);
+
+	return true;
 }
 
 void Overlay::MakeTargetWindow(HWND window)

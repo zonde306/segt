@@ -186,6 +186,9 @@ void StartCheat()
 	}
 	*/
 	
+	dh::CreateOverlay(FindWindowA(NULL, "Left 4 Dead 2"));
+
+	/*
 	dh::StartDeviceHook([&](IDirect3D9* pD3D, IDirect3DDevice9* pDevice, DWORD* pVMT) -> void
 	{
 		dReset = DetourXS((void*)pVMT[16], Hooked_Reset);
@@ -206,6 +209,7 @@ void StartCheat()
 		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
 		printf("oPresent = 0x%X\n", (DWORD)oPresent);
 	});
+	*/
 
 	DWORD client, engine, material, fmWait;
 	client = Utils::GetModuleBase("client.dll");
