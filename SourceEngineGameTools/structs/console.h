@@ -214,18 +214,30 @@ public:
 	ConCommandBase(void);
 	ConCommandBase(const char *pName, const char *pHelpString = 0, int flags = 0);
 
-	virtual						~ConCommandBase(void);
-	virtual	bool				IsCommand(void) const;
+	virtual							~ConCommandBase(void);
+	virtual	bool					IsCommand(void) const;
+
+	// Check flag
 	virtual bool					IsFlagSet(int flag) const;
+
+	// Set flag
 	virtual void					AddFlags(int flags);
-	virtual void					RemoveFlags(int flags);
-	virtual int					GetFlags() const;
-	virtual const char*			GetName(void) const;
-	virtual const char*			GetHelpText(void) const;
+
+	// Return name of cvar
+	virtual const char*				GetName(void) const;
+
+	// Return help text for cvar
+	virtual const char*				GetHelpText(void) const;
+
 	virtual bool					IsRegistered(void) const;
-	virtual int					GetDLLIdentifier() const;
+
+	virtual int						GetDLLIdentifier() const;
+
 	virtual void					Create(const char *pName, const char *pHelpString = 0, int flags = 0);
 	virtual void					Init();
+
+	void							RemoveFlags(int flags);
+	int								GetFlags() const;
 
 public:
 	ConCommandBase*					m_pNext;
@@ -251,31 +263,35 @@ public:
 	ConVar(const char *pName, const char *pDefaultValue, int flags, const char *pHelpString, FnChangeCallback_t callback);
 	ConVar(const char *pName, const char *pDefaultValue, int flags, const char *pHelpString, bool bMin, float fMin, bool bMax, float fMax, FnChangeCallback_t callback);
 
-	virtual						~ConVar(void);
+	virtual							~ConVar(void);
 
 	virtual bool					IsFlagSet(int flag) const;
 	virtual const char*				GetHelpText(void) const;
 	virtual bool					IsRegistered(void) const;
 	virtual const char*				GetName(void) const;
-	virtual const char*				GetBaseName(void) const;
-	virtual int						GetSplitScreenPlayerSlot() const;
+	// virtual const char*			GetBaseName(void) const;
+	// virtual int					GetSplitScreenPlayerSlot() const;
 	virtual void					AddFlags(int flags);
-	virtual int						GetFlags() const;
+	// virtual int					GetFlags() const;
 	virtual	bool					IsCommand(void) const;
+
 	virtual void					SetValue(const char *value);
 	virtual void					SetValue(float value);
 	virtual void					SetValue(int value);
-	virtual void					SetValue(DWORD value);
+	// virtual void					SetValue(DWORD value);
+
 	virtual void					InternalSetValue(const char *value);
 	virtual void					InternalSetFloatValue(float fNewValue);
 	virtual void					InternalSetIntValue(int nValue);
-	virtual void					InternalSetColorValue(DWORD value);
+	// virtual void					InternalSetColorValue(DWORD value);
 	virtual bool					ClampValue(float& value);
 	virtual void					ChangeStringValue(const char *tempVal, float flOldValue);
 	virtual void					Create(const char *pName, const char *pDefaultValue, int flags = 0,
 		const char *pHelpString = 0, bool bMin = false, float fMin = 0.0,
 		bool bMax = false, float fMax = false, FnChangeCallback_t callback = 0);
 
+	// Used internally by OneTimeInit to initialize.
+	virtual void					Init() = 0;
 
 	//----------------------------
 	// Non-virtual helper methods
@@ -285,23 +301,29 @@ public:
 	DWORD					GetColor(void) const;
 	const char*				GetString(void) const;
 	const char*				GetDefault(void) const;
+	int						GetFlags(void) const;
+
+	// This either points to "this" or it points to the original declaration of a ConVar.
+	// This allows ConVars to exist in separate modules, and they all use the first one to be declared.
+	// m_pParent->m_pParent must equal m_pParent (ie: m_pParent must be the root, or original, ConVar).
+	ConVar*					m_pParent;
+
+	// Static data
+	const char*				m_pszDefaultValue;
 
 	// Value
-	struct CVValue_t
-	{
-		char*	m_pszString;
-		int		m_StringLength;
-		float	m_fValue;
-		int		m_nValue;
-	};
+	char*					m_pszString;
+	int						m_StringLength;
+	float					m_fValue;
+	int						m_nValue;
 
-	ConVar*					m_pParent;
-	const char	*			m_pszDefaultValue;
-	CVValue_t				m_Value;
-	bool						m_bHasMin;
+	// Min/Max values
+	bool					m_bHasMin;
 	float					m_fMinVal;
-	bool						m_bHasMax;
+	bool					m_bHasMax;
 	float					m_fMaxVal;
+
+	// Call this function when ConVar changes
 	FnChangeCallback_t		m_fnChangeCallback;
 };
 
@@ -427,10 +449,10 @@ ConVar::ConVar(const char *pName, const char *pDefaultValue, int flags, const ch
 
 ConVar::~ConVar(void)
 {
-	if (m_Value.m_pszString)
+	if (m_pszString)
 	{
-		delete[] m_Value.m_pszString;
-		m_Value.m_pszString = NULL;
+		delete[] m_pszString;
+		m_pszString = NULL;
 	}
 }
 bool ConVar::IsFlagSet(int flag) const
@@ -466,29 +488,33 @@ const char *ConVar::GetName(void) const
 {
 	return m_pParent->m_pszName;
 }
+/*
 const char* ConVar::GetBaseName(void) const
 {
 	return m_pParent->m_pszName;
 }
+*/
 float ConVar::GetFloat(void) const
 {
-	return m_pParent->m_Value.m_fValue;
+	return m_pParent->m_fValue;
 }
 int ConVar::GetInt(void) const
 {
-	return m_pParent->m_Value.m_nValue;
+	return m_pParent->m_nValue;
 }
 const char* ConVar::GetString(void) const
 {
-	return m_pParent->m_Value.m_pszString;
+	return m_pParent->m_pszString;
 }
+/*
 int ConVar::GetSplitScreenPlayerSlot(void) const
 {
 	return 0;
 }
+*/
 DWORD ConVar::GetColor(void) const
 {
-	unsigned char *pColorElement = ((unsigned char *)&m_pParent->m_Value.m_nValue);
+	unsigned char *pColorElement = ((unsigned char *)&m_pParent->m_nValue);
 	return COLORCODE(pColorElement[0], pColorElement[1], pColorElement[2], pColorElement[3]);
 }
 void ConVar::InternalSetValue(const char *value)
@@ -497,7 +523,7 @@ void ConVar::InternalSetValue(const char *value)
 	char  tempVal[32];
 	char  *val;
 
-	float flOldValue = m_Value.m_fValue;
+	float flOldValue = m_fValue;
 
 	val = (char *)value;
 	fNewValue = (float)atof(value);
@@ -508,8 +534,8 @@ void ConVar::InternalSetValue(const char *value)
 	}
 
 	// Redetermine value
-	m_Value.m_fValue = fNewValue;
-	m_Value.m_nValue = (int)(fNewValue);
+	m_fValue = fNewValue;
+	m_nValue = (int)(fNewValue);
 
 	if (!(m_nFlags & (int)ConvarFlags::FCVAR_NEVER_AS_STRING))
 	{
@@ -521,18 +547,18 @@ void ConVar::ChangeStringValue(const char *tempVal, float flOldValue)
 	UNREFERENCED_PARAMETER(flOldValue);
 	int len = strlen(tempVal) + 1;
 
-	if (len > m_Value.m_StringLength)
+	if (len > m_StringLength)
 	{
-		if (m_Value.m_pszString)
+		if (m_pszString)
 		{
-			delete[] m_Value.m_pszString;
+			delete[] m_pszString;
 		}
 
-		m_Value.m_pszString = new char[len];
-		m_Value.m_StringLength = len;
+		m_pszString = new char[len];
+		m_StringLength = len;
 	}
 
-	memcpy(m_Value.m_pszString, tempVal, len);
+	memcpy(m_pszString, tempVal, len);
 
 }
 bool ConVar::ClampValue(float& value)
@@ -553,15 +579,15 @@ bool ConVar::ClampValue(float& value)
 }
 void ConVar::InternalSetFloatValue(float fNewValue)
 {
-	if (fNewValue == m_Value.m_fValue)
+	if (fNewValue == m_fValue)
 		return;
 	// Check bounds
 	ClampValue(fNewValue);
 
 	// Redetermine value
-	float flOldValue = m_Value.m_fValue;
-	m_Value.m_fValue = fNewValue;
-	m_Value.m_nValue = (int)fNewValue;
+	float flOldValue = m_fValue;
+	m_fValue = fNewValue;
+	m_nValue = (int)fNewValue;
 
 	if (!(m_nFlags & (int)ConvarFlags::FCVAR_NEVER_AS_STRING))
 	{
@@ -571,7 +597,7 @@ void ConVar::InternalSetFloatValue(float fNewValue)
 }
 void ConVar::InternalSetIntValue(int nValue)
 {
-	if (nValue == m_Value.m_nValue)
+	if (nValue == m_nValue)
 		return;
 
 	float fValue = (float)nValue;
@@ -580,9 +606,9 @@ void ConVar::InternalSetIntValue(int nValue)
 		nValue = (int)(fValue);
 	}
 
-	float flOldValue = m_Value.m_fValue;
-	m_Value.m_fValue = fValue;
-	m_Value.m_nValue = nValue;
+	float flOldValue = m_fValue;
+	m_fValue = fValue;
+	m_nValue = nValue;
 
 	if (!(m_nFlags & (int)ConvarFlags::FCVAR_NEVER_AS_STRING))
 	{
@@ -590,11 +616,15 @@ void ConVar::InternalSetIntValue(int nValue)
 		ChangeStringValue(tempVal, flOldValue);
 	}
 }
+
+/*
 void ConVar::InternalSetColorValue(DWORD cValue)
 {
 	int color = (int)cValue;
 	InternalSetIntValue(color);
 }
+*/
+
 void ConVar::Create(const char *pName, const char *pDefaultValue,
 	int flags, const char *pHelpString, bool bMin, float fMin,
 	bool bMax, float fMax, FnChangeCallback_t callback)
@@ -606,9 +636,9 @@ void ConVar::Create(const char *pName, const char *pDefaultValue,
 	// Name should be static data
 	m_pszDefaultValue = pDefaultValue ? pDefaultValue : empty_string;
 
-	m_Value.m_StringLength = strlen(m_pszDefaultValue) + 1;
-	m_Value.m_pszString = new char[m_Value.m_StringLength];
-	memcpy(m_Value.m_pszString, m_pszDefaultValue, m_Value.m_StringLength);
+	m_StringLength = strlen(m_pszDefaultValue) + 1;
+	m_pszString = new char[m_StringLength];
+	memcpy(m_pszString, m_pszDefaultValue, m_StringLength);
 
 	m_bHasMin = bMin;
 	m_fMinVal = fMin;
@@ -616,8 +646,8 @@ void ConVar::Create(const char *pName, const char *pDefaultValue,
 	m_fMaxVal = fMax;
 
 	m_fnChangeCallback = callback;
-	m_Value.m_fValue = (float)atof(m_Value.m_pszString);
-	m_Value.m_nValue = (int)m_Value.m_fValue;
+	m_fValue = (float)atof(m_pszString);
+	m_nValue = (int)m_fValue;
 
 	BaseClass::Create(pName, pHelpString, flags);
 }
@@ -633,10 +663,14 @@ void ConVar::SetValue(int value)
 {
 	m_pParent->InternalSetIntValue(value);
 }
+
+/*
 void ConVar::SetValue(DWORD value)
 {
 	m_pParent->InternalSetColorValue(value);
 }
+*/
+
 const char* ConVar::GetDefault(void) const
 {
 	return m_pParent->m_pszDefaultValue;

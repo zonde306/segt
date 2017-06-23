@@ -430,25 +430,27 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_TAB) & 0x01)
 				showSpectator();
+		}
 
-			if (GetAsyncKeyState(VK_ADD) & 0x01)
-			{
-				Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
-				Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
-				Sleep(1000);
-			}
+		if (GetAsyncKeyState(VK_ADD) & 0x01)
+		{
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			Sleep(1000);
+		}
 
-			if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
-			{
-				Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
-				Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
-				Sleep(1000);
-			}
+		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
+		{
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			Sleep(1000);
 		}
 
 		pure((void*)engine);
+
 		if (GetAsyncKeyState(VK_END) & 0x01)
 			ExitProcess(0);
+
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
 			Interfaces.Engine->ClientCmd("disconnect");
 
