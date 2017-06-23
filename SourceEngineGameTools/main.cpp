@@ -47,32 +47,6 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		netVars = new CNetVars();
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
-
-		dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
-		{
-#ifdef __DETOURXS_H
-			
-			dReset.Create(&(PVOID&)pVMT[16], Hooked_Reset);
-			oReset = (FnReset)dReset.GetTrampoline();
-			dEndScene.Create(&(PVOID&)pVMT[42], Hooked_EndScene);
-			oEndScene = (FnEndScene)dEndScene.GetTrampoline();
-			dDrawIndexedPrimitive.Create(&(PVOID&)pVMT[82], Hooked_DrawIndexedPrimitive);
-			oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
-			dCreateQuery.Create(&(PVOID&)pVMT[118], Hooked_CreateQuery);
-			oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
-			dPresent.Create(&(PVOID&)pVMT[17], Hooked_Present);
-			oPresent = (FnPresent)dPresent.GetTrampoline();
-#elif defined(DETOURS_VERSION)
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-#endif
-			printf("Hook pD3DDevice 完毕。\n");
-			printf("oReset = 0x%X\n", (DWORD)oReset);
-			printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
-			printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
-			printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
-			printf("oPresent = 0x%X\n", (DWORD)oPresent);
-		});
 	}
 	else if (Reason == DLL_PROCESS_DETACH)
 	{
@@ -120,6 +94,8 @@ void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x
 static FnDrawModel oDrawModel;
 
 static CBaseEntity* pCurrentAiming;
+static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
+	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode;
 
 void bunnyHop();
 void autoPistol();
@@ -203,13 +179,47 @@ void StartCheat(HINSTANCE instance)
 
 	if (Interfaces.Cvar)
 	{
-		printf("sv_cheats = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_cheats"));
-		printf("r_drawothermodels = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("r_drawothermodels"));
-		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("cl_drawshadowtexture"));
-		printf("mat_fullbright = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("mat_fullbright"));
-		printf("sv_pure = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_pure"));
-		printf("sv_consistency = 0x%X\n", (DWORD)Interfaces.Cvar->FindVar("sv_consistency"));
+		cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
+		cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
+		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+		cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
+		cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
+		cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
+		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
+		
+		printf("sv_cheats = 0x%X\n", (DWORD)cvar_sv_cheats);
+		printf("r_drawothermodels = 0x%X\n", (DWORD)cvar_r_drawothermodels);
+		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cvar_cl_drawshadowtexture);
+		printf("mat_fullbright = 0x%X\n", (DWORD)cvar_mat_fullbright);
+		printf("sv_pure = 0x%X\n", (DWORD)cvar_sv_pure);
+		printf("sv_consistency = 0x%X\n", (DWORD)cvar_sv_consistency);
+		printf("mp_gamemode = 0x%X\n", (DWORD)cvar_mp_gamemode);
 	}
+
+	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
+	{
+#ifdef __DETOURXS_H
+		dReset.Create(&(PVOID&)pVMT[16], Hooked_Reset);
+		oReset = (FnReset)dReset.GetTrampoline();
+		dEndScene.Create(&(PVOID&)pVMT[42], Hooked_EndScene);
+		oEndScene = (FnEndScene)dEndScene.GetTrampoline();
+		dDrawIndexedPrimitive.Create(&(PVOID&)pVMT[82], Hooked_DrawIndexedPrimitive);
+		oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
+		dCreateQuery.Create(&(PVOID&)pVMT[118], Hooked_CreateQuery);
+		oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
+		dPresent.Create(&(PVOID&)pVMT[17], Hooked_Present);
+		oPresent = (FnPresent)dPresent.GetTrampoline();
+#elif defined(DETOURS_VERSION)
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+#endif
+		printf("Hook pD3DDevice 完毕。\n");
+		printf("oReset = 0x%X\n", (DWORD)oReset);
+		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
+		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
+		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
+		printf("oPresent = 0x%X\n", (DWORD)oPresent);
+	});
 
 	/*
 	dh::gDeviceInternal = dh::FindDirexcXDevice();
@@ -250,8 +260,11 @@ void StartCheat(HINSTANCE instance)
 	printf("engine.dll = 0x%X\n", engine);
 	printf("materialsystem.dll = 0x%X\n", material);
 	printf("localPlayer = 0x%X\n", (DWORD)GetLocalClient());
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
-	
+	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, NULL, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
+
 	fmWait = 45;
 	bindAlias(fmWait);
 
@@ -259,76 +272,154 @@ void StartCheat(HINSTANCE instance)
 	{
 		if (Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible())
 		{
+			/*
 			if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 				bunnyHop();
-
 			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 				autoPistol();
-
 			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
 				esp();
-
 			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
 				autoAim();
 			else if (pCurrentAiming != nullptr)
 				pCurrentAiming = nullptr;
-
-			/*
 			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
 				meleeAttack();
 			*/
 
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
-				if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
+				if (cvar_r_drawothermodels != nullptr)
 				{
-					Utils::writeMemory(1, client + r_drawothermodels);
-					Utils::writeMemory(0, client + cl_drawshadowtexture);
+					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						cvar_r_drawothermodels->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+					if (!cvar_r_drawothermodels->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						cvar_r_drawothermodels->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				}
+
+				if (cvar_cl_drawshadowtexture != nullptr)
+				{
+					if (cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						cvar_cl_drawshadowtexture->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				}
+				
+				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
+				{
+					if (cvar_r_drawothermodels->GetInt() == 2)
+					{
+						cvar_r_drawothermodels->SetValue(1);
+						cvar_cl_drawshadowtexture->SetValue(0);
+					}
+					else
+					{
+						cvar_r_drawothermodels->SetValue(2);
+						cvar_cl_drawshadowtexture->SetValue(1);
+					}
+
+					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+						cvar_r_drawothermodels->GetInt());
 				}
 				else
 				{
-					Utils::writeMemory(2, client + r_drawothermodels);
-					Utils::writeMemory(1, client + cl_drawshadowtexture);
-				}
+					if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
+					{
+						Utils::writeMemory(1, client + r_drawothermodels);
+						Utils::writeMemory(0, client + cl_drawshadowtexture);
+					}
+					else
+					{
+						Utils::writeMemory(2, client + r_drawothermodels);
+						Utils::writeMemory(1, client + cl_drawshadowtexture);
+					}
 
-				Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
-					Utils::readMemory<int>(client + r_drawothermodels));
+					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+						Utils::readMemory<int>(client + r_drawothermodels));
+				}
 
 				Sleep(1000);
 			}
 
 			if (GetAsyncKeyState(VK_HOME) & 0x01)
 			{
-				if(Utils::readMemory<int>(material + mat_fullbright) == 1)
-					Utils::writeMemory(0, material + mat_fullbright);
-				else
-					Utils::writeMemory(1, material + mat_fullbright);
+				if (cvar_mat_fullbright != nullptr)
+				{
+					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						cvar_mat_fullbright->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
-					Utils::readMemory<int>(material + mat_fullbright));
+					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				}
+				
+				if (cvar_mat_fullbright != nullptr)
+				{
+					if (cvar_mat_fullbright->GetInt() == 1)
+						cvar_mat_fullbright->SetValue(0);
+					else
+						cvar_mat_fullbright->SetValue(1);
+
+					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+						cvar_mat_fullbright->GetInt());
+				}
+				else
+				{
+					if (Utils::readMemory<int>(material + mat_fullbright) == 1)
+						Utils::writeMemory(0, material + mat_fullbright);
+					else
+						Utils::writeMemory(1, material + mat_fullbright);
+
+					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+						Utils::readMemory<int>(material + mat_fullbright));
+				}
 
 				Sleep(1000);
 			}
 
 			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
 			{
-				char* mode = Utils::readMemory<char*>(client + mp_gamemode);
-				if (mode != nullptr)
+				if (cvar_mp_gamemode != nullptr)
 				{
-					DWORD oldProtect = NULL;
-					
-					if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
-					{
-						if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
-							strcpy_s(mode, 16, "coop");
-						else
-							strcpy_s(mode, 16, "versus");
-						VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
-					}
-					else
-						printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
+					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						cvar_mp_gamemode->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				}
+				
+				if (cvar_mp_gamemode != nullptr)
+				{
+					const char* mode = cvar_mp_gamemode->GetString();
+					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+						cvar_mp_gamemode->SetValue("coop");
+					else
+						cvar_mp_gamemode->SetValue("versus");
+
+					Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"",
+						cvar_mp_gamemode->GetString());
+				}
+				else
+				{
+					char* mode = Utils::readMemory<char*>(client + mp_gamemode);
+					if (mode != nullptr)
+					{
+						DWORD oldProtect = NULL;
+
+						if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
+						{
+							if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+								strcpy_s(mode, 16, "coop");
+							else
+								strcpy_s(mode, 16, "versus");
+							VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
+						}
+						else
+							printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
+
+						Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+					}
 				}
 
 				Sleep(1000);
@@ -355,6 +446,7 @@ void StartCheat(HINSTANCE instance)
 			}
 		}
 
+		pure((void*)engine);
 		if (GetAsyncKeyState(VK_END) & 0x01)
 			ExitProcess(0);
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
@@ -369,6 +461,23 @@ void pure(void* engine)
 {
 	for (;;)
 	{
+		if (cvar_sv_pure != nullptr)
+		{
+			if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+				cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+		}
+
+		if (cvar_sv_consistency != nullptr)
+		{
+			if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+				cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+		}
+		
+		if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
+			cvar_sv_pure->SetValue(0);
+		if (cvar_sv_consistency != nullptr && cvar_sv_consistency->GetInt() != 0)
+			cvar_sv_consistency->SetValue(0);
+
 		if (Utils::readMemory<int>((DWORD)engine + sv_pure) != 0 ||
 			Utils::readMemory<int>((DWORD)engine + sv_consistency) != 0)
 		{
@@ -563,17 +672,38 @@ void __stdcall Hooked_DrawModel(PVOID context, PVOID state, const ModelRenderInf
 
 HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		printf("Hooked_Reset trigged.");
+	}
+	
 	return oReset(device, pp);
 }
 
 HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		printf("Hooked_EndScene trigged.");
+	}
+	
 	return oEndScene(device);
 }
 
 HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIVETYPE type, INT baseIndex,
 	UINT minIndex, UINT numVertices, UINT startIndex, UINT primitiveCount)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		printf("Hooked_DrawIndexedPrimitive trigged.");
+	}
+	
 	IDirect3DVertexBuffer9* stream = nullptr;
 	UINT offsetByte, stride;
 	device->GetStreamSource(0, &stream, &offsetByte, &stride);
@@ -594,6 +724,13 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 
 HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, IDirect3DQuery9** query)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		printf("Hooked_CreateQuery trigged.");
+	}
+	
 	if (type == D3DQUERYTYPE_OCCLUSION)
 		type = D3DQUERYTYPE_TIMESTAMP;
 	
@@ -602,6 +739,13 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 
 HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, const RECT* dest, HWND window, const RGNDATA* region)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		printf("Hooked_Present trigged.");
+	}
+	
 	return oPresent(device, source, dest, window, region);
 }
 
@@ -681,212 +825,221 @@ Vector GetHeadPosition(CBaseEntity* player)
 
 void bunnyHop()
 {
-	CBaseEntity* client = GetLocalClient();
-	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-		client->IsAlive())
+	for (;;)
 	{
-		/*
-		if (client->GetFlags() & FL_ONGROUND)
-			Interfaces.Engine->ClientCmd("+jump");
-		else
-			Interfaces.Engine->ClientCmd("-jump");
-		*/
-		
-		static bool repeat = false;
-		int flags = client->GetFlags();
-		if (flags != FL_CLIENT && flags != (FL_DUCKING|FL_CLIENT) && flags != (FL_INWATER|FL_CLIENT) &&
-			flags != (FL_DUCKING|FL_CLIENT|FL_INWATER))
+		CBaseEntity* client = GetLocalClient();
+		if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+			client->IsAlive() && (GetAsyncKeyState(VK_SPACE) & 0x8000))
 		{
-			Interfaces.Engine->ClientCmd("+jump");
-			repeat = true;
-		}
-		else if (flags == FL_CLIENT || flags == (FL_DUCKING | FL_CLIENT) || flags == (FL_INWATER | FL_CLIENT) ||
-			flags == (FL_DUCKING | FL_CLIENT | FL_INWATER))
-		{
-			Interfaces.Engine->ClientCmd("-jump");
-			if (repeat)
-			{
-				Sleep(16);
+			/*
+			if (client->GetFlags() & FL_ONGROUND)
 				Interfaces.Engine->ClientCmd("+jump");
-				Sleep(1);
-				Interfaces.Engine->ClientCmd("-jump");
-				repeat = false;
-			}
-		}
-	}
-
-	Sleep(1);
-}
-
-void autoPistol()
-{
-	CBaseEntity* client = GetLocalClient();
-	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-		client->IsAlive())
-	{
-		CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
-		if(weapon)
-			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
-		
-		if (weapon && weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon") > 0 &&
-			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= GetServerTime())
-		{
-			int weaponId = weapon->GetWeaponID();
-			int aiming = *(int*)(client + m_iCrosshairsId);
-			CBaseEntity* target = (aiming > 0 ? Interfaces.ClientEntList->GetClientEntity(aiming) : nullptr);
-			if (target == nullptr || target->GetTeam() != client->GetTeam() || IsNeedRescue(target))
-			{
-				// 检查当前武器是否需要连点才能持续开枪
-				// 因为这个连点开枪效率并不好，对于自动武器来说，会降低射击速度
-				// 连发霰弹枪连点可以加快射速
-				if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
-					weaponId == Weapon_ShotgunAuto || weaponId == Weapon_SniperHunting ||
-					weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
-					weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
-					weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
-				{
-					Interfaces.Engine->ClientCmd("+attack");
-					Sleep(10);
-					Interfaces.Engine->ClientCmd("-attack");
-				}
-			}
 			else
-			{
-				// 当前瞄准的是队友，并且队友不需要帮助
-				// 在这里停止开枪，防止队友伤害
-				Interfaces.Engine->ClientCmd("-attack");
+				Interfaces.Engine->ClientCmd("-jump");
+			*/
 
-				// printf("current weapon id = %d\n", weaponId);
+			static bool repeat = false;
+			int flags = client->GetFlags();
+			if (flags != FL_CLIENT && flags != (FL_DUCKING | FL_CLIENT) && flags != (FL_INWATER | FL_CLIENT) &&
+				flags != (FL_DUCKING | FL_CLIENT | FL_INWATER))
+			{
+				Interfaces.Engine->ClientCmd("+jump");
+				repeat = true;
 			}
-		}
-	}
-
-	Sleep(1);
-}
-
-void autoAim()
-{
-	CBaseEntity* client = GetLocalClient();
-	if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-		client->IsAlive())
-	{
-		CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
-		if (weapon)
-			weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
-
-		if (weapon)
-		{
-			// 当前位置
-			Vector myOrigin = client->GetEyePosition();
-
-			// 检查是否需要选择新的敌人
-			if (pCurrentAiming == nullptr || !pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
+			else if (flags == FL_CLIENT || flags == (FL_DUCKING | FL_CLIENT) || flags == (FL_INWATER | FL_CLIENT) ||
+				flags == (FL_DUCKING | FL_CLIENT | FL_INWATER))
 			{
-				Vector myAngles;
-				Interfaces.Engine->GetViewAngles(myAngles);
-
-				int team = client->GetTeam();
-				float distance = 32767.0f, dist, fov;
-				
-				// int max = Interfaces.ClientEntList->GetHighestEntityIndex();
-				for (int i = 1; i <= 64; ++i)
+				Interfaces.Engine->ClientCmd("-jump");
+				if (repeat)
 				{
-					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-					if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
-						target->GetHealth() <= 0 || target->IsDormant())
-						continue;
-
-					/*
-					int classId = (int)target->GetClientClass();
-					if (classId != ET_BOOMER && classId != ET_JOCKEY && classId != ET_SPITTER &&
-						classId != ET_CHARGER && classId != ET_HUNTER && classId != ET_SMOKER &&
-						classId != ET_TANK && classId != ET_INFECTED)
-						continue;
-					*/
-
-					int zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-					if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
-						continue;
-
-					// 选择最近的敌人
-					dist = target->GetAbsOrigin().DistTo(myOrigin);
-					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
-					if (dist < distance && fov <= 25.f)
-					{
-						pCurrentAiming = target;
-						distance = dist;
-					}
-
-					/*
-					Vector angles = CalculateAim(client->GetEyePosition(), target->GetEyePosition());
-					angles.z = 0.0f;
-
-					client->GetEyeAngles() = angles;
-					break;
-					*/
+					Sleep(16);
+					Interfaces.Engine->ClientCmd("+jump");
+					Sleep(1);
+					Interfaces.Engine->ClientCmd("-jump");
+					repeat = false;
 				}
-			}
-
-			if (pCurrentAiming != nullptr)
-			{
-				// 目标位置
-				Vector position = pCurrentAiming->GetEyePosition();
-
-				// 根据不同的情况确定高度
-				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-				if (zombieClass == ZC_JOCKEY)
-					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-				else if(zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-					position.z -= 12.0f;
-
-				// 使用这个方法可以有效的瞄准头部，但是会 boom
-				// Vector position = GetHeadPosition(pCurrentAiming);
-				// Vector position = pCurrentAiming->GetHitboxPosition(0);
-
-				/*
-				if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)
-				{
-					position = pCurrentAiming->GetEyePosition();
-					
-					if (zombieClass == ZC_JOCKEY)
-						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-				}
-				*/
-
-				/*
-				switch (zombieClass)
-				{
-				case ZC_SMOKER:
-				case ZC_HUNTER:
-				case ZC_TANK:
-					position = pCurrentAiming->GetBonePosition(BONE_NECK);
-					break;
-				case ZC_BOOMER:
-					position = pCurrentAiming->GetBonePosition(BONE_BOOMER_CHEST);
-					break;
-				case ZC_SPITTER:
-				case ZC_JOCKEY:
-					position = pCurrentAiming->GetBonePosition(BONE_JOCKEY_HEAD);
-					break;
-				case ZC_CHARGER:
-					position = pCurrentAiming->GetBonePosition(BONE_CHARGER_HEAD);
-					break;
-				default:
-					position = pCurrentAiming->GetEyePosition();
-					if (zombieClass == ZC_JOCKEY)
-						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-				}
-				*/
-
-				// VectorNormalize(position);
-				Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
 			}
 		}
 
 		Sleep(1);
 	}
+}
 
-	Sleep(1);
+void autoPistol()
+{
+	for (;;)
+	{
+		CBaseEntity* client = GetLocalClient();
+		if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+			client->IsAlive() && (GetAsyncKeyState(VK_LBUTTON) & 0x8000))
+		{
+			CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
+			if (weapon)
+				weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+
+			if (weapon && weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon") > 0 &&
+				weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= GetServerTime())
+			{
+				int weaponId = weapon->GetWeaponID();
+				int aiming = *(int*)(client + m_iCrosshairsId);
+				CBaseEntity* target = (aiming > 0 ? Interfaces.ClientEntList->GetClientEntity(aiming) : nullptr);
+				if (target == nullptr || target->GetTeam() != client->GetTeam() || IsNeedRescue(target))
+				{
+					// 检查当前武器是否需要连点才能持续开枪
+					// 因为这个连点开枪效率并不好，对于自动武器来说，会降低射击速度
+					// 连发霰弹枪连点可以加快射速
+					if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
+						weaponId == Weapon_ShotgunAuto || weaponId == Weapon_SniperHunting ||
+						weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
+						weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
+						weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
+					{
+						Interfaces.Engine->ClientCmd("+attack");
+						Sleep(10);
+						Interfaces.Engine->ClientCmd("-attack");
+					}
+				}
+				else
+				{
+					// 当前瞄准的是队友，并且队友不需要帮助
+					// 在这里停止开枪，防止队友伤害
+					Interfaces.Engine->ClientCmd("-attack");
+
+					// printf("current weapon id = %d\n", weaponId);
+				}
+			}
+		}
+
+		Sleep(1);
+	}
+}
+
+void autoAim()
+{
+	for (;;)
+	{
+		CBaseEntity* client = GetLocalClient();
+		if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+			client->IsAlive())
+		{
+			CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
+			if (weapon)
+				weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+
+			if (weapon && (GetAsyncKeyState(VK_XBUTTON2) & 0x8000))
+			{
+				// 当前位置
+				Vector myOrigin = client->GetEyePosition();
+
+				// 检查是否需要选择新的敌人
+				if (pCurrentAiming == nullptr || !pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
+				{
+					Vector myAngles;
+					Interfaces.Engine->GetViewAngles(myAngles);
+
+					int team = client->GetTeam();
+					float distance = 32767.0f, dist, fov;
+
+					// int max = Interfaces.ClientEntList->GetHighestEntityIndex();
+					for (int i = 1; i <= 64; ++i)
+					{
+						CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+						if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
+							target->GetHealth() <= 0 || target->IsDormant())
+							continue;
+
+						/*
+						int classId = (int)target->GetClientClass();
+						if (classId != ET_BOOMER && classId != ET_JOCKEY && classId != ET_SPITTER &&
+							classId != ET_CHARGER && classId != ET_HUNTER && classId != ET_SMOKER &&
+							classId != ET_TANK && classId != ET_INFECTED)
+							continue;
+						*/
+
+						int zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+						if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
+							continue;
+
+						// 选择最近的敌人
+						dist = target->GetAbsOrigin().DistTo(myOrigin);
+						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
+						if (dist < distance && fov <= 25.f)
+						{
+							pCurrentAiming = target;
+							distance = dist;
+						}
+
+						/*
+						Vector angles = CalculateAim(client->GetEyePosition(), target->GetEyePosition());
+						angles.z = 0.0f;
+
+						client->GetEyeAngles() = angles;
+						break;
+						*/
+					}
+				}
+
+				if (pCurrentAiming != nullptr)
+				{
+					// 目标位置
+					Vector position = pCurrentAiming->GetEyePosition();
+
+					// 根据不同的情况确定高度
+					int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+					if (zombieClass == ZC_JOCKEY)
+						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+						position.z -= 12.0f;
+
+					// 使用这个方法可以有效的瞄准头部，但是会 boom
+					// Vector position = GetHeadPosition(pCurrentAiming);
+					// Vector position = pCurrentAiming->GetHitboxPosition(0);
+
+					/*
+					if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)
+					{
+						position = pCurrentAiming->GetEyePosition();
+
+						if (zombieClass == ZC_JOCKEY)
+							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+					}
+					*/
+
+					/*
+					switch (zombieClass)
+					{
+					case ZC_SMOKER:
+					case ZC_HUNTER:
+					case ZC_TANK:
+						position = pCurrentAiming->GetBonePosition(BONE_NECK);
+						break;
+					case ZC_BOOMER:
+						position = pCurrentAiming->GetBonePosition(BONE_BOOMER_CHEST);
+						break;
+					case ZC_SPITTER:
+					case ZC_JOCKEY:
+						position = pCurrentAiming->GetBonePosition(BONE_JOCKEY_HEAD);
+						break;
+					case ZC_CHARGER:
+						position = pCurrentAiming->GetBonePosition(BONE_CHARGER_HEAD);
+						break;
+					default:
+						position = pCurrentAiming->GetEyePosition();
+						if (zombieClass == ZC_JOCKEY)
+							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+					}
+					*/
+
+					// VectorNormalize(position);
+					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+				}
+			}
+			else if(pCurrentAiming != nullptr)
+				pCurrentAiming = nullptr;
+		}
+
+		Sleep(1);
+	}
 }
 
 void esp()

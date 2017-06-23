@@ -1,7 +1,7 @@
 #pragma once
 class CClientEntityList;
 class CTrace;
-class CCvar;
+class ICvar;
 class CDebugOverlay;
 class CGameEvent;
 class CModelRender;
@@ -30,7 +30,7 @@ public:
 	CModelRender* ModelRender;
 	CRenderView* RenderView;
 	CMoveHelper* MoveHelper;
-	CCvar* Cvar;
+	ICvar* Cvar;
 
 	CVMTHookManager* ClientModeHook;
 	CVMTHookManager* PanelHook;
@@ -54,7 +54,7 @@ public:
 		GameEvent = (CGameEvent*)GetPointer("engine.dll", "GAMEEVENTSMANAGER");
 		ModelRender = (CModelRender*)GetPointer("engine.dll", "VEngineModel");
 		RenderView = (CRenderView*)GetPointer("engine.dll", "VEngineRenderView");
-		Cvar = (CCvar*)GetPointer("vstdlib.dll", "VEngineCvar");
+		Cvar = (ICvar*)GetPointer("vstdlib.dll", "VEngineCvar");
 		
 		PDWORD pdwClient = (PDWORD)*(PDWORD)Client;
 		// Input = *(CInput**)((*(DWORD**)Client)[15] + 0x1);

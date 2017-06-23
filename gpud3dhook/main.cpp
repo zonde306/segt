@@ -773,9 +773,17 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 	IDirect3D9* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
 
 	if (!pD3D)
+	{
+		printf("创建 Direct3D 对象失败，可能是版本不对。\n");
 		return false;
+	}
 
 	HWND hWindow = GetDesktopWindow();
+	if (hWindow == nullptr)
+	{
+		printf("获取桌面窗口失败。\n");
+		return false;
+	}
 
 	D3DPRESENT_PARAMETERS pp;
 	ZeroMemory(&pp, sizeof(pp));
@@ -788,15 +796,28 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 	pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 
 	IDirect3DDevice9* pDevice = NULL;
+	HRESULT result = pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWindow,
+		D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &pDevice);
 
-	if (SUCCEEDED(pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWindow,
-		D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &pDevice)))
+	if (SUCCEEDED(result))
 	{
 		if (pDevice != NULL)
 		{
 			*d3d = pD3D;
 			*device = pDevice;
 		}
+	}
+	else
+	{
+		printf("创建 Direct3DDevice 对象失败\n");
+		if (result == D3DERR_INVALIDCALL)
+			printf("错误：无效的参数或指针。\n");
+		else if(result == D3DERR_DEVICELOST)
+			printf("错误：Direct3DDevice 丢失了。\n");
+		else if(result == D3DERR_NOTAVAILABLE)
+			printf("错误：这个 Device 不支持这种功能。\n");
+		else if(result == D3DERR_OUTOFVIDEOMEMORY)
+			printf("错误：内存不足。\n");
 	}
 
 	bool returnSuccess = (*d3d != NULL);
@@ -810,7 +831,7 @@ IDirect3DDevice9* FindDirexcXDevice()
 {
 	while (!CreateSearchDevice(&gD3D9Internal, &gDeviceInternal))
 	{
-		printf("创建搜索用的 Device 失败。");
+		printf("创建搜索用的 Device 失败。\n");
 		Sleep(1000);
 	}
 
@@ -840,7 +861,7 @@ void StartDeviceHook(std::function<void(IDirect3D9*&, IDirect3DDevice9*&, DWORD*
 {
 	while (!CreateSearchDevice(&gD3D9Internal, &gDeviceInternal))
 	{
-		printf("创建 Device 失败。");
+		printf("创建 Device 失败。\n");
 		Sleep(1000);
 	}
 

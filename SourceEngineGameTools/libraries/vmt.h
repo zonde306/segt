@@ -20,14 +20,15 @@ public:
 		return (void*)OriginalFunction;
 	
 	}*/
-	template< typename Function > Function getvfunc(PVOID Base, DWORD Index)
+	template<typename Function>
+	Function getvfunc(PVOID Base, DWORD Index)
 	{
-
 		PDWORD* VTablePointer = (PDWORD*)Base;
 		PDWORD VTableFunctionBase = *VTablePointer;
 		DWORD dwAddress = VTableFunctionBase[Index];
 		return (Function)(dwAddress);
 	}
+
 	inline void* GetFunction(void* Instance, int Index)
 	{
 		DWORD VirtualFunction = (*(DWORD*)Instance) + sizeof(DWORD) * Index;

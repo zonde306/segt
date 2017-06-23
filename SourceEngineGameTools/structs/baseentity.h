@@ -101,6 +101,7 @@ public:
 	T& GetNetProp(std::string prop, std::string table = "DT_BaseEntity") const
 	{
 		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+		VirtualProtect((T*)(this + offset), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
 		return *(T*)(this + offset);
 	}
 
@@ -108,6 +109,7 @@ public:
 	T& SetNetProp(std::string prop, const T& value, std::string table = "DT_BaseEntity") const
 	{
 		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+		VirtualProtect((T*)(this + offset), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
 		return (*(T*)(this + offset) = value);
 	}
 
