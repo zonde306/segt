@@ -653,7 +653,7 @@ void ConVar::Create(const char *pName, const char *pDefaultValue,
 }
 void ConVar::SetValue(const char *value)
 {
-	m_pParent->ChangeStringValue(value);
+	m_pParent->InternalSetValue(value);
 }
 void ConVar::SetValue(float value)
 {

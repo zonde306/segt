@@ -397,9 +397,15 @@ void StartCheat(HINSTANCE instance)
 				{
 					const char* mode = cvar_mp_gamemode->GetString();
 					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+					{
 						cvar_mp_gamemode->SetValue("coop");
+						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "coop");
+					}
 					else
+					{
 						cvar_mp_gamemode->SetValue("versus");
+						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "versus");
+					}
 
 					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
 						cvar_mp_gamemode->GetString());
