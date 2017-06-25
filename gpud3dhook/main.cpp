@@ -785,6 +785,13 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 		return false;
 	}
 
+	D3DDISPLAYMODE displayMode;
+	if (FAILED(pD3D->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &displayMode)))
+	{
+		printf("获取显示模式失败。\n");
+		return false;
+	}
+
 	D3DPRESENT_PARAMETERS pp;
 	ZeroMemory(&pp, sizeof(pp));
 	pp.Windowed = TRUE;
@@ -792,12 +799,12 @@ bool CreateSearchDevice(IDirect3D9** d3d, IDirect3DDevice9** device)
 	pp.BackBufferCount = 1;
 	pp.BackBufferWidth = 4;
 	pp.BackBufferHeight = 4;
-	pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+	pp.BackBufferFormat = displayMode.Format;
 	pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 
 	IDirect3DDevice9* pDevice = NULL;
 	HRESULT result = pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWindow,
-		D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &pDevice);
+		D3DCREATE_SOFTWARE_VERTEXPROCESSING|D3DCREATE_DISABLE_DRIVER_MANAGEMENT, &pp, &pDevice);
 
 	if (SUCCEEDED(result))
 	{

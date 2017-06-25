@@ -285,7 +285,7 @@ public:
 	virtual void					InternalSetIntValue(int nValue);
 	// virtual void					InternalSetColorValue(DWORD value);
 	virtual bool					ClampValue(float& value);
-	virtual void					ChangeStringValue(const char *tempVal, float flOldValue);
+	virtual void					ChangeStringValue(const char *tempVal, float flOldValue = 0.0f);
 	virtual void					Create(const char *pName, const char *pDefaultValue, int flags = 0,
 		const char *pHelpString = 0, bool bMin = false, float fMin = 0.0,
 		bool bMax = false, float fMax = false, FnChangeCallback_t callback = 0);
@@ -653,7 +653,7 @@ void ConVar::Create(const char *pName, const char *pDefaultValue,
 }
 void ConVar::SetValue(const char *value)
 {
-	m_pParent->InternalSetValue(value);
+	m_pParent->ChangeStringValue(value);
 }
 void ConVar::SetValue(float value)
 {

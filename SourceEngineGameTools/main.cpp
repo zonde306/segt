@@ -209,6 +209,7 @@ void StartCheat(HINSTANCE instance)
 		oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
 		dPresent.Create(&(PVOID&)pVMT[17], Hooked_Present);
 		oPresent = (FnPresent)dPresent.GetTrampoline();
+
 #elif defined(DETOURS_VERSION)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
@@ -320,8 +321,10 @@ void StartCheat(HINSTANCE instance)
 						cvar_cl_drawshadowtexture->SetValue(1);
 					}
 
-					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
 						cvar_r_drawothermodels->GetInt());
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] cvar_cl_drawshadowtexture set %d\"",
+						cvar_cl_drawshadowtexture->GetInt());
 				}
 				else
 				{
@@ -361,11 +364,12 @@ void StartCheat(HINSTANCE instance)
 					else
 						cvar_mat_fullbright->SetValue(1);
 
-					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
 						cvar_mat_fullbright->GetInt());
 				}
 				else
 				{
+
 					if (Utils::readMemory<int>(material + mat_fullbright) == 1)
 						Utils::writeMemory(0, material + mat_fullbright);
 					else
@@ -397,7 +401,7 @@ void StartCheat(HINSTANCE instance)
 					else
 						cvar_mp_gamemode->SetValue("versus");
 
-					Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"",
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
 						cvar_mp_gamemode->GetString());
 				}
 				else
@@ -446,7 +450,37 @@ void StartCheat(HINSTANCE instance)
 			Sleep(1000);
 		}
 
-		pure((void*)engine);
+		// if (GetAsyncKeyState(VK_RETURN) & 0x01)
+		{
+			if (cvar_sv_pure != nullptr)
+			{
+				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+			}
+
+			if (cvar_sv_consistency != nullptr)
+			{
+				if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+			}
+
+			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
+				cvar_sv_pure->SetValue(0);
+			if (cvar_sv_consistency != nullptr && cvar_sv_consistency->GetInt() != 0)
+				cvar_sv_consistency->SetValue(0);
+
+			if (Utils::readMemory<int>(engine + sv_pure) != 0 ||
+				Utils::readMemory<int>(engine + sv_consistency) != 0)
+			{
+				Utils::writeMemory(0, engine + sv_pure);
+				Utils::writeMemory(0, engine + sv_consistency);
+
+				Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+					Utils::readMemory<int>((DWORD)engine + sv_pure));
+
+				Sleep(100);
+			}
+		}
 
 		if (GetAsyncKeyState(VK_END) & 0x01)
 			ExitProcess(0);
