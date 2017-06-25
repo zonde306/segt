@@ -105,7 +105,7 @@ static FnDrawModel oDrawModel;
 
 static CBaseEntity* pCurrentAiming;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
-	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode;
+	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
 
 void bunnyHop();
 void autoPistol();
@@ -196,6 +196,7 @@ void StartCheat(HINSTANCE instance)
 		cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
 		cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
 		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
+		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
 		
 		printf("sv_cheats = 0x%X\n", (DWORD)cvar_sv_cheats);
 		printf("r_drawothermodels = 0x%X\n", (DWORD)cvar_r_drawothermodels);
@@ -204,6 +205,7 @@ void StartCheat(HINSTANCE instance)
 		printf("sv_pure = 0x%X\n", (DWORD)cvar_sv_pure);
 		printf("sv_consistency = 0x%X\n", (DWORD)cvar_sv_consistency);
 		printf("mp_gamemode = 0x%X\n", (DWORD)cvar_mp_gamemode);
+		printf("c_thirdpersonshoulder = 0x%X\n", (DWORD)cvar_c_thirdpersonshoulder);
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -281,23 +283,10 @@ void StartCheat(HINSTANCE instance)
 
 	for (;;)
 	{
+		static bool connected = false;
+
 		if (Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible())
 		{
-			/*
-			if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-				bunnyHop();
-			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
-				autoPistol();
-			if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
-				esp();
-			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
-				autoAim();
-			else if (pCurrentAiming != nullptr)
-				pCurrentAiming = nullptr;
-			if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
-				meleeAttack();
-			*/
-
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
 				if (cvar_r_drawothermodels != nullptr)
@@ -305,10 +294,8 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_r_drawothermodels->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					/*
 					if (!cvar_r_drawothermodels->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_r_drawothermodels->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-					*/
 				}
 
 				if (cvar_cl_drawshadowtexture != nullptr)
@@ -316,10 +303,8 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_cl_drawshadowtexture->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					/*
 					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-					*/
 				}
 				
 				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
@@ -367,10 +352,8 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_mat_fullbright->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					/*
 					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-					*/
 				}
 				
 				if (cvar_mat_fullbright != nullptr)
@@ -405,10 +388,8 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_mp_gamemode->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					/*
 					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-					*/
 				}
 				
 				if (cvar_mp_gamemode != nullptr)
@@ -453,44 +434,108 @@ void StartCheat(HINSTANCE instance)
 				Sleep(1000);
 			}
 
+			if (GetAsyncKeyState(VK_APPS) & 0x01)
+			{
+				if (cvar_sv_cheats != nullptr)
+				{
+					// 解除修改限制
+					if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+					// 防止被发现
+					if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				}
+
+				if (cvar_sv_cheats != nullptr)
+				{
+					cvar_sv_cheats->SetValue(1);
+					cvar_sv_cheats->m_nValue = 1;
+					cvar_sv_cheats->m_fValue = 1.0f;
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
+						cvar_sv_cheats->GetInt());
+				}
+
+				if (Utils::readMemory<int>(engine + sv_cheats) != 1)
+				{
+					Utils::writeMemory(1, engine + sv_cheats);
+					Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
+						Utils::readMemory<int>(engine + sv_cheats));
+				}
+
+				Sleep(1000);
+			}
+
 			if (GetAsyncKeyState(VK_NEXT) & 0x01)
 				thirdPerson();
 
-			if (GetAsyncKeyState(VK_TAB) & 0x01)
+			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
 				showSpectator();
+
+			connected = true;
 		}
-
-		if (GetAsyncKeyState(VK_APPS) & 0x01)
+		else if (connected && !Interfaces.Engine->IsConnected())
 		{
-			if (cvar_sv_cheats != nullptr)
-			{
-				// 解除修改限制
-				if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
-
-				/*
-				if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				*/
-			}
-
-			if (cvar_sv_cheats != nullptr)
-			{
-				cvar_sv_cheats->SetValue(1);
-				cvar_sv_cheats->m_nValue = 1;
-				cvar_sv_cheats->m_fValue = 1.0f;
-				Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
-					cvar_sv_cheats->GetInt());
-			}
+			static bool disconnected = false;
 			
-			if(Utils::readMemory<int>(engine + sv_cheats) != 1)
+			if (cvar_r_drawothermodels != nullptr)
 			{
-				Utils::writeMemory(1, engine + sv_cheats);
-				Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
-					Utils::readMemory<int>(engine + sv_cheats));
+				if (cvar_r_drawothermodels->GetInt() != 1)
+				{
+					cvar_r_drawothermodels->SetValue(1);
+					disconnected = true;
+				}
+			}
+			else
+			{
+				if (Utils::readMemory<int>(client + r_drawothermodels) != 1)
+				{
+					Utils::writeMemory<int>(1, client + r_drawothermodels);
+					disconnected = true;
+				}
 			}
 
-			Sleep(1000);
+			if (cvar_cl_drawshadowtexture != nullptr)
+			{
+				if (cvar_cl_drawshadowtexture->GetInt() != 0)
+				{
+					cvar_cl_drawshadowtexture->SetValue(0);
+					disconnected = true;
+				}
+			}
+			else
+			{
+				if (Utils::readMemory<int>(client + cl_drawshadowtexture) != 0)
+				{
+					Utils::writeMemory(0, client + cl_drawshadowtexture);
+					disconnected = true;
+				}
+			}
+
+			if (cvar_mat_fullbright != nullptr)
+			{
+				if (cvar_mat_fullbright->GetInt() != 0)
+				{
+					cvar_mat_fullbright->SetValue(0);
+					disconnected = true;
+				}
+			}
+			else
+			{
+				if (Utils::readMemory<int>(material + mat_fullbright) != 0)
+				{
+					Utils::writeMemory(0, material + mat_fullbright);
+					disconnected = true;
+				}
+			}
+
+			connected = false;
+			if (disconnected)
+			{
+				disconnected = false;
+				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
+				Sleep(3000);
+			}
 		}
 
 		if (GetAsyncKeyState(VK_ADD) & 0x01)
@@ -514,10 +559,8 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				/*
 				if (!cvar_sv_pure->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_sv_pure->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				*/
 			}
 
 			if (cvar_sv_consistency != nullptr)
@@ -525,10 +568,18 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				/*
 				if (!cvar_sv_consistency->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_sv_consistency->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				*/
+			}
+
+			if (cvar_c_thirdpersonshoulder != nullptr)
+			{
+				if (cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					cvar_c_thirdpersonshoulder->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+				// 防止被某些插件查询到
+				if (!cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					cvar_c_thirdpersonshoulder->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
 
 			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
@@ -557,7 +608,6 @@ void StartCheat(HINSTANCE instance)
 
 		Sleep(1);
 	}
-
 }
 
 void pure(void* engine)
