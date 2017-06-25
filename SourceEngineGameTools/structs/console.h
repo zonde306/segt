@@ -291,7 +291,7 @@ public:
 		bool bMax = false, float fMax = false, FnChangeCallback_t callback = 0);
 
 	// Used internally by OneTimeInit to initialize.
-	virtual void					Init() { Create("", ""); };
+	virtual void					Init();
 
 	//----------------------------
 	// Non-virtual helper methods
@@ -674,6 +674,11 @@ void ConVar::SetValue(DWORD value)
 const char* ConVar::GetDefault(void) const
 {
 	return m_pParent->m_pszDefaultValue;
+}
+
+inline void ConVar::Init()
+{
+	ConCommandBase::Init();
 }
 
 //-------------------------------------------------------------
