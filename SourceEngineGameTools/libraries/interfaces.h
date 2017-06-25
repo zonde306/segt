@@ -65,11 +65,14 @@ public:
 			if (*(PBYTE)(dwInitAddr + dwIter) == 0xA3)
 			{
 				Globals = (CGlobalVarsBase*)*(PDWORD)*(PDWORD)(dwInitAddr + dwIter + 1);
-				printf("Globals Found: 0x%X || 0x%X\n", (DWORD)Globals, ((DWORD)Globals - (DWORD)GetModuleHandleA("client.dll")));
+				// printf("Globals Found: 0x%X || 0x%X\n", (DWORD)Globals, ((DWORD)Globals - (DWORD)GetModuleHandleA("client.dll")));
+				printo("Globals Variable", Globals);
 				break;
 			}
 		}
-		printf("Input Found: 0x%X\n", (DWORD)Input);
+		
+		// printf("Input Found: 0x%X\n", (DWORD)Input);
+		printo("Input", Input);
 
 		/*
 		void** pClientTable = *reinterpret_cast<void***>(Client);

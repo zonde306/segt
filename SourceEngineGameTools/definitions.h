@@ -194,6 +194,9 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 // 获取当前服务器时间
 #define GetServerTime()				(Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())->GetTickBase() * Interfaces.Globals->interval_per_tick)
 
+// 输出偏移地址
+#define printo(_s,_n)		std::cout.setf(std::ios::hex|std::ios::uppercase);std::cout<<XorStr(_s)<<XorStr(" = 0x")<<(DWORD)_n<<std::endl;std::cout.unsetf(std::ios::hex|std::ios::uppercase)
+
 enum WeaponID_t
 {
 	Weapon_Pistol = 1,				// 小手枪(包括双持) 手枪

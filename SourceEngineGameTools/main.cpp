@@ -1,7 +1,9 @@
 #include "main.h"
 #include <ctime>
+#include <iomanip>
 
 // #define USE_PLAYER_INFO
+
 void StartCheat(HINSTANCE instance);
 
 typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
@@ -132,7 +134,8 @@ void StartCheat(HINSTANCE instance)
 		if (Interfaces.ClientMode)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
-			printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+			// printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+			printo("ClientModePtr", Interfaces.ClientMode);
 		}
 	}
 	else
@@ -141,50 +144,58 @@ void StartCheat(HINSTANCE instance)
 		if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
-			printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+			// printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
+			printo("ClientModePtr", Interfaces.ClientMode);
 		}
 	}
 	
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
 	{
 		oPaintTraverse = (FnPaintTraverse)Interfaces.PanelHook->HookFunction(indexes::PaintTraverse, Hooked_PaintTraverse);
-		printf("oPaintTraverse = 0x%X\n", (DWORD)oPaintTraverse);
+		// printf("oPaintTraverse = 0x%X\n", (DWORD)oPaintTraverse);
+		printo("oPaintTraverse", oPaintTraverse);
 	}
 
 	if (Interfaces.ClientModeHook && indexes::SharedCreateMove > -1)
 	{
 		oCreateMoveShared = (FnCreateMoveShared)Interfaces.ClientModeHook->HookFunction(indexes::SharedCreateMove, Hooked_CreateMoveShared);
-		printf("oCreateMoveShared = 0x%X\n", (DWORD)oCreateMoveShared);
+		// printf("oCreateMoveShared = 0x%X\n", (DWORD)oCreateMoveShared);
+		printo("oCreateMoveShared", oCreateMoveShared);
 	}
 
 	if (Interfaces.ClientHook && indexes::CreateMove > -1)
 	{
 		oCreateMove = (FnCreateMove)Interfaces.ClientHook->HookFunction(indexes::CreateMove, Hooked_CreateMove);
-		printf("oCreateMove = 0x%X\n", (DWORD)oCreateMove);
+		// printf("oCreateMove = 0x%X\n", (DWORD)oCreateMove);
+		printo("oCreateMove", oCreateMove);
 	}
 
 	if (Interfaces.ClientHook && indexes::FrameStageNotify > -1)
 	{
 		oFrameStageNotify = (FnFrameStageNotify)Interfaces.ClientHook->HookFunction(indexes::FrameStageNotify, Hooked_FrameStageNotify);
-		printf("oFrameStageNotify = 0x%X\n", (DWORD)oFrameStageNotify);
+		// printf("oFrameStageNotify = 0x%X\n", (DWORD)oFrameStageNotify);
+		printo("oFrameStageNotify", oFrameStageNotify);
 	}
 
 	if (Interfaces.ClientHook && indexes::InKeyEvent > -1)
 	{
 		oInKeyEvent = (FnInKeyEvent)Interfaces.ClientHook->HookFunction(indexes::InKeyEvent, Hooked_InKeyEvent);
-		printf("oInKeyEvent = 0x%X\n", (DWORD)oInKeyEvent);
+		// printf("oInKeyEvent = 0x%X\n", (DWORD)oInKeyEvent);
+		printo("oInKeyEvent", oInKeyEvent);
 	}
 
 	if (Interfaces.PredictionHook && indexes::RunCommand > -1)
 	{
 		oRunCommand = (FnRunCommand)Interfaces.ClientHook->HookFunction(indexes::RunCommand, Hooked_RunCommand);
-		printf("oRunCommand = 0x%X\n", (DWORD)oRunCommand);
+		// printf("oRunCommand = 0x%X\n", (DWORD)oRunCommand);
+		printo("oRunCommand", oRunCommand);
 	}
 
 	if (Interfaces.ModelRenderHook && indexes::DrawModel > -1)
 	{
 		oDrawModel = (FnDrawModel)Interfaces.ClientHook->HookFunction(indexes::DrawModel, Hooked_DrawModel);
-		printf("oDrawModel = 0x%X\n", (DWORD)oDrawModel);
+		// printf("oDrawModel = 0x%X\n", (DWORD)oDrawModel);
+		printo("oDrawModel", oDrawModel);
 	}
 
 	if (Interfaces.Cvar)
@@ -198,6 +209,7 @@ void StartCheat(HINSTANCE instance)
 		cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
 		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
 		
+		/*
 		printf("sv_cheats = 0x%X\n", (DWORD)cvar_sv_cheats);
 		printf("r_drawothermodels = 0x%X\n", (DWORD)cvar_r_drawothermodels);
 		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cvar_cl_drawshadowtexture);
@@ -206,6 +218,16 @@ void StartCheat(HINSTANCE instance)
 		printf("sv_consistency = 0x%X\n", (DWORD)cvar_sv_consistency);
 		printf("mp_gamemode = 0x%X\n", (DWORD)cvar_mp_gamemode);
 		printf("c_thirdpersonshoulder = 0x%X\n", (DWORD)cvar_c_thirdpersonshoulder);
+		*/
+
+		printo("sv_cheats", cvar_sv_cheats);
+		printo("r_drawothermodels", cvar_r_drawothermodels);
+		printo("cl_drawshadowtexture", cvar_cl_drawshadowtexture);
+		printo("mat_fullbright", cvar_mat_fullbright);
+		printo("sv_pure", cvar_sv_pure);
+		printo("sv_consistency", cvar_sv_consistency);
+		printo("mp_gamemode", cvar_mp_gamemode);
+		printo("c_thirdpersonshoulder", cvar_c_thirdpersonshoulder);
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -226,12 +248,20 @@ void StartCheat(HINSTANCE instance)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 #endif
+		/*
 		printf("Hook pD3DDevice Íê±Ï¡£\n");
 		printf("oReset = 0x%X\n", (DWORD)oReset);
 		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
 		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
 		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
 		printf("oPresent = 0x%X\n", (DWORD)oPresent);
+		*/
+
+		printo("oReset", oReset);
+		printo("oEndScene", oEndScene);
+		printo("oDrawIndexedPrimitive", oDrawIndexedPrimitive);
+		printo("oCreateQuery", oCreateQuery);
+		printo("oPresent", oPresent);
 	});
 
 	/*
@@ -832,7 +862,8 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	if (showHint)
 	{
 		showHint = false;
-		printf("Hooked_Reset trigged.");
+		// printf("Hooked_Reset trigged.");
+		std::cout << XorStr("Hooked_Reset trigged.") << std::endl;
 	}
 	
 	return oReset(device, pp);
@@ -844,7 +875,8 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	if (showHint)
 	{
 		showHint = false;
-		printf("Hooked_EndScene trigged.");
+		// printf("Hooked_EndScene trigged.");
+		std::cout << XorStr("Hooked_EndScene trigged.") << std::endl;
 	}
 	
 	return oEndScene(device);
@@ -857,7 +889,8 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 	if (showHint)
 	{
 		showHint = false;
-		printf("Hooked_DrawIndexedPrimitive trigged.");
+		// printf("Hooked_DrawIndexedPrimitive trigged.");
+		std::cout << XorStr("Hooked_DrawIndexedPrimitive trigged.") << std::endl;
 	}
 	
 	IDirect3DVertexBuffer9* stream = nullptr;
@@ -884,7 +917,8 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 	if (showHint)
 	{
 		showHint = false;
-		printf("Hooked_CreateQuery trigged.");
+		// printf("Hooked_CreateQuery trigged.");
+		std::cout << XorStr("Hooked_CreateQuery trigged.") << std::endl;
 	}
 	
 	if (type == D3DQUERYTYPE_OCCLUSION)
@@ -899,7 +933,8 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	if (showHint)
 	{
 		showHint = false;
-		printf("Hooked_Present trigged.");
+		// printf("Hooked_Present trigged.");
+		std::cout << XorStr("Hooked_Present trigged.") << std::endl;
 	}
 	
 	return oPresent(device, source, dest, window, region);
