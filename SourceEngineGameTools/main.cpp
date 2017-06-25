@@ -39,7 +39,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		HMENU hMenu = GetSystemMenu(hwnd, FALSE);
 		if (hMenu) DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
 
-		SetConsoleTitleA("Console");
+		SetConsoleTitleA(XorStr("Console"));
 		freopen("CONIN$", "r", stdin);
 		freopen("CONOUT$", "w", stdout);
 		// printf("RUN\n");
@@ -123,10 +123,10 @@ void StartCheat(HINSTANCE instance)
 	typedef void*(__stdcall* FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
-	address = Utils::GetModuleBase("client.dll", &size);
-	printf("client.dll = 0x%X\n", address);
+	address = Utils::GetModuleBase(XorStr("client.dll"), &size);
+	// printf("client.dll = 0x%X\n", address);
 
-	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, "B8 ? ? ? ? C3")) != nullptr)
+	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, XorStr("B8 ? ? ? ? C3"))) != nullptr)
 	{
 		Interfaces.ClientMode = GetClientModeNormal();
 		if (Interfaces.ClientMode)
@@ -189,14 +189,14 @@ void StartCheat(HINSTANCE instance)
 
 	if (Interfaces.Cvar)
 	{
-		cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
-		cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
-		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
-		cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
-		cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
-		cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
-		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
-		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
+		cvar_sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
+		cvar_r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
+		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
+		cvar_mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
+		cvar_sv_pure = Interfaces.Cvar->FindVar(XorStr("sv_pure"));
+		cvar_sv_consistency = Interfaces.Cvar->FindVar(XorStr("sv_consistency"));
+		cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
+		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
 		
 		printf("sv_cheats = 0x%X\n", (DWORD)cvar_sv_cheats);
 		printf("r_drawothermodels = 0x%X\n", (DWORD)cvar_r_drawothermodels);
@@ -266,13 +266,13 @@ void StartCheat(HINSTANCE instance)
 	*/
 
 	DWORD client, engine, material, fmWait;
-	client = Utils::GetModuleBase("client.dll");
-	engine = Utils::GetModuleBase("engine.dll");
-	material = Utils::GetModuleBase("materialsystem.dll");
+	client = Utils::GetModuleBase(XorStr("client.dll"));
+	engine = Utils::GetModuleBase(XorStr("engine.dll"));
+	material = Utils::GetModuleBase(XorStr("materialsystem.dll"));
 	printf("client.dll = 0x%X\n", client);
 	printf("engine.dll = 0x%X\n", engine);
 	printf("materialsystem.dll = 0x%X\n", material);
-	printf("localPlayer = 0x%X\n", (DWORD)GetLocalClient());
+	// printf("localPlayer = 0x%X\n", (DWORD)GetLocalClient());
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, NULL, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
@@ -320,9 +320,9 @@ void StartCheat(HINSTANCE instance)
 						cvar_cl_drawshadowtexture->SetValue(1);
 					}
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("[ConVar] r_drawothermodels set %d"),
 						cvar_r_drawothermodels->GetInt());
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] cvar_cl_drawshadowtexture set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("[ConVar] cvar_cl_drawshadowtexture set %d"),
 						cvar_cl_drawshadowtexture->GetInt());
 				}
 				else
@@ -338,7 +338,7 @@ void StartCheat(HINSTANCE instance)
 						Utils::writeMemory(1, client + cl_drawshadowtexture);
 					}
 
-					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("r_drawothermodels set %d"),
 						Utils::readMemory<int>(client + r_drawothermodels));
 				}
 
@@ -363,7 +363,7 @@ void StartCheat(HINSTANCE instance)
 					else
 						cvar_mat_fullbright->SetValue(1);
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("[ConVar] mat_fullbright set %d"),
 						cvar_mat_fullbright->GetInt());
 				}
 				else
@@ -374,7 +374,7 @@ void StartCheat(HINSTANCE instance)
 					else
 						Utils::writeMemory(1, material + mat_fullbright);
 
-					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("mat_fullbright set %d"),
 						Utils::readMemory<int>(material + mat_fullbright));
 				}
 
@@ -395,18 +395,18 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_mp_gamemode != nullptr)
 				{
 					const char* mode = cvar_mp_gamemode->GetString();
-					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+					if (_strcmpi(mode, XorStr("versus")) == 0 || _strcmpi(mode, XorStr("realismversus")) == 0)
 					{
-						cvar_mp_gamemode->SetValue("coop");
+						cvar_mp_gamemode->SetValue(XorStr("coop"));
 						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "coop");
 					}
 					else
 					{
-						cvar_mp_gamemode->SetValue("versus");
-						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "versus");
+						cvar_mp_gamemode->SetValue(XorStr("versus"));
+						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, XorStr("versus"));
 					}
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("[ConVar] mp_gamemode set %s"),
 						cvar_mp_gamemode->GetString());
 				}
 				else
@@ -418,16 +418,16 @@ void StartCheat(HINSTANCE instance)
 
 						if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
 						{
-							if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
-								strcpy_s(mode, 16, "coop");
+							if (_strcmpi(mode, XorStr("versus")) == 0 || _strcmpi(mode, XorStr("realismversus")) == 0)
+								strcpy_s(mode, 16, XorStr("coop"));
 							else
-								strcpy_s(mode, 16, "versus");
+								strcpy_s(mode, 16, XorStr("versus"));
 							VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
 						}
 						else
 							printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
 
-						Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+						Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("mp_gamemode set %s"), mode);
 					}
 				}
 
@@ -452,14 +452,14 @@ void StartCheat(HINSTANCE instance)
 					cvar_sv_cheats->SetValue(1);
 					cvar_sv_cheats->m_nValue = 1;
 					cvar_sv_cheats->m_fValue = 1.0f;
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("[ConVar] sv_cheats set %d"),
 						cvar_sv_cheats->GetInt());
 				}
 
 				if (Utils::readMemory<int>(engine + sv_cheats) != 1)
 				{
 					Utils::writeMemory(1, engine + sv_cheats);
-					Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("sv_cheats set %d"),
 						Utils::readMemory<int>(engine + sv_cheats));
 				}
 
@@ -471,6 +471,9 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
 				showSpectator();
+
+			if (!connected)
+				Interfaces.Cvar->ConsoleColorPrintf(Color(128, 128, 0), XorStr("********* connected *********"));
 
 			connected = true;
 		}
@@ -533,22 +536,22 @@ void StartCheat(HINSTANCE instance)
 			if (disconnected)
 			{
 				disconnected = false;
-				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
-				Sleep(3000);
+				Interfaces.Cvar->ConsoleColorPrintf(Color(128, 128, 0), XorStr("********* disconnected *********"));
+				Sleep(9000);
 			}
 		}
 
 		if (GetAsyncKeyState(VK_ADD) & 0x01)
 		{
-			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
-			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), ++fmWait);
+			Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("fastmelee wait set %d"), fmWait);
 			Sleep(1000);
 		}
 
 		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
 		{
-			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
-			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), --fmWait);
+			Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("fastmelee wait set %d"), fmWait);
 			Sleep(1000);
 		}
 
@@ -593,7 +596,7 @@ void StartCheat(HINSTANCE instance)
 				Utils::writeMemory(0, engine + sv_pure);
 				Utils::writeMemory(0, engine + sv_consistency);
 
-				Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+				Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("sv_pure and sv_consistency set %d"),
 					Utils::readMemory<int>(engine + sv_pure));
 
 				Sleep(100);
@@ -604,7 +607,7 @@ void StartCheat(HINSTANCE instance)
 			ExitProcess(0);
 
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
-			Interfaces.Engine->ClientCmd("disconnect");
+			Interfaces.Engine->ClientCmd(XorStr("disconnect"));
 
 		Sleep(1);
 	}
@@ -637,7 +640,7 @@ void pure(void* engine)
 			Utils::writeMemory(0, (DWORD)engine + sv_pure);
 			Utils::writeMemory(0, (DWORD)engine + sv_consistency);
 
-			Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+			Interfaces.Cvar->ConsoleColorPrintf(Color(255, 0, 0), XorStr("sv_pure and sv_consistency set %d"),
 				Utils::readMemory<int>((DWORD)engine + sv_pure));
 		}
 
@@ -996,19 +999,19 @@ void bunnyHop()
 			if (flags != FL_CLIENT && flags != (FL_DUCKING | FL_CLIENT) && flags != (FL_INWATER | FL_CLIENT) &&
 				flags != (FL_DUCKING | FL_CLIENT | FL_INWATER))
 			{
-				Interfaces.Engine->ClientCmd("+jump");
+				Interfaces.Engine->ClientCmd(XorStr("+jump"));
 				repeat = true;
 			}
 			else if (flags == FL_CLIENT || flags == (FL_DUCKING | FL_CLIENT) || flags == (FL_INWATER | FL_CLIENT) ||
 				flags == (FL_DUCKING | FL_CLIENT | FL_INWATER))
 			{
-				Interfaces.Engine->ClientCmd("-jump");
+				Interfaces.Engine->ClientCmd(XorStr("-jump"));
 				if (repeat)
 				{
 					Sleep(16);
-					Interfaces.Engine->ClientCmd("+jump");
+					Interfaces.Engine->ClientCmd(XorStr("+jump"));
 					Sleep(1);
-					Interfaces.Engine->ClientCmd("-jump");
+					Interfaces.Engine->ClientCmd(XorStr("-jump"));
 					repeat = false;
 				}
 			}
@@ -1047,16 +1050,16 @@ void autoPistol()
 						weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
 						weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
 					{
-						Interfaces.Engine->ClientCmd("+attack");
+						Interfaces.Engine->ClientCmd(XorStr("+attack"));
 						Sleep(10);
-						Interfaces.Engine->ClientCmd("-attack");
+						Interfaces.Engine->ClientCmd(XorStr("-attack"));
 					}
 				}
 				else
 				{
 					// 当前瞄准的是队友，并且队友不需要帮助
 					// 在这里停止开枪，防止队友伤害
-					Interfaces.Engine->ClientCmd("-attack");
+					Interfaces.Engine->ClientCmd(XorStr("-attack"));
 
 					// printf("current weapon id = %d\n", weaponId);
 				}
@@ -1248,12 +1251,12 @@ void meleeAttack()
 		if (weapon && weapon->GetWeaponID() == Weapon_Melee && tookoutTime <= serverTime &&
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
-			Interfaces.Engine->ClientCmd("+attack");
+			Interfaces.Engine->ClientCmd(XorStr("+attack"));
 			Sleep(10);
-			Interfaces.Engine->ClientCmd("-attack");
-			Interfaces.Engine->ClientCmd("slot1");
+			Interfaces.Engine->ClientCmd(XorStr("-attack"));
+			Interfaces.Engine->ClientCmd(XorStr("slot1"));
 			Sleep(10);
-			Interfaces.Engine->ClientCmd("slot2");
+			Interfaces.Engine->ClientCmd(XorStr("slot2"));
 			tookoutTime = GetServerTime() + 0.5f;
 		}
 	}
@@ -1305,7 +1308,7 @@ void showSpectator()
 
 		CBaseEntity* player = nullptr, *target = nullptr;
 
-		Interfaces.Engine->ClientCmd("echo \"========= player list =========\"");
+		Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 0), XorStr("========= player list ========="));
 
 		for (int i = 1; i < 64; ++i)
 		{
@@ -1337,11 +1340,11 @@ void showSpectator()
 				{
 					// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s you\"",
-						info.name, (mode == 4 ? "watching" : "following"));
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[spectator] player %s %s you"),
+						info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
 #else
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s you\"",
-						player->GetIndex(), (mode == 4 ? "watching" : "following"));
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[spectator] player %d %s you"),
+						player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
 #endif
 				}
 				else
@@ -1350,11 +1353,11 @@ void showSpectator()
 #ifdef USE_PLAYER_INFO
 					player_info_t other;
 					Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s %s\"",
-						info.name, (mode == 4 ? "watching" : "following"), other.name);
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[spectator] player %s %s %s"),
+						info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
 #else
-					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s %d\"",
-						player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[spectator] player %d %s %d"),
+						player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
 #endif
 				}
 			}
@@ -1365,10 +1368,10 @@ void showSpectator()
 				{
 					// 活着
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd("echo \"[survivor] player %s is alive (%d + %.0f)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %s is alive (%d + %.0f)"),
 						info.name, player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
 #else
-					Interfaces.Engine->ClientCmd("echo \"[survivor] player %d is alive (%d + %.0f)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %d is alive (%d + %.0f)"),
 						player->GetIndex(), player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
 #endif
 				}
@@ -1389,11 +1392,11 @@ void showSpectator()
 					{
 						// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s you\"",
-							info.name, (mode == 4 ? "watching" : "following"));
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %s %s you"),
+							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
 #else
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s you\"",
-							player->GetIndex(), (mode == 4 ? "watching" : "following"));
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %d %s you"),
+							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
 #endif
 					}
 					else
@@ -1402,11 +1405,11 @@ void showSpectator()
 #ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s %s\"",
-							info.name, (mode == 4 ? "watching" : "following"), other.name);
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %s %s %s"),
+							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
 #else
-						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s %d\"",
-							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[survivor] player %d %s %d"),
+							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
 #endif
 					}
 				}
@@ -1419,25 +1422,25 @@ void showSpectator()
 				switch (zombie)
 				{
 				case ZC_SMOKER:
-					strcpy_s(zombieName, "smoker");
+					strcpy_s(zombieName, XorStr("smoker"));
 					break;
 				case ZC_BOOMER:
-					strcpy_s(zombieName, "boomer");
+					strcpy_s(zombieName, XorStr("boomer"));
 					break;
 				case ZC_HUNTER:
-					strcpy_s(zombieName, "hunter");
+					strcpy_s(zombieName, XorStr("hunter"));
 					break;
 				case ZC_SPITTER:
-					strcpy_s(zombieName, "spitter");
+					strcpy_s(zombieName, XorStr("spitter"));
 					break;
 				case ZC_JOCKEY:
-					strcpy_s(zombieName, "jockey");
+					strcpy_s(zombieName, XorStr("jockey"));
 					break;
 				case ZC_CHARGER:
-					strcpy_s(zombieName, "charger");
+					strcpy_s(zombieName, XorStr("charger"));
 					break;
 				case ZC_TANK:
-					strcpy_s(zombieName, "tank");
+					strcpy_s(zombieName, XorStr("tank"));
 					break;
 				default:
 					ZeroMemory(zombieName, 32);
@@ -1447,10 +1450,10 @@ void showSpectator()
 				{
 					// 活着
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is %s (%d)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %s is %s (%d)"),
 						info.name, zombieName, player->GetHealth());
 #else
-					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is %s (%d)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %d is %s (%d)"),
 						player->GetIndex(), zombieName, player->GetHealth());
 #endif
 				}
@@ -1458,10 +1461,10 @@ void showSpectator()
 				{
 					// 幽灵状态
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is ghost %s (%d)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %s is ghost %s (%d)"),
 						info.name, zombieName, player->GetHealth());
 #else
-					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is ghost %s (%d)\"",
+					Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %d is ghost %s (%d)"),
 						player->GetIndex(), zombieName, player->GetHealth());
 #endif
 				}
@@ -1482,11 +1485,11 @@ void showSpectator()
 					{
 						// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
-							info.name, (mode == 4 ? "watching" : "following"));
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %s %s you"),
+							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
 #else
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
-							player->GetIndex(), (mode == 4 ? "watching" : "following"));
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %s %s you"),
+							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
 #endif
 					}
 					else
@@ -1495,18 +1498,18 @@ void showSpectator()
 #ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s %s\"",
-							info.name, (mode == 4 ? "watching" : "following"), other.name);
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %s %s %s"),
+							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
 #else
-						Interfaces.Engine->ClientCmd("echo \"[infected] player %d %s %d\"",
-							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
+						Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 255), XorStr("[infected] player %d %s %d"),
+							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
 #endif
 					}
 				}
 			}
 		}
 
-		Interfaces.Engine->ClientCmd("echo \"========= list end =========\"");
+		Interfaces.Cvar->ConsoleColorPrintf(Color(0, 255, 0), XorStr("========= list end ========="));
 	}
 
 	Sleep(1000);
@@ -1514,37 +1517,37 @@ void showSpectator()
 
 void bindAlias(int wait)
 {
-	Interfaces.Engine->ClientCmd("echo \"========= alias begin =========\"");
-	Interfaces.Engine->ClientCmd("alias +autofire \"alias autofire_launcher autofire_loop; autofire_launcher\"");
-	Interfaces.Engine->ClientCmd("alias -autofire \"alias autofire_launcher autofire_stop\"");
-	Interfaces.Engine->ClientCmd("alias autofire_launcher autofire_loop");
-	Interfaces.Engine->ClientCmd("alias autofire_loop \"+attack; wait 5; -attack; wait 5; autofire_launcher\"");
-	Interfaces.Engine->ClientCmd("alias autofire_stop \"-attack\"");
-	Interfaces.Engine->ClientCmd("alias +autojump \"alias autojump_launcher autojump_loop; autojump_launcher\"");
-	Interfaces.Engine->ClientCmd("alias -autojump \"alias autojump_launcher autojump_stop\"");
-	Interfaces.Engine->ClientCmd("alias autojump_launcher autojump_loop");
-	Interfaces.Engine->ClientCmd("alias autojump_loop \"+jump; wait 5; -jump; wait 5; autojump_launcher\"");
-	Interfaces.Engine->ClientCmd("alias autojump_stop \"-jump\"");
-	Interfaces.Engine->ClientCmd("alias +bigjump \"+jump; +duck\"");
-	Interfaces.Engine->ClientCmd("alias -bigjump \"-jump; -duck\"");
-	Interfaces.Engine->ClientCmd("alias +pistolspam \"alias pistolspam dopistolspam; dopistolspam\"");
-	Interfaces.Engine->ClientCmd("alias -pistolspam \"alias pistolspam -use\"");
-	Interfaces.Engine->ClientCmd("alias dopistolspam \"+use; wait 3; -use; wait 3; pistolspam\"");
-	Interfaces.Engine->ClientCmd("alias +fastmelee \"alias fastmelee_launcher fastmelee_loop; fastmelee_launcher\"");
-	Interfaces.Engine->ClientCmd("alias fastmelee_launcher fastmelee_loop");
-	Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", wait);
-	Interfaces.Engine->ClientCmd("alias fastmelee_stop \"-attack\"");
-	Interfaces.Engine->ClientCmd("alias -fastmelee \"alias fastmelee_launcher fastmelee_stop\"");
-	Interfaces.Engine->ClientCmd("alias thirdperson_toggle \"thirdperson_enable\"");
-	Interfaces.Engine->ClientCmd("alias thirdperson_enable \"alias thirdperson_toggle thirdperson_disable; thirdpersonshoulder\"");
-	Interfaces.Engine->ClientCmd("alias thirdperson_disable \"alias thirdperson_toggle thirdperson_enable; thirdpersonshoulder; c_thirdpersonshoulder 0\"");
-	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderoffset 0");
-	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderaimdist 720");
-	Interfaces.Engine->ClientCmd("cam_ideallag 0");
-	Interfaces.Engine->ClientCmd("cam_idealdist 40");
-	Interfaces.Engine->ClientCmd("bind leftarrow \"incrementvar cam_idealdist 30 130 10\"");
-	Interfaces.Engine->ClientCmd("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\"");
-	Interfaces.Engine->ClientCmd("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\"");
-	Interfaces.Engine->ClientCmd("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\"");
-	Interfaces.Engine->ClientCmd("echo \"========= alias end =========\"");
+	Interfaces.Cvar->ConsoleColorPrintf(Color(0, 0, 255), XorStr("echo \"========= alias begin =========\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias +autofire \"alias autofire_launcher autofire_loop; autofire_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias -autofire \"alias autofire_launcher autofire_stop\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias autofire_launcher autofire_loop"));
+	Interfaces.Engine->ClientCmd(XorStr("alias autofire_loop \"+attack; wait 5; -attack; wait 5; autofire_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias autofire_stop \"-attack\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias +autojump \"alias autojump_launcher autojump_loop; autojump_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias -autojump \"alias autojump_launcher autojump_stop\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias autojump_launcher autojump_loop"));
+	Interfaces.Engine->ClientCmd(XorStr("alias autojump_loop \"+jump; wait 5; -jump; wait 5; autojump_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias autojump_stop \"-jump\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias +bigjump \"+jump; +duck\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias -bigjump \"-jump; -duck\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias +pistolspam \"alias pistolspam dopistolspam; dopistolspam\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias -pistolspam \"alias pistolspam -use\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias dopistolspam \"+use; wait 3; -use; wait 3; pistolspam\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias +fastmelee \"alias fastmelee_launcher fastmelee_loop; fastmelee_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_launcher fastmelee_loop"));
+	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait 45; fastmelee_launcher\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_stop \"-attack\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias -fastmelee \"alias fastmelee_launcher fastmelee_stop\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_toggle \"thirdperson_enable\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_enable \"alias thirdperson_toggle thirdperson_disable; thirdpersonshoulder\""));
+	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_disable \"alias thirdperson_toggle thirdperson_enable; thirdpersonshoulder; c_thirdpersonshoulder 0\""));
+	Interfaces.Engine->ClientCmd(XorStr("c_thirdpersonshoulderoffset 0"));
+	Interfaces.Engine->ClientCmd(XorStr("c_thirdpersonshoulderaimdist 720"));
+	Interfaces.Engine->ClientCmd(XorStr("cam_ideallag 0"));
+	Interfaces.Engine->ClientCmd(XorStr("cam_idealdist 40"));
+	Interfaces.Engine->ClientCmd(XorStr("bind leftarrow \"incrementvar cam_idealdist 30 130 10\""));
+	Interfaces.Engine->ClientCmd(XorStr("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\""));
+	Interfaces.Engine->ClientCmd(XorStr("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\""));
+	Interfaces.Engine->ClientCmd(XorStr("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\""));
+	Interfaces.Cvar->ConsoleColorPrintf(Color(0, 0, 255), XorStr("echo \"========= alias end =========\""));
 }
