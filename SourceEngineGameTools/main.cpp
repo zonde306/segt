@@ -436,6 +436,43 @@ void StartCheat(HINSTANCE instance)
 				showSpectator();
 		}
 
+		if (GetAsyncKeyState(VK_APPS) & 0x01)
+		{
+			if (cvar_sv_cheats != nullptr)
+			{
+				// 解除修改限制
+				if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+				// 防止被服务器发现
+				if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+			}
+
+			if (cvar_sv_cheats != nullptr)
+			{
+				if (cvar_sv_cheats->GetInt() == 1)
+					cvar_sv_cheats->SetValue(0);
+				else
+					cvar_sv_cheats->SetValue(1);
+
+				Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
+					cvar_sv_cheats->GetInt());
+			}
+			else
+			{
+				if (Utils::readMemory<int>(engine + sv_cheats) == 1)
+					Utils::writeMemory(0, engine + sv_cheats);
+				else
+					Utils::writeMemory(1, engine + sv_cheats);
+
+				Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
+					Utils::readMemory<int>(engine + sv_cheats));
+			}
+
+			Sleep(1000);
+		}
+
 		if (GetAsyncKeyState(VK_ADD) & 0x01)
 		{
 			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
@@ -1151,13 +1188,13 @@ void thirdPerson()
 	CBaseEntity* local = GetLocalClient();
 	if (local && local->IsAlive())
 	{
-		
+		/*
 		if (local->GetNetProp<float>("m_TimeForceExternalView", "DT_TerrorPlayer") > 0.0f)
 			local->SetNetProp<float>("m_TimeForceExternalView", 99999.3f, "DT_TerrorPlayer");
 		else
 			local->SetNetProp<float>("m_TimeForceExternalView", 0.0f, "DT_TerrorPlayer");
+		*/
 		
-		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
 			// 切换到第三人称
@@ -1172,7 +1209,6 @@ void thirdPerson()
 			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
 			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
 		}
-		*/
 	}
 
 	Sleep(1000);
