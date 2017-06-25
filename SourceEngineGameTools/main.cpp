@@ -305,8 +305,10 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_r_drawothermodels->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
+					/*
 					if (!cvar_r_drawothermodels->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_r_drawothermodels->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					*/
 				}
 
 				if (cvar_cl_drawshadowtexture != nullptr)
@@ -314,8 +316,10 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_cl_drawshadowtexture->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
+					/*
 					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					*/
 				}
 				
 				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
@@ -363,8 +367,10 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_mat_fullbright->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
+					/*
 					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					*/
 				}
 				
 				if (cvar_mat_fullbright != nullptr)
@@ -399,8 +405,10 @@ void StartCheat(HINSTANCE instance)
 					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_mp_gamemode->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
+					/*
 					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					*/
 				}
 				
 				if (cvar_mp_gamemode != nullptr)
@@ -460,9 +468,10 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				// 防止被服务器发现
+				/*
 				if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				*/
 			}
 
 			if (cvar_sv_cheats != nullptr)
@@ -474,7 +483,7 @@ void StartCheat(HINSTANCE instance)
 					cvar_sv_cheats->GetInt());
 			}
 			
-			if(Utils::readMemory<int>(engine + sv_cheats) != 0)
+			if(Utils::readMemory<int>(engine + sv_cheats) != 1)
 			{
 				Utils::writeMemory(1, engine + sv_cheats);
 				Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
@@ -504,12 +513,22 @@ void StartCheat(HINSTANCE instance)
 			{
 				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+				/*
+				if (!cvar_sv_pure->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					cvar_sv_pure->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				*/
 			}
 
 			if (cvar_sv_consistency != nullptr)
 			{
 				if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+
+				/*
+				if (!cvar_sv_consistency->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					cvar_sv_consistency->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				*/
 			}
 
 			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
@@ -524,7 +543,7 @@ void StartCheat(HINSTANCE instance)
 				Utils::writeMemory(0, engine + sv_consistency);
 
 				Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
-					Utils::readMemory<int>((DWORD)engine + sv_pure));
+					Utils::readMemory<int>(engine + sv_pure));
 
 				Sleep(100);
 			}
