@@ -291,7 +291,7 @@ public:
 		bool bMax = false, float fMax = false, FnChangeCallback_t callback = 0);
 
 	// Used internally by OneTimeInit to initialize.
-	virtual void					Init() = 0;
+	virtual void					Init() { Create("", ""); };
 
 	//----------------------------
 	// Non-virtual helper methods

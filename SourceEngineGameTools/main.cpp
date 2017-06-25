@@ -60,6 +60,16 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 			dCreateQuery.Destroy();
 		if (dPresent.Created())
 			dPresent.Destroy();
+		if (Interfaces.ClientModeHook)
+			Interfaces.ClientModeHook->HookTable(false);
+		if (Interfaces.ClientHook)
+			Interfaces.ClientHook->HookTable(false);
+		if (Interfaces.ModelRenderHook)
+			Interfaces.ModelRenderHook->HookTable(false);
+		if (Interfaces.PanelHook)
+			Interfaces.PanelHook->HookTable(false);
+		if (Interfaces.PredictionHook)
+			Interfaces.PredictionHook->HookTable(false);
 	}
 
 	return TRUE;
@@ -457,21 +467,16 @@ void StartCheat(HINSTANCE instance)
 
 			if (cvar_sv_cheats != nullptr)
 			{
-				if (cvar_sv_cheats->GetInt() == 1)
-					cvar_sv_cheats->SetValue(0);
-				else
-					cvar_sv_cheats->SetValue(1);
-
+				cvar_sv_cheats->SetValue(1);
+				cvar_sv_cheats->m_nValue = 1;
+				cvar_sv_cheats->m_fValue = 1.0f;
 				Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
 					cvar_sv_cheats->GetInt());
 			}
-			else
+			
+			if(Utils::readMemory<int>(engine + sv_cheats) != 0)
 			{
-				if (Utils::readMemory<int>(engine + sv_cheats) == 1)
-					Utils::writeMemory(0, engine + sv_cheats);
-				else
-					Utils::writeMemory(1, engine + sv_cheats);
-
+				Utils::writeMemory(1, engine + sv_cheats);
 				Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
 					Utils::readMemory<int>(engine + sv_cheats));
 			}
@@ -1042,7 +1047,7 @@ void autoAim()
 						// 选择最近的敌人
 						dist = target->GetAbsOrigin().DistTo(myOrigin);
 						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
-						if (dist < distance && fov <= 25.f)
+						if (dist < distance && fov <= 30.f)
 						{
 							pCurrentAiming = target;
 							distance = dist;
