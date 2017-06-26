@@ -1,6 +1,4 @@
 #include "main.h"
-#include <ctime>
-#include <iomanip>
 
 // #define USE_PLAYER_INFO
 
@@ -60,6 +58,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 	}
 	else if (Reason == DLL_PROCESS_DETACH)
 	{
+#ifdef __DETOURXS_H
 		if (dReset.Created())
 			dReset.Destroy();
 		if (dEndScene.Created())
@@ -70,6 +69,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 			dCreateQuery.Destroy();
 		if (dPresent.Created())
 			dPresent.Destroy();
+#endif
 		if (Interfaces.ClientModeHook)
 			Interfaces.ClientModeHook->HookTable(false);
 		if (Interfaces.ClientHook)
@@ -114,6 +114,7 @@ void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x
 static FnDrawModel oDrawModel;
 
 static CBaseEntity* pCurrentAiming;
+static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
 
@@ -134,7 +135,6 @@ void StartCheat(HINSTANCE instance)
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
 	address = Utils::GetModuleBase(XorStr("client.dll"), &size);
-	// printf("client.dll = 0x%X\n", address);
 
 	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, XorStr("B8 ? ? ? ? C3"))) != nullptr)
 	{
@@ -142,7 +142,6 @@ void StartCheat(HINSTANCE instance)
 		if (Interfaces.ClientMode)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
-			// printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
 			printo("ClientModePtr", Interfaces.ClientMode);
 		}
 	}
@@ -152,7 +151,6 @@ void StartCheat(HINSTANCE instance)
 		if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
-			// printf("ClientModePtr = 0x%X\n", (DWORD)Interfaces.ClientMode);
 			printo("ClientModePtr", Interfaces.ClientMode);
 		}
 	}
@@ -160,49 +158,42 @@ void StartCheat(HINSTANCE instance)
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
 	{
 		oPaintTraverse = (FnPaintTraverse)Interfaces.PanelHook->HookFunction(indexes::PaintTraverse, Hooked_PaintTraverse);
-		// printf("oPaintTraverse = 0x%X\n", (DWORD)oPaintTraverse);
 		printo("oPaintTraverse", oPaintTraverse);
 	}
 
 	if (Interfaces.ClientModeHook && indexes::SharedCreateMove > -1)
 	{
 		oCreateMoveShared = (FnCreateMoveShared)Interfaces.ClientModeHook->HookFunction(indexes::SharedCreateMove, Hooked_CreateMoveShared);
-		// printf("oCreateMoveShared = 0x%X\n", (DWORD)oCreateMoveShared);
 		printo("oCreateMoveShared", oCreateMoveShared);
 	}
 
 	if (Interfaces.ClientHook && indexes::CreateMove > -1)
 	{
 		oCreateMove = (FnCreateMove)Interfaces.ClientHook->HookFunction(indexes::CreateMove, Hooked_CreateMove);
-		// printf("oCreateMove = 0x%X\n", (DWORD)oCreateMove);
 		printo("oCreateMove", oCreateMove);
 	}
 
 	if (Interfaces.ClientHook && indexes::FrameStageNotify > -1)
 	{
 		oFrameStageNotify = (FnFrameStageNotify)Interfaces.ClientHook->HookFunction(indexes::FrameStageNotify, Hooked_FrameStageNotify);
-		// printf("oFrameStageNotify = 0x%X\n", (DWORD)oFrameStageNotify);
 		printo("oFrameStageNotify", oFrameStageNotify);
 	}
 
 	if (Interfaces.ClientHook && indexes::InKeyEvent > -1)
 	{
 		oInKeyEvent = (FnInKeyEvent)Interfaces.ClientHook->HookFunction(indexes::InKeyEvent, Hooked_InKeyEvent);
-		// printf("oInKeyEvent = 0x%X\n", (DWORD)oInKeyEvent);
 		printo("oInKeyEvent", oInKeyEvent);
 	}
 
 	if (Interfaces.PredictionHook && indexes::RunCommand > -1)
 	{
 		oRunCommand = (FnRunCommand)Interfaces.ClientHook->HookFunction(indexes::RunCommand, Hooked_RunCommand);
-		// printf("oRunCommand = 0x%X\n", (DWORD)oRunCommand);
 		printo("oRunCommand", oRunCommand);
 	}
 
 	if (Interfaces.ModelRenderHook && indexes::DrawModel > -1)
 	{
 		oDrawModel = (FnDrawModel)Interfaces.ClientHook->HookFunction(indexes::DrawModel, Hooked_DrawModel);
-		// printf("oDrawModel = 0x%X\n", (DWORD)oDrawModel);
 		printo("oDrawModel", oDrawModel);
 	}
 
@@ -226,17 +217,6 @@ void StartCheat(HINSTANCE instance)
 		cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
 		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
 		
-		/*
-		printf("sv_cheats = 0x%X\n", (DWORD)cvar_sv_cheats);
-		printf("r_drawothermodels = 0x%X\n", (DWORD)cvar_r_drawothermodels);
-		printf("cl_drawshadowtexture = 0x%X\n", (DWORD)cvar_cl_drawshadowtexture);
-		printf("mat_fullbright = 0x%X\n", (DWORD)cvar_mat_fullbright);
-		printf("sv_pure = 0x%X\n", (DWORD)cvar_sv_pure);
-		printf("sv_consistency = 0x%X\n", (DWORD)cvar_sv_consistency);
-		printf("mp_gamemode = 0x%X\n", (DWORD)cvar_mp_gamemode);
-		printf("c_thirdpersonshoulder = 0x%X\n", (DWORD)cvar_c_thirdpersonshoulder);
-		*/
-
 		printo("sv_cheats", cvar_sv_cheats);
 		printo("r_drawothermodels", cvar_r_drawothermodels);
 		printo("cl_drawshadowtexture", cvar_cl_drawshadowtexture);
@@ -250,30 +230,22 @@ void StartCheat(HINSTANCE instance)
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
 	{
 #ifdef __DETOURXS_H
-		dReset.Create(&(PVOID&)pVMT[16], Hooked_Reset);
+		dReset.Create((void*)pVMT[16], Hooked_Reset);
 		oReset = (FnReset)dReset.GetTrampoline();
-		dEndScene.Create(&(PVOID&)pVMT[42], Hooked_EndScene);
+		dEndScene.Create((void*)pVMT[42], Hooked_EndScene);
 		oEndScene = (FnEndScene)dEndScene.GetTrampoline();
-		dDrawIndexedPrimitive.Create(&(PVOID&)pVMT[82], Hooked_DrawIndexedPrimitive);
+		dDrawIndexedPrimitive.Create((void*)pVMT[82], Hooked_DrawIndexedPrimitive);
 		oDrawIndexedPrimitive = (FnDrawIndexedPrimitive)dDrawIndexedPrimitive.GetTrampoline();
-		dCreateQuery.Create(&(PVOID&)pVMT[118], Hooked_CreateQuery);
+		dCreateQuery.Create((void*)pVMT[118], Hooked_CreateQuery);
 		oCreateQuery = (FnCreateQuery)dCreateQuery.GetTrampoline();
-		dPresent.Create(&(PVOID&)pVMT[17], Hooked_Present);
+		dPresent.Create((void*)pVMT[17], Hooked_Present);
 		oPresent = (FnPresent)dPresent.GetTrampoline();
 
 #elif defined(DETOURS_VERSION)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 #endif
-		/*
-		printf("Hook pD3DDevice 完毕。\n");
-		printf("oReset = 0x%X\n", (DWORD)oReset);
-		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
-		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
-		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
-		printf("oPresent = 0x%X\n", (DWORD)oPresent);
-		*/
-
+		
 		printo("oReset", oReset);
 		printo("oEndScene", oEndScene);
 		printo("oDrawIndexedPrimitive", oDrawIndexedPrimitive);
@@ -336,6 +308,7 @@ void StartCheat(HINSTANCE instance)
 		{
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
+				/*
 				if (cvar_r_drawothermodels != nullptr)
 				{
 					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -353,6 +326,7 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
+				*/
 				
 				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
 				{
@@ -387,6 +361,8 @@ void StartCheat(HINSTANCE instance)
 
 					Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels set %d\""),
 						Utils::readMemory<int>(client + r_drawothermodels));
+					Interfaces.Engine->ClientCmd(XorStr("echo \"cl_drawshadowtexture set %d\""),
+						Utils::readMemory<int>(client + cl_drawshadowtexture));
 				}
 
 				Sleep(1000);
@@ -394,6 +370,7 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_HOME) & 0x01)
 			{
+				/*
 				if (cvar_mat_fullbright != nullptr)
 				{
 					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -402,6 +379,7 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
+				*/
 				
 				if (cvar_mat_fullbright != nullptr)
 				{
@@ -430,6 +408,7 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
 			{
+				/*
 				if (cvar_mp_gamemode != nullptr)
 				{
 					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -438,6 +417,7 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
+				*/
 				
 				if (cvar_mp_gamemode != nullptr)
 				{
@@ -483,6 +463,7 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_APPS) & 0x01)
 			{
+				/*
 				if (cvar_sv_cheats != nullptr)
 				{
 					// 解除修改限制
@@ -493,10 +474,11 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
+				*/
 
 				if (cvar_sv_cheats != nullptr)
 				{
-					cvar_sv_cheats->SetValue(1);
+					// cvar_sv_cheats->SetValue(1);
 					cvar_sv_cheats->m_nValue = 1;
 					cvar_sv_cheats->m_fValue = 1.0f;
 					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] sv_cheats set %d\""),
@@ -527,7 +509,9 @@ void StartCheat(HINSTANCE instance)
 		else if (connected && !Interfaces.Engine->IsConnected())
 		{
 			static bool disconnected = false;
+			disconnected = true;
 			
+			/*
 			if (cvar_r_drawothermodels != nullptr)
 			{
 				if (cvar_r_drawothermodels->GetInt() != 1)
@@ -578,6 +562,7 @@ void StartCheat(HINSTANCE instance)
 					disconnected = true;
 				}
 			}
+			*/
 
 			connected = false;
 			if (disconnected)
@@ -604,6 +589,7 @@ void StartCheat(HINSTANCE instance)
 
 		// if (GetAsyncKeyState(VK_RETURN) & 0x01)
 		{
+			/*
 			if (cvar_sv_pure != nullptr)
 			{
 				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -631,6 +617,7 @@ void StartCheat(HINSTANCE instance)
 				if (!cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_c_thirdpersonshoulder->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
+			*/
 
 			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
 				cvar_sv_pure->SetValue(0);
@@ -663,10 +650,42 @@ void StartCheat(HINSTANCE instance)
 	}
 }
 
+void ResetDeviceHook(IDirect3DDevice9* device)
+{
+	dh::gDeviceInternal = device;
+	if (dReset.Created())
+		dReset.Destroy();
+	if (dEndScene.Created())
+		dEndScene.Destroy();
+	if (dDrawIndexedPrimitive.Created())
+		dDrawIndexedPrimitive.Destroy();
+	if (dCreateQuery.Created())
+		dCreateQuery.Destroy();
+	if (dPresent.Created())
+		dPresent.Destroy();
+
+	gDirectXHook.Init(device);
+	oReset = gDirectXHook.SetupHook(16, Hooked_Reset);
+	oPresent = gDirectXHook.SetupHook(17, Hooked_Present);
+	oEndScene = gDirectXHook.SetupHook(42, Hooked_EndScene);
+	oDrawIndexedPrimitive = gDirectXHook.SetupHook(82, Hooked_DrawIndexedPrimitive);
+	oCreateQuery = gDirectXHook.SetupHook(118, Hooked_CreateQuery);
+
+	std::cout << XorStr("========= Hook D3D Device =========") << std::endl;
+	printv(dh::gDeviceInternal);
+	printv(oReset);
+	printv(oPresent);
+	printv(oEndScene);
+	printv(oDrawIndexedPrimitive);
+	printv(oCreateQuery);
+	std::cout << XorStr("========= Hook End =========") << std::endl;
+}
+
 void pure(void* engine)
 {
 	for (;;)
 	{
+		/*
 		if (cvar_sv_pure != nullptr)
 		{
 			if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -678,6 +697,7 @@ void pure(void* engine)
 			if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 				cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 		}
+		*/
 		
 		if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
 			cvar_sv_pure->SetValue(0);
@@ -704,7 +724,6 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Reset trigged.");
 		std::cout << XorStr("Hooked_CreateMove trigged.") << std::endl;
 	}
 	
@@ -773,7 +792,6 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Reset trigged.");
 		std::cout << XorStr("Hooked_CreateMoveShared trigged.") << std::endl;
 	}
 	
@@ -832,7 +850,6 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Reset trigged.");
 		std::cout << XorStr("Hooked_PaintTraverse trigged.") << std::endl;
 	}
 	
@@ -870,7 +887,6 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Reset trigged.");
 		std::cout << XorStr("Hooked_FrameStageNotify trigged.") << std::endl;
 	}
 	
@@ -914,10 +930,12 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Reset trigged.");
 		std::cout << XorStr("Hooked_Reset trigged.") << std::endl;
 	}
-	
+
+	if (dh::gDeviceInternal == nullptr)
+		ResetDeviceHook(device);
+
 	return oReset(device, pp);
 }
 
@@ -931,6 +949,9 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		std::cout << XorStr("Hooked_EndScene trigged.") << std::endl;
 	}
 	
+	if (dh::gDeviceInternal == nullptr)
+		ResetDeviceHook(device);
+
 	return oEndScene(device);
 }
 
@@ -945,6 +966,9 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 		std::cout << XorStr("Hooked_DrawIndexedPrimitive trigged.") << std::endl;
 	}
 	
+	if (dh::gDeviceInternal == nullptr)
+		ResetDeviceHook(device);
+
 	IDirect3DVertexBuffer9* stream = nullptr;
 	UINT offsetByte, stride;
 	device->GetStreamSource(0, &stream, &offsetByte, &stride);
@@ -973,6 +997,9 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 		std::cout << XorStr("Hooked_CreateQuery trigged.") << std::endl;
 	}
 	
+	if (dh::gDeviceInternal == nullptr)
+		ResetDeviceHook(device);
+
 	if (type == D3DQUERYTYPE_OCCLUSION)
 		type = D3DQUERYTYPE_TIMESTAMP;
 	
@@ -989,6 +1016,9 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 		std::cout << XorStr("Hooked_Present trigged.") << std::endl;
 	}
 	
+	if (dh::gDeviceInternal == nullptr)
+		ResetDeviceHook(device);
+
 	return oPresent(device, source, dest, window, region);
 }
 
@@ -1339,13 +1369,12 @@ void thirdPerson()
 	CBaseEntity* local = GetLocalClient();
 	if (local && local->IsAlive())
 	{
-		/*
 		if (local->GetNetProp<float>("m_TimeForceExternalView", "DT_TerrorPlayer") > 0.0f)
 			local->SetNetProp<float>("m_TimeForceExternalView", 99999.3f, "DT_TerrorPlayer");
 		else
 			local->SetNetProp<float>("m_TimeForceExternalView", 0.0f, "DT_TerrorPlayer");
-		*/
 		
+		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
 			// 切换到第三人称
@@ -1360,6 +1389,7 @@ void thirdPerson()
 			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
 			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
 		}
+		*/
 	}
 
 	Sleep(1000);

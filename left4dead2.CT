@@ -44,6 +44,13 @@
       <VariableType>4 Bytes</VariableType>
       <Address>client.dll+79679C</Address>
     </CheatEntry>
+	<CheatEntry>
+      <ID>7</ID>
+      <Description>"pD3DDevice"</Description>
+      <ShowAsHex>1</ShowAsHex>
+      <VariableType>4 Bytes</VariableType>
+      <Address>shaderapidx9.dll+173988</Address>
+    </CheatEntry>
   </CheatEntries>
   <UserdefinedSymbols/>
 </CheatTable>

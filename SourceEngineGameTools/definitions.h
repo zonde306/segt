@@ -161,6 +161,9 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define m_iCrosshairsId			0x19D8
 #define m_iLastCrosshairsId		0x19E8
 
+// other
+#define D3DDevice				0x173988		// shaderapidx9.dll
+
 // 获取本地玩家
 #define GetLocalClient()			Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())
 
@@ -195,7 +198,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define GetServerTime()				(Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())->GetTickBase() * Interfaces.Globals->interval_per_tick)
 
 // 输出偏移地址
-#define printo(_s,_n)		std::cout.setf(std::ios::hex|std::ios::uppercase);std::cout<<XorStr(_s)<<XorStr(" = 0x")<<(DWORD)_n<<std::endl;std::cout.unsetf(std::ios::hex|std::ios::uppercase)
+#define printo(_s,_n)		std::cout << XorStr(_s) << XorStr(" = 0x") << std::setiosflags(std::ios::hex|std::ios::uppercase) << std::hex << (DWORD)_n << std::resetiosflags(std::ios::hex|std::ios::uppercase) << std::oct << std::endl
 #define printv(_n)			printo(#_n,_n)
 
 enum WeaponID_t
