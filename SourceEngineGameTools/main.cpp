@@ -9,6 +9,7 @@ static FnConColorMsg PrintToConsoleColor;
 
 typedef void(__cdecl* FnConMsg)(char const*, ...);
 static FnConMsg PrintToConsole;
+std::ofstream errlog;
 
 void StartCheat(HINSTANCE instance);
 
@@ -54,6 +55,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
+		errlog.open("segt.log", std::ofstream::out|std::ofstream::app);
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
 	}
 	else if (Reason == DLL_PROCESS_DETACH)
@@ -649,7 +651,10 @@ void StartCheat(HINSTANCE instance)
 		}
 
 		if (GetAsyncKeyState(VK_END) & 0x01)
+		{
+			errlog.close();
 			ExitProcess(0);
+		}
 
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
 			Interfaces.Engine->ClientCmd(XorStr("disconnect"));
@@ -1234,6 +1239,7 @@ void autoAim()
 						// 获取骨骼位置失败
 						position = pCurrentAiming->GetEyePosition();
 						Interfaces.Engine->ClientCmd(XorStr("echo \"*** setupbone error ***\""));
+						logerr("获取骨头发生未知错误");
 
 						// 根据不同的情况确定高度
 						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");

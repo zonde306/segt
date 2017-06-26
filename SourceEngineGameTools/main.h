@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -22,6 +23,9 @@ using namespace std;
 
 #include "libraries\vmt.h"
 #include "../gpud3dhook/main.h"
+
+extern std::ofstream errlog;
+#define logerr(_x)		errlog<<XorStr(__FILE__)<<"("<<__LINE__<<")"<<XorStr(__FUNCTION__)<<": "<<XorStr(_x)<<"\r\n"
 
 #include "structs\vector.h"
 #include "structs\vmatrix.h"
