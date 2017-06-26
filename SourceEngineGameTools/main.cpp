@@ -1243,8 +1243,8 @@ void autoAim()
 							position.z -= 12.0f;
 					}
 
-					// 速度预测
-					position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
+					// 速度预测，会导致屏幕晃动，所以不需要
+					// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
 					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
 				}
