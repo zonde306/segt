@@ -25,6 +25,9 @@ using namespace std;
 
 #include "libraries\vmt.h"
 #include "../gpud3dhook/main.h"
+#include "../imgui/drawer/DrawManager.h"
+#include "../imgui/imgui.h"
+#include "../imgui/DX9/imgui_impl_dx9.h"
 
 extern std::ofstream errlog;
 #define logerr(_x)		errlog << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_x) << "\r\n"

@@ -2,6 +2,8 @@
 
 // #define USE_PLAYER_INFO
 
+extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 typedef void(__cdecl* FnConColorMsg)(class Color const&, char const*, ...);
 static FnConColorMsg PrintToConsoleColor;
 
@@ -113,10 +115,12 @@ typedef void(__stdcall* FnDrawModel)(PVOID, PVOID, const ModelRenderInfo_t&, mat
 void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
 static FnDrawModel oDrawModel;
 
+static DrawManager* drawRender;
 static CBaseEntity* pCurrentAiming;
 static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
+static bool bImGuiInitialized = false;
 
 void bunnyHop();
 void autoPistol();
@@ -650,6 +654,81 @@ void StartCheat(HINSTANCE instance)
 	}
 }
 
+bool IsEnemyVisible(CBaseEntity* enemy)
+{
+	CBaseEntity* client = GetLocalClient();
+	Vector end = enemy->GetAbsOrigin();
+
+	trace_t trace;
+	Ray_t ray;
+
+	CTraceFilter filter;
+	filter.pSkip1 = client;
+
+	ray.Init(client->GetEyePosition(), end);
+	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+	if (trace.m_pEnt && trace.m_pEnt->GetTeam() != client->GetTeam() && trace.m_pEnt->GetHealth() > 0 &&
+		!trace.m_pEnt->IsDormant() && trace.physicsBone <= 128 && trace.physicsBone > 0)
+		return true;
+
+	return false;
+}
+
+Vector GetHeadPosition(CBaseEntity* player)
+{
+	Vector position;
+	int zombieClass = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+	if (zombieClass == ZC_SMOKER || zombieClass == ZC_HUNTER || zombieClass == ZC_TANK)
+		position = player->GetBonePosition(BONE_NECK);
+	else if (zombieClass == ZC_SPITTER || zombieClass == ZC_JOCKEY)
+		position = player->GetBonePosition(BONE_JOCKEY_HEAD);
+	else if (zombieClass == ZC_BOOMER)
+		position = player->GetBonePosition(BONE_BOOMER_CHEST);
+	else if (zombieClass == ZC_CHARGER)
+		position = player->GetBonePosition(BONE_CHARGER_HEAD);
+	else if (zombieClass == ZC_SURVIVORBOT)
+	{
+		int character = player->GetNetProp<int>("m_survivorCharacter", "DT_TerrorPlayer");
+		switch (character)
+		{
+		case 0:
+			position = player->GetBonePosition(BONE_NICK_HEAD);
+			break;
+		case 1:
+			position = player->GetBonePosition(BONE_ROCHELLE_HEAD);
+			break;
+		case 2:
+			position = player->GetBonePosition(BONE_COACH_HEAD);
+			break;
+		case 3:
+			position = player->GetBonePosition(BONE_ELLIS_HEAD);
+			break;
+		case 4:
+			position = player->GetBonePosition(BONE_BILL_HEAD);
+			break;
+		case 5:
+			position = player->GetBonePosition(BONE_ZOEY_HEAD);
+			break;
+		case 6:
+			position = player->GetBonePosition(BONE_FRANCIS_HEAD);
+			break;
+		case 7:
+			position = player->GetBonePosition(BONE_LOUIS_HEAD);
+			break;
+		}
+	}
+
+	if (!position.IsValid() || position.IsZero(0.001f))
+	{
+		if (zombieClass == ZC_JOCKEY)
+			position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+		else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+			position.z -= 12.0f;
+	}
+
+	return position;
+}
+
 void ResetDeviceHook(IDirect3DDevice9* device)
 {
 	dh::gDeviceInternal = device;
@@ -934,9 +1013,23 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	}
 
 	if (dh::gDeviceInternal == nullptr)
+	{
 		ResetDeviceHook(device);
+		showHint = true;
+	}
 
-	return oReset(device, pp);
+	if(!bImGuiInitialized)
+		return oReset(device, pp);
+
+	ImGui_ImplDX9_InvalidateDeviceObjects();
+	drawRender->OnLostDevice();
+	
+	HRESULT result = oReset(device, pp);
+
+	drawRender->OnResetDevice();
+	ImGui_ImplDX9_CreateDeviceObjects();
+	
+	return result;
 }
 
 HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
@@ -950,7 +1043,71 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
+	{
 		ResetDeviceHook(device);
+		showHint = true;
+	}
+
+	if (!bImGuiInitialized)
+	{
+		// 初始化
+		ImGui_ImplDX9_Init(FindWindowA(NULL, "Left 4 Dead 2"), device);
+		drawRender = new DrawManager(device);
+		bImGuiInitialized = true;
+	}
+	else
+	{
+		ImGui_ImplDX9_NewFrame();
+		drawRender->BeginRendering();
+
+		CBaseEntity* local = GetLocalClient();
+		static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255), team = D3DCOLOR_RGBA(0, 0, 255, 255);
+
+		if(GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+		{
+			int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
+			for (int i = 1; i < maxEntity; ++i)
+			{
+				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
+				if (entity == nullptr || entity->IsDormant())
+					continue;
+
+				if (i < 64)
+				{
+					// 玩家
+					if (!entity->IsAlive() || entity->GetHealth() <= 0)
+						continue;
+					
+					Vector body, head;
+					if (WorldToScreen(entity->GetAbsOrigin(), body) &&
+						WorldToScreen(GetHeadPosition(entity), head))
+					{
+						float height = abs(head.y - body.y);
+						float width = height * 0.65f;
+
+						// 框
+						drawRender->RenderRect((entity->GetTeam() == local->GetTeam() ? team : enemy),
+							body.x - width * 2, body.y, width, -height);
+
+						player_info_t info;
+						Interfaces.Engine->GetPlayerInfo(i, &info);
+
+						// 名字
+						drawRender->RenderText((entity->GetTeam() == local->GetTeam() ? team : enemy),
+							body.x, body.y, true, info.name);
+					}
+				}
+				else
+				{
+					// 普感
+					// TODO: 如果这个实体是普感，就绘制出来
+				}
+			}
+		}
+
+		ImGui::Render();
+		drawRender->EndRendering();
+	}
 
 	return oEndScene(device);
 }
@@ -967,7 +1124,10 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
+	{
 		ResetDeviceHook(device);
+		showHint = true;
+	}
 
 	IDirect3DVertexBuffer9* stream = nullptr;
 	UINT offsetByte, stride;
@@ -998,7 +1158,10 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
+	{
 		ResetDeviceHook(device);
+		showHint = true;
+	}
 
 	if (type == D3DQUERYTYPE_OCCLUSION)
 		type = D3DQUERYTYPE_TIMESTAMP;
@@ -1017,84 +1180,12 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
+	{
 		ResetDeviceHook(device);
+		showHint = true;
+	}
 
 	return oPresent(device, source, dest, window, region);
-}
-
-bool IsEnemyVisible(CBaseEntity* enemy)
-{
-	CBaseEntity* client = GetLocalClient();
-	Vector end = enemy->GetAbsOrigin();
-
-	trace_t trace;
-	Ray_t ray;
-
-	CTraceFilter filter;
-	filter.pSkip1 = client;
-
-	ray.Init(client->GetEyePosition(), end);
-	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
-	if (trace.m_pEnt && trace.m_pEnt->GetTeam() != client->GetTeam() && trace.m_pEnt->GetHealth() > 0 &&
-		!trace.m_pEnt->IsDormant() && trace.physicsBone <= 128 && trace.physicsBone > 0)
-		return true;
-
-	return false;
-}
-
-Vector GetHeadPosition(CBaseEntity* player)
-{
-	Vector position;
-	int zombieClass = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-	if (zombieClass == ZC_SMOKER || zombieClass == ZC_HUNTER || zombieClass == ZC_TANK)
-		position = player->GetBonePosition(BONE_NECK);
-	else if (zombieClass == ZC_SPITTER || zombieClass == ZC_JOCKEY)
-		position = player->GetBonePosition(BONE_JOCKEY_HEAD);
-	else if (zombieClass == ZC_BOOMER)
-		position = player->GetBonePosition(BONE_BOOMER_CHEST);
-	else if (zombieClass == ZC_CHARGER)
-		position = player->GetBonePosition(BONE_CHARGER_HEAD);
-	else if (zombieClass == ZC_SURVIVORBOT)
-	{
-		int character = player->GetNetProp<int>("m_survivorCharacter", "DT_TerrorPlayer");
-		switch (character)
-		{
-		case 0:
-			position = player->GetBonePosition(BONE_NICK_HEAD);
-			break;
-		case 1:
-			position = player->GetBonePosition(BONE_ROCHELLE_HEAD);
-			break;
-		case 2:
-			position = player->GetBonePosition(BONE_COACH_HEAD);
-			break;
-		case 3:
-			position = player->GetBonePosition(BONE_ELLIS_HEAD);
-			break;
-		case 4:
-			position = player->GetBonePosition(BONE_BILL_HEAD);
-			break;
-		case 5:
-			position = player->GetBonePosition(BONE_ZOEY_HEAD);
-			break;
-		case 6:
-			position = player->GetBonePosition(BONE_FRANCIS_HEAD);
-			break;
-		case 7:
-			position = player->GetBonePosition(BONE_LOUIS_HEAD);
-			break;
-		}
-	}
-
-	if(!position.IsValid() || position.IsZero(0.001f))
-	{
-		if (zombieClass == ZC_JOCKEY)
-			position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-		else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-			position.z -= 12.0f;
-	}
-
-	return position;
 }
 
 void bunnyHop()
