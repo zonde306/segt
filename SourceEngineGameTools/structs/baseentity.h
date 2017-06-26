@@ -186,24 +186,39 @@ public:
 		__try
 		{
 			if (!this->SetupBones(matrix, 128, 0x00000100, GetTickCount64()))
-				return Vector(0, 0, 0);
+			{
+				std::cout << XorStr("获取骨头位置失败") << std::endl;
+				return Vector();
+			}
 
 			if ((mod = this->GetModel()) == nullptr)
-				return Vector(0, 0, 0);
+			{
+				std::cout << XorStr("获取模型失败") << std::endl;
+				return Vector();
+			}
 
 			if ((hdr = Interfaces.ModelInfo->GetStudioModel(mod)) == nullptr)
-				return Vector(0, 0, 0);
+			{
+				std::cout << XorStr("获取模型信息失败") << std::endl;
+				return Vector();
+			}
 
 			if ((set = hdr->pHitboxSet(0)) == nullptr)
-				return Vector(0, 0, 0);
+			{
+				std::cout << XorStr("获取 Hitbox 组失败") << std::endl;
+				return Vector();
+			}
 
 			if ((hitbox = set->pHitbox(Hitbox)) == nullptr)
-				return Vector(0, 0, 0);
+			{
+				std::cout << XorStr("搜索 Hitbox 失败") << std::endl;
+				return Vector();
+			}
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("CBaseEntity::GetHitboxPosition 发生了一些错误。");
-			return Vector(0, 0, 0);
+			std::cout << XorStr("CBaseEntity::GetHitboxPosition 发生了一些错误。") << std::endl;
+			return Vector();
 		}
 		
 		VectorTransform(hitbox->bbmin, matrix[hitbox->bone], MIN);
@@ -223,10 +238,10 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("CBaseEntity::GetBonePosition 发生了一些错误。");
-			return Vector(0, 0, 0);
+			std::cout << XorStr("CBaseEntity::GetBonePosition 发生了一些错误。") << std::endl;
+			return Vector();
 		}
 
-		return Vector(0, 0, 0);
+		return Vector();
 	}
 };

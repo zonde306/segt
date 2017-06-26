@@ -1051,11 +1051,12 @@ Vector GetHeadPosition(CBaseEntity* player)
 		}
 	}
 
-	if(!position.IsValid() || position.IsZero(1e-6f))
+	if(!position.IsValid() || position.IsZero(0.001f))
 	{
-		position = player->GetEyePosition();
 		if (zombieClass == ZC_JOCKEY)
-			position.z = player->GetAbsOrigin().z + 30.0f;
+			position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+		else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+			position.z -= 12.0f;
 	}
 
 	return position;
@@ -1157,8 +1158,8 @@ void autoAim()
 	for (;;)
 	{
 		CBaseEntity* client = GetLocalClient();
-		if (client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-			client->IsAlive())
+		if (client != nullptr && Interfaces.Engine->IsInGame() && client->IsAlive() &&
+			!Interfaces.Engine->IsConsoleVisible())
 		{
 			CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
 			if (weapon)
@@ -1183,7 +1184,7 @@ void autoAim()
 					for (int i = 1; i <= 64; ++i)
 					{
 						CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-						if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
+						if (target == nullptr /*|| target->IsDormant()*/ || target->GetTeam() == team ||
 							!target->IsAlive() || target->GetHealth() <= 0)
 							continue;
 
@@ -1200,7 +1201,7 @@ void autoAim()
 							continue;
 
 						// 选择最近的敌人
-						dist = target->GetAbsOrigin().DistTo(myOrigin);
+						dist = target->GetEyePosition().DistTo(myOrigin);
 						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
 						if (dist < distance && fov <= 30.f)
 						{
@@ -1221,63 +1222,38 @@ void autoAim()
 				if (pCurrentAiming != nullptr)
 				{
 					// 目标位置
-					Vector position = pCurrentAiming->GetEyePosition();
+					Vector position;
+					try
+					{
+						// 根据头部骨头来瞄准，这玩意很不稳定，时不时会 boom
+						// 好处是瞄得准，不会被其他因数影响
+						position = GetHeadPosition(pCurrentAiming);
+					}
+					catch(...)
+					{
+						// 获取骨骼位置失败
+						position = pCurrentAiming->GetEyePosition();
+						Interfaces.Engine->ClientCmd(XorStr("echo \"*** setupbone error ***\""));
 
-					// 根据不同的情况确定高度
-					int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-					if (zombieClass == ZC_JOCKEY)
-						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-						position.z -= 12.0f;
+						// 根据不同的情况确定高度
+						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+						if (zombieClass == ZC_JOCKEY)
+							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+						else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+							position.z -= 12.0f;
+					}
 
 					// 速度预测
 					position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
-					// 使用这个方法可以有效的瞄准头部，但是会 boom
-					// Vector position = GetHeadPosition(pCurrentAiming);
-					// Vector position = pCurrentAiming->GetHitboxPosition(0);
-
-					/*
-					if (position.x == 0.0f && position.y == 0.0f && position.z == 0.0f)
-					{
-						position = pCurrentAiming->GetEyePosition();
-
-						if (zombieClass == ZC_JOCKEY)
-							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-					}
-					*/
-
-					/*
-					switch (zombieClass)
-					{
-					case ZC_SMOKER:
-					case ZC_HUNTER:
-					case ZC_TANK:
-						position = pCurrentAiming->GetBonePosition(BONE_NECK);
-						break;
-					case ZC_BOOMER:
-						position = pCurrentAiming->GetBonePosition(BONE_BOOMER_CHEST);
-						break;
-					case ZC_SPITTER:
-					case ZC_JOCKEY:
-						position = pCurrentAiming->GetBonePosition(BONE_JOCKEY_HEAD);
-						break;
-					case ZC_CHARGER:
-						position = pCurrentAiming->GetBonePosition(BONE_CHARGER_HEAD);
-						break;
-					default:
-						position = pCurrentAiming->GetEyePosition();
-						if (zombieClass == ZC_JOCKEY)
-							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-					}
-					*/
-
-					// VectorNormalize(position);
 					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
 				}
 			}
-			else if(pCurrentAiming != nullptr)
+			else if (pCurrentAiming != nullptr)
+			{
 				pCurrentAiming = nullptr;
+				Interfaces.Engine->ClientCmd(XorStr("echo \"*** auto aim stopped ***\""));
+			}
 		}
 
 		Sleep(1);
