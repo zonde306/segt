@@ -90,6 +90,154 @@ public:
 		return *this;
 	}
 
+	float* Base()
+	{
+		float clr[3];
+
+		clr[0] = _color[0] / 255.0f;
+		clr[1] = _color[1] / 255.0f;
+		clr[2] = _color[2] / 255.0f;
+
+		return &clr[0];
+	}
+
+	float Hue() const
+	{
+		if (_color[0] == _color[1] && _color[1] == _color[2])
+		{
+			return 0.0f;
+		}
+
+		float r = _color[0] / 255.0f;
+		float g = _color[1] / 255.0f;
+		float b = _color[2] / 255.0f;
+
+		float max = r > g ? r : g > b ? g : b,
+			min = r < g ? r : g < b ? g : b;
+		float delta = max - min;
+		float hue = 0.0f;
+
+		if (r == max)
+		{
+			hue = (g - b) / delta;
+		}
+		else if (g == max)
+		{
+			hue = 2 + (b - r) / delta;
+		}
+		else if (b == max)
+		{
+			hue = 4 + (r - g) / delta;
+		}
+		hue *= 60;
+
+		if (hue < 0.0f)
+		{
+			hue += 360.0f;
+		}
+		return hue;
+	}
+
+	float Saturation() const
+	{
+		float r = _color[0] / 255.0f;
+		float g = _color[1] / 255.0f;
+		float b = _color[2] / 255.0f;
+
+		float max = r > g ? r : g > b ? g : b,
+			min = r < g ? r : g < b ? g : b;
+		float l, s = 0;
+
+		if (max != min)
+		{
+			l = (max + min) / 2;
+			if (l <= 0.5f)
+				s = (max - min) / (max + min);
+			else
+				s = (max - min) / (2 - max - min);
+		}
+		return s;
+	}
+
+	float Brightness() const
+	{
+		float r = _color[0] / 255.0f;
+		float g = _color[1] / 255.0f;
+		float b = _color[2] / 255.0f;
+
+		float max = r > g ? r : g > b ? g : b,
+			min = r < g ? r : g < b ? g : b;
+		return (max + min) / 2;
+	}
+
+	Color FromHSB(float hue, float saturation, float brightness)
+	{
+		float h = hue == 1.0f ? 0 : hue * 6.0f;
+		float f = h - (int)h;
+		float p = brightness * (1.0f - saturation);
+		float q = brightness * (1.0f - saturation * f);
+		float t = brightness * (1.0f - (saturation * (1.0f - f)));
+
+		if (h < 1)
+		{
+			return Color(
+				(unsigned char)(brightness * 255),
+				(unsigned char)(t * 255),
+				(unsigned char)(p * 255)
+			);
+		}
+		else if (h < 2)
+		{
+			return Color(
+				(unsigned char)(q * 255),
+				(unsigned char)(brightness * 255),
+				(unsigned char)(p * 255)
+			);
+		}
+		else if (h < 3)
+		{
+			return Color(
+				(unsigned char)(p * 255),
+				(unsigned char)(brightness * 255),
+				(unsigned char)(t * 255)
+			);
+		}
+		else if (h < 4)
+		{
+			return Color(
+				(unsigned char)(p * 255),
+				(unsigned char)(q * 255),
+				(unsigned char)(brightness * 255)
+			);
+		}
+		else if (h < 5)
+		{
+			return Color(
+				(unsigned char)(t * 255),
+				(unsigned char)(p * 255),
+				(unsigned char)(brightness * 255)
+			);
+		}
+		else
+		{
+			return Color(
+				(unsigned char)(brightness * 255),
+				(unsigned char)(p * 255),
+				(unsigned char)(q * 255)
+			);
+		}
+	}
+
+	static Color Red() { return Color(255, 0, 0); }
+	static Color Green() { return Color(70, 255, 70); }
+	static Color Blue() { return Color(0, 0, 255); }
+	static Color LightBlue() { return Color(50, 160, 255); }
+	static Color Grey() { return Color(128, 128, 128); }
+	static Color DarkGrey() { return Color(45, 45, 45); }
+	static Color Black() { return Color(0, 0, 0); }
+	static Color White() { return Color(255, 255, 255); }
+	static Color Purple() { return Color(220, 0, 220); }
+
 private:
 	unsigned char _color[4];
 };

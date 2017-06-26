@@ -196,6 +196,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 
 // Êä³öÆ«ÒÆµØÖ·
 #define printo(_s,_n)		std::cout.setf(std::ios::hex|std::ios::uppercase);std::cout<<XorStr(_s)<<XorStr(" = 0x")<<(DWORD)_n<<std::endl;std::cout.unsetf(std::ios::hex|std::ios::uppercase)
+#define printv(_n)			printo(#_n,_n)
 
 enum WeaponID_t
 {

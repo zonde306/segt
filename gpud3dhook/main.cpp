@@ -1152,7 +1152,6 @@ bool Overlay::InitOverlayDirextX()
 		return false;
 	}
 
-	
 	D3DXCreateFontA(device, 16, 0, 0, 0, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY,
 		DEFAULT_PITCH, "Fixedsys", &font);
 

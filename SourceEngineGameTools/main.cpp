@@ -4,6 +4,12 @@
 
 // #define USE_PLAYER_INFO
 
+typedef void(__cdecl* FnConColorMsg)(class Color const&, char const*, ...);
+static FnConColorMsg PrintToConsoleColor;
+
+typedef void(__cdecl* FnConMsg)(char const*, ...);
+static FnConMsg PrintToConsole;
+
 void StartCheat(HINSTANCE instance);
 
 typedef HRESULT(WINAPI* FnDrawIndexedPrimitive)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
@@ -196,6 +202,15 @@ void StartCheat(HINSTANCE instance)
 		oDrawModel = (FnDrawModel)Interfaces.ClientHook->HookFunction(indexes::DrawModel, Hooked_DrawModel);
 		// printf("oDrawModel = 0x%X\n", (DWORD)oDrawModel);
 		printo("oDrawModel", oDrawModel);
+	}
+
+	HMODULE tier0 = Utils::GetModuleHandleSafe("tier0.dll");
+	if (tier0 != NULL)
+	{
+		PrintToConsole = (FnConMsg)GetProcAddress(tier0, "ConMsg");
+		PrintToConsoleColor = (FnConColorMsg)GetProcAddress(tier0, "ConColorMsg");
+		printv(PrintToConsole);
+		printv(PrintToConsoleColor);
 	}
 
 	if (Interfaces.Cvar)
@@ -680,6 +695,14 @@ void pure(void* engine)
 
 void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frametime, bool active)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		// printf("Hooked_Reset trigged.");
+		std::cout << XorStr("Hooked_CreateMove trigged.") << std::endl;
+	}
+	
 	oCreateMove(sequence_number, input_sample_frametime, active);
 
 	DWORD dwEBP;
@@ -741,6 +764,14 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		// printf("Hooked_Reset trigged.");
+		std::cout << XorStr("Hooked_CreateMoveShared trigged.") << std::endl;
+	}
+	
 	CBaseEntity* client = GetLocalClient();
 
 	if (!client || !cmd)
@@ -792,6 +823,14 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 
 void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel, bool forcePaint, bool allowForce)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		// printf("Hooked_Reset trigged.");
+		std::cout << XorStr("Hooked_PaintTraverse trigged.") << std::endl;
+	}
+	
 	static unsigned int MatSystemTopPanel = 0;
 	static unsigned int FocusOverlayPanel = 0;
 
@@ -822,6 +861,14 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 {
+	static bool showHint = true;
+	if (showHint)
+	{
+		showHint = false;
+		// printf("Hooked_Reset trigged.");
+		std::cout << XorStr("Hooked_FrameStageNotify trigged.") << std::endl;
+	}
+	
 	QAngle aim, view;
 	
 	if (stage == FRAME_RENDER_START && Interfaces.Engine->IsInGame())
@@ -1123,7 +1170,8 @@ void autoAim()
 				Vector myOrigin = client->GetEyePosition();
 
 				// 检查是否需要选择新的敌人
-				if (pCurrentAiming == nullptr || !pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
+				if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() ||
+					!pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
 				{
 					Vector myAngles;
 					Interfaces.Engine->GetViewAngles(myAngles);
@@ -1135,8 +1183,8 @@ void autoAim()
 					for (int i = 1; i <= 64; ++i)
 					{
 						CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-						if (target == nullptr || target->GetTeam() == team || !target->IsAlive() ||
-							target->GetHealth() <= 0 || target->IsDormant())
+						if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
+							!target->IsAlive() || target->GetHealth() <= 0)
 							continue;
 
 						/*
@@ -1181,6 +1229,9 @@ void autoAim()
 						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
 					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
 						position.z -= 12.0f;
+
+					// 速度预测
+					position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
 					// 使用这个方法可以有效的瞄准头部，但是会 boom
 					// Vector position = GetHeadPosition(pCurrentAiming);
@@ -1240,7 +1291,7 @@ void esp()
 		for (int i = 1; i <= 64; ++i)
 		{
 			CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(i);
-			if (player == nullptr || !player->IsAlive() || player->GetHealth() <= 0 || player->IsDormant())
+			if (player == nullptr || player->IsDormant() || !player->IsAlive() || player->GetHealth() <= 0)
 				continue;
 
 			// 没有任何效果...
@@ -1348,7 +1399,7 @@ void showSpectator()
 		for (int i = 1; i < 64; ++i)
 		{
 			player = Interfaces.ClientEntList->GetClientEntity(i);
-			if (player == nullptr)
+			if (player == nullptr || player->IsDormant())
 				continue;
 
 			int team = player->GetTeam();

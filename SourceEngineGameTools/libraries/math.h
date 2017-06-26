@@ -438,3 +438,20 @@ float GetAnglesFieldOfView(const Vector& myAngles, const Vector& aimAngles)
 	getFov(myAngles.x, myAngles.y, aimAngles.x, aimAngles.y, toHim.x, toHim.y);
 	return getDistance(toHim.x, toHim.y);
 }
+
+bool WorldToScreen(const Vector &point, Vector &out)
+{
+	int m_iWidth, m_iHeight;
+	Interfaces.Engine->GetScreenSize(m_iWidth, m_iHeight);
+	const VMatrix &worldToScreen = Interfaces.Engine->WorldToScreenMatrix();
+	float w = worldToScreen[3][0] * point[0] + worldToScreen[3][1] * point[1] + worldToScreen[3][2] * point[2] + worldToScreen[3][3];
+	out.z = 0;
+	if (w > 0.01)
+	{
+		float w1 = 1 / w;
+		out.x = m_iWidth / 2 + (0.5 * ((worldToScreen[0][0] * point[0] + worldToScreen[0][1] * point[1] + worldToScreen[0][2] * point[2] + worldToScreen[0][3]) * w1) * m_iWidth + 0.5);
+		out.y = m_iHeight / 2 - (0.5 * ((worldToScreen[1][0] * point[0] + worldToScreen[1][1] * point[1] + worldToScreen[1][2] * point[2] + worldToScreen[1][3]) * w1) * m_iHeight + 0.5);
+		return true;
+	}
+	return false;
+}
