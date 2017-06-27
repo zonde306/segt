@@ -4,6 +4,7 @@
 #define INRANGE( x, a, b ) ( x >= a && x <= b )
 #define getBits( x ) ( INRANGE( ( x & ( ~0x20 ) ), 'A', 'F' ) ? ( ( x & ( ~0x20 ) ) - 'A' + 0xa ) : ( INRANGE( x, '0', '9' ) ? x - '0' : 0 ) )
 #define getByte( x ) ( getBits( x[ 0 ] ) << 4 | getBits( x[ 1 ] ) )
+extern HINSTANCE hModuleCheats;
 
 class Utils
 {
@@ -361,6 +362,83 @@ public:
 		}
 
 		return T();
+	}
+
+	static std::vector<std::string> split(const std::string& s, const std::string& delim = " ")
+	{
+		std::vector<std::string> result;
+		size_t last = 0;
+		size_t index = s.find_first_of(delim, last);
+		while (index != std::string::npos)
+		{
+			result.push_back(s.substr(last, index - last));
+			last = index + 1;
+			index = s.find_first_of(delim, last);
+		}
+		if (index - last > 0)
+		{
+			result.push_back(s.substr(last, index - last));
+		}
+
+		return result;
+	}
+
+	static std::string trim(const std::string& s, const std::string& delim = " \r\n\t")
+	{
+		if (s.empty())
+			return s;
+
+		std::string result = s;
+		for (char c : delim)
+		{
+			result.erase(0, result.find_first_not_of(c));
+			result.erase(result.find_last_not_of(c) + 1);
+		}
+
+		return result;
+	}
+
+	static void log(const char* text, ...)
+	{
+		static std::string path;
+		if (path.empty())
+		{
+			char buffer[MAX_PATH];
+			GetModuleFileNameA(hModuleCheats, buffer, MAX_PATH);
+			std::string tmp = buffer;
+			path = tmp.substr(0, tmp.rfind('\\') - 1);
+		}
+		
+		
+
+		char buffer[1024];
+
+		time_t t;
+		time(&t);
+
+		tm tmp;
+		localtime_s(&tmp, &t);
+
+		// 文件创建日期
+		strftime(buffer, 1024, "segt_%Y%m%d.log", &tmp);
+
+		std::fstream file(path + buffer, std::ios::out|std::ios::app|std::ios::ate);
+
+		// 日志写入时间
+		strftime(buffer, 1024, "[%H:%M:%S] ", &tmp);
+		file << buffer;
+
+		// 格式化字符串
+		va_list ap;
+		va_start(ap, text);
+		vsprintf_s(buffer, text, ap);
+		va_end(ap);
+
+		// 输出
+		file << buffer << "\r\n";
+
+		// 完毕
+		file.close();
 	}
 };
 

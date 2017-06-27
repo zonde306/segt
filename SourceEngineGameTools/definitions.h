@@ -201,6 +201,10 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define printo(_s,_n)		std::cout << XorStr(_s) << XorStr(" = 0x") << std::setiosflags(std::ios::hex|std::ios::uppercase) << std::hex << (DWORD)_n << std::resetiosflags(std::ios::hex|std::ios::uppercase) << std::oct << std::endl
 #define printv(_n)			printo(#_n,_n)
 
+// 输出日志
+#define logerr(_x)		errlog << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_x) << "\r\n"
+#define logfile(_s)		std::fstream f("segt.log", std::ios::out|std::ios::app|std::ios::ate); f << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_s) << "\r\n"; f.close()
+
 enum WeaponID_t
 {
 	Weapon_Pistol = 1,				// 小手枪(包括双持) 手枪

@@ -1,6 +1,7 @@
 #include "main.h"
 
 // #define USE_PLAYER_INFO
+#define USE_CVAR_CHANGE
 
 extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -37,6 +38,8 @@ static FnPresent oPresent;
 DetourXS dDrawIndexedPrimitive, dEndScene, dReset, dCreateQuery, dPresent;
 #endif
 
+HINSTANCE hModuleCheats;
+
 BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 {
 	if (Reason == DLL_PROCESS_ATTACH)
@@ -44,6 +47,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		AllocConsole();
 
 		HWND hwnd = GetConsoleWindow();
+		hModuleCheats = Instance;
 
 		HMENU hMenu = GetSystemMenu(hwnd, FALSE);
 		if (hMenu) DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
@@ -55,7 +59,9 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
-		errlog.open("segt.log", std::ofstream::out|std::ofstream::app);
+		errlog.open(XorStr("segt.log"), std::ofstream::out|std::ofstream::app);
+		Utils::log(XorStr("========= cheats start ========="));
+
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
 	}
 	else if (Reason == DLL_PROCESS_DETACH)
@@ -135,6 +141,8 @@ void showSpectator();
 void StartCheat(HINSTANCE instance)
 {
 	// GetClientModeNormal B8 ? ? ? ? C3
+
+	/*
 	typedef void*(__stdcall* FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
@@ -209,6 +217,7 @@ void StartCheat(HINSTANCE instance)
 		printv(PrintToConsole);
 		printv(PrintToConsoleColor);
 	}
+	*/
 
 	if (Interfaces.Cvar)
 	{
@@ -229,6 +238,17 @@ void StartCheat(HINSTANCE instance)
 		printo("sv_consistency", cvar_sv_consistency);
 		printo("mp_gamemode", cvar_mp_gamemode);
 		printo("c_thirdpersonshoulder", cvar_c_thirdpersonshoulder);
+
+		Utils::log(XorStr("*** ConVar ***"));
+		Utils::log(XorStr("sv_cheats = 0x%X"), (DWORD)cvar_sv_cheats);
+		Utils::log(XorStr("r_drawothermodels = 0x%X"), (DWORD)cvar_r_drawothermodels);
+		Utils::log(XorStr("cl_drawshadowtexture = 0x%X"), (DWORD)cvar_cl_drawshadowtexture);
+		Utils::log(XorStr("mat_fullbright = 0x%X"), (DWORD)cvar_mat_fullbright);
+		Utils::log(XorStr("sv_pure = 0x%X"), (DWORD)cvar_sv_pure);
+		Utils::log(XorStr("sv_consistency = 0x%X"), (DWORD)cvar_sv_consistency);
+		Utils::log(XorStr("mp_gamemode = 0x%X"), (DWORD)cvar_mp_gamemode);
+		Utils::log(XorStr("c_thirdpersonshoulder = 0x%X"), (DWORD)cvar_c_thirdpersonshoulder);
+		Utils::log(XorStr("*** end ***"));
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -257,37 +277,6 @@ void StartCheat(HINSTANCE instance)
 		printo("oPresent", oPresent);
 	});
 
-	/*
-	dh::gDeviceInternal = dh::FindDirexcXDevice();
-	if (dh::gDeviceInternal)
-	{
-		gDirectXHook = new CVMTHookManager(dh::gDeviceInternal);
-		oReset = gDirectXHook->SetupHook(16, Hooked_Reset);
-		oEndScene = gDirectXHook->SetupHook(42, Hooked_EndScene);
-		oDrawIndexedPrimitive = gDirectXHook->SetupHook(82, Hooked_DrawIndexedPrimitive);
-		oCreateQuery = gDirectXHook->SetupHook(118, Hooked_CreateQuery);
-
-		printf("Hook pD3DDevice 完毕。\n");
-		printf("oReset = 0x%X\n", (DWORD)oReset);
-		printf("oEndScene = 0x%X\n", (DWORD)oEndScene);
-		printf("oDrawIndexedPrimitive = 0x%X\n", (DWORD)oDrawIndexedPrimitive);
-		printf("oCreateQuery = 0x%X\n", (DWORD)oCreateQuery);
-	}
-	*/
-	
-	/*
-	dh::CreateOverlay(FindWindowA(NULL, "Left 4 Dead 2"), instance);
-	dh::gOverlay->renderCallbackPost["showtime"] = [&](IDirect3D9Ex* pD3D, IDirect3DDevice9Ex* pDevice) -> void
-	{
-		char times[64];
-		time_t t = time(NULL);
-
-		// 年/月/日 时:分:秒 星期(0=星期日)
-		strftime(times, 64, u8"%Y/%m/%d %H:%M:%S %w", localtime(&t));
-		dh::gOverlay->DrawString(25, 25, times, D3DCOLOR_RGBA(255, 255, 255, 255));
-	};
-	*/
-
 	DWORD client, engine, material, fmWait;
 	client = Utils::GetModuleBase(XorStr("client.dll"));
 	engine = Utils::GetModuleBase(XorStr("engine.dll"));
@@ -308,11 +297,11 @@ void StartCheat(HINSTANCE instance)
 	{
 		static bool connected = false;
 
-		if (Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible())
+		if (Interfaces.Engine->IsConnected())
 		{
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
-				/*
+#ifdef USE_CVAR_CHANGE
 				if (cvar_r_drawothermodels != nullptr)
 				{
 					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -330,8 +319,9 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
-				*/
+#endif
 				
+#ifdef USE_CVAR_CHANGE
 				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
 				{
 					if (cvar_r_drawothermodels->GetInt() == 2)
@@ -352,6 +342,7 @@ void StartCheat(HINSTANCE instance)
 				}
 				else
 				{
+#endif
 					if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
 					{
 						Utils::writeMemory(1, client + r_drawothermodels);
@@ -367,14 +358,16 @@ void StartCheat(HINSTANCE instance)
 						Utils::readMemory<int>(client + r_drawothermodels));
 					Interfaces.Engine->ClientCmd(XorStr("echo \"cl_drawshadowtexture set %d\""),
 						Utils::readMemory<int>(client + cl_drawshadowtexture));
+#ifdef USE_CVAR_CHANGE
 				}
+#endif
 
 				Sleep(1000);
 			}
 
 			if (GetAsyncKeyState(VK_HOME) & 0x01)
 			{
-				/*
+#ifdef USE_CVAR_CHANGE
 				if (cvar_mat_fullbright != nullptr)
 				{
 					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -383,8 +376,9 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
-				*/
+#endif
 				
+#ifdef USE_CVAR_CHANGE
 				if (cvar_mat_fullbright != nullptr)
 				{
 					if (cvar_mat_fullbright->GetInt() == 1)
@@ -397,7 +391,7 @@ void StartCheat(HINSTANCE instance)
 				}
 				else
 				{
-
+#endif
 					if (Utils::readMemory<int>(material + mat_fullbright) == 1)
 						Utils::writeMemory(0, material + mat_fullbright);
 					else
@@ -405,14 +399,16 @@ void StartCheat(HINSTANCE instance)
 
 					Interfaces.Engine->ClientCmd(XorStr("echo \"mat_fullbright set %d\""),
 						Utils::readMemory<int>(material + mat_fullbright));
+#ifdef USE_CVAR_CHANGE
 				}
+#endif
 
 				Sleep(1000);
 			}
 
 			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
 			{
-				/*
+#ifdef USE_CVAR_CHANGE
 				if (cvar_mp_gamemode != nullptr)
 				{
 					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -421,8 +417,9 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
-				*/
+#endif
 				
+#ifdef USE_CVAR_CHANGE
 				if (cvar_mp_gamemode != nullptr)
 				{
 					const char* mode = cvar_mp_gamemode->GetString();
@@ -442,6 +439,7 @@ void StartCheat(HINSTANCE instance)
 				}
 				else
 				{
+#endif
 					char* mode = Utils::readMemory<char*>(client + mp_gamemode);
 					if (mode != nullptr)
 					{
@@ -460,14 +458,16 @@ void StartCheat(HINSTANCE instance)
 
 						Interfaces.Engine->ClientCmd(XorStr("echo \"mp_gamemode set %s\""), mode);
 					}
+#ifdef USE_CVAR_CHANGE
 				}
+#endif
 
 				Sleep(1000);
 			}
 
 			if (GetAsyncKeyState(VK_APPS) & 0x01)
 			{
-				/*
+#ifdef USE_CVAR_CHANGE
 				if (cvar_sv_cheats != nullptr)
 				{
 					// 解除修改限制
@@ -478,16 +478,18 @@ void StartCheat(HINSTANCE instance)
 					if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
-				*/
+#endif
 
+#ifdef USE_CVAR_CHANGE
 				if (cvar_sv_cheats != nullptr)
 				{
-					// cvar_sv_cheats->SetValue(1);
-					cvar_sv_cheats->m_nValue = 1;
+					cvar_sv_cheats->SetValue(1);
 					cvar_sv_cheats->m_fValue = 1.0f;
+					cvar_sv_cheats->m_nValue = 1;
 					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] sv_cheats set %d\""),
 						cvar_sv_cheats->GetInt());
 				}
+#endif
 
 				if (Utils::readMemory<int>(engine + sv_cheats) != 1)
 				{
@@ -506,16 +508,37 @@ void StartCheat(HINSTANCE instance)
 				showSpectator();
 
 			if (!connected)
+			{
 				Interfaces.Engine->ClientCmd(XorStr("echo \"********* connected *********\""));
+				cvar_sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
+				cvar_r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
+				cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
+				cvar_mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
+				cvar_sv_pure = Interfaces.Cvar->FindVar(XorStr("sv_pure"));
+				cvar_sv_consistency = Interfaces.Cvar->FindVar(XorStr("sv_consistency"));
+				cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
+				cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
+
+				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_cheats = 0x%X\""), (DWORD)cvar_sv_cheats);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels = 0x%X\""), (DWORD)cvar_r_drawothermodels);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels = 0x%X\""), (DWORD)cvar_r_drawothermodels);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"mat_fullbright = 0x%X\""), (DWORD)cvar_mat_fullbright);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_pure = 0x%X\""), (DWORD)cvar_sv_pure);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_consistency = 0x%X\""), (DWORD)cvar_sv_consistency);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"mp_gamemode = 0x%X\""), (DWORD)cvar_mp_gamemode);
+				Interfaces.Engine->ClientCmd(XorStr("echo \"c_thirdpersonshoulder = 0x%X\""), (DWORD)cvar_c_thirdpersonshoulder);
+
+				logfile("connected");
+			}
 
 			connected = true;
 		}
-		else if (connected && !Interfaces.Engine->IsConnected())
+		else if (connected && !Interfaces.Engine->IsInGame())
 		{
 			static bool disconnected = false;
 			disconnected = true;
 			
-			/*
+#ifdef USE_CVAR_CHANGE
 			if (cvar_r_drawothermodels != nullptr)
 			{
 				if (cvar_r_drawothermodels->GetInt() != 1)
@@ -526,13 +549,17 @@ void StartCheat(HINSTANCE instance)
 			}
 			else
 			{
+#endif
 				if (Utils::readMemory<int>(client + r_drawothermodels) != 1)
 				{
 					Utils::writeMemory<int>(1, client + r_drawothermodels);
 					disconnected = true;
 				}
+#ifdef USE_CVAR_CHANGE
 			}
+#endif
 
+#ifdef USE_CVAR_CHANGE
 			if (cvar_cl_drawshadowtexture != nullptr)
 			{
 				if (cvar_cl_drawshadowtexture->GetInt() != 0)
@@ -543,13 +570,17 @@ void StartCheat(HINSTANCE instance)
 			}
 			else
 			{
+#endif
 				if (Utils::readMemory<int>(client + cl_drawshadowtexture) != 0)
 				{
 					Utils::writeMemory(0, client + cl_drawshadowtexture);
 					disconnected = true;
 				}
+#ifdef USE_CVAR_CHANGE
 			}
+#endif
 
+#ifdef USE_CVAR_CHANGE
 			if (cvar_mat_fullbright != nullptr)
 			{
 				if (cvar_mat_fullbright->GetInt() != 0)
@@ -560,19 +591,22 @@ void StartCheat(HINSTANCE instance)
 			}
 			else
 			{
+#endif
 				if (Utils::readMemory<int>(material + mat_fullbright) != 0)
 				{
 					Utils::writeMemory(0, material + mat_fullbright);
 					disconnected = true;
 				}
+#ifdef USE_CVAR_CHANGE
 			}
-			*/
+#endif
 
 			connected = false;
 			if (disconnected)
 			{
 				disconnected = false;
 				Interfaces.Engine->ClientCmd(XorStr("echo \"********* disconnected *********\""));
+				logfile("disconnected");
 				Sleep(9000);
 			}
 		}
@@ -591,9 +625,9 @@ void StartCheat(HINSTANCE instance)
 			Sleep(1000);
 		}
 
-		// if (GetAsyncKeyState(VK_RETURN) & 0x01)
+		if (Interfaces.Engine->IsConnected())
 		{
-			/*
+#ifdef USE_CVAR_CHANGE
 			if (cvar_sv_pure != nullptr)
 			{
 				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -602,7 +636,9 @@ void StartCheat(HINSTANCE instance)
 				if (!cvar_sv_pure->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_sv_pure->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
+#endif
 
+#ifdef USE_CVAR_CHANGE
 			if (cvar_sv_consistency != nullptr)
 			{
 				if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -611,7 +647,9 @@ void StartCheat(HINSTANCE instance)
 				if (!cvar_sv_consistency->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_sv_consistency->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
+#endif
 
+#ifdef USE_CVAR_CHANGE
 			if (cvar_c_thirdpersonshoulder != nullptr)
 			{
 				if (cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
@@ -621,12 +659,14 @@ void StartCheat(HINSTANCE instance)
 				if (!cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_c_thirdpersonshoulder->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
-			*/
+#endif
 
+#ifdef USE_CVAR_CHANGE
 			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
 				cvar_sv_pure->SetValue(0);
 			if (cvar_sv_consistency != nullptr && cvar_sv_consistency->GetInt() != 0)
 				cvar_sv_consistency->SetValue(0);
+#endif
 
 			if (Utils::readMemory<int>(engine + sv_pure) != 0 ||
 				Utils::readMemory<int>(engine + sv_consistency) != 0)

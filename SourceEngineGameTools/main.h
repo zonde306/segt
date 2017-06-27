@@ -19,6 +19,8 @@
 #include <map>
 
 using namespace std;
+extern std::ofstream errlog;
+
 #include "definitions.h"
 #include "indexes.h"
 #include "libraries\xorstr.h"
@@ -28,9 +30,6 @@ using namespace std;
 #include "../imgui/drawer/DrawManager.h"
 #include "../imgui/imgui.h"
 #include "../imgui/DX9/imgui_impl_dx9.h"
-
-extern std::ofstream errlog;
-#define logerr(_x)		errlog << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_x) << "\r\n"
 
 #include "structs\vector.h"
 #include "structs\vmatrix.h"

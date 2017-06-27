@@ -23,23 +23,55 @@ public:
 	template<typename Function>
 	Function getvfunc(PVOID Base, DWORD Index)
 	{
-		PDWORD* VTablePointer = (PDWORD*)Base;
-		PDWORD VTableFunctionBase = *VTablePointer;
-		DWORD dwAddress = VTableFunctionBase[Index];
+		DWORD **VTablePointer = nullptr, *VTableFunctionBase = nullptr, dwAddress = NULL;
+		
+		__try
+		{
+			VTablePointer = (PDWORD*)Base;
+			VTableFunctionBase = *VTablePointer;
+			dwAddress = VTableFunctionBase[Index];
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printv(VTablePointer);
+			printv(VTableFunctionBase);
+			printv(dwAddress);
+			logerr("无法获取虚表函数地址，发生访问冲突。");
+			return nullptr;
+		}
+
 		return (Function)(dwAddress);
 	}
 
 	inline void* GetFunction(void* Instance, int Index)
 	{
-		DWORD VirtualFunction = (*(DWORD*)Instance) + sizeof(DWORD) * Index;
-		return (void*)*((DWORD*)VirtualFunction);
+		DWORD VirtualPointer = NULL;
+		void* VirtualFunction = nullptr;
+
+		__try
+		{
+			VirtualPointer = (*(DWORD*)Instance) + sizeof(DWORD) * Index;
+			VirtualFunction = (void*)*((DWORD*)VirtualPointer);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printv(VirtualPointer);
+			printv(VirtualFunction);
+			logerr("无法获取虚表函数地址，发生访问冲突。");
+			return nullptr;
+		}
+
+		return VirtualFunction;
 	}
 
-}; CVMT VMT;
+};
+
+CVMT VMT;
 #define k_page_writeable (PAGE_READWRITE | PAGE_EXECUTE_READWRITE)
 #define k_page_readable (k_page_writeable|PAGE_READONLY|PAGE_WRITECOPY|PAGE_EXECUTE_READ|PAGE_EXECUTE_WRITECOPY)
 #define k_page_offlimits (PAGE_GUARD|PAGE_NOACCESS)
 /*Credits to null for helping me with this.*/
+
 class CVMTHookManager
 {
 public:
