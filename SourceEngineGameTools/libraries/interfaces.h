@@ -1,4 +1,6 @@
 #pragma once
+#include <memory>
+
 class CClientEntityList;
 class CTrace;
 class ICvar;
@@ -19,7 +21,6 @@ public:
 	CPanel* Panel;
 	CSurface* Surface;
 	CTrace* Trace;
-	void* ClientMode;
 	CGlobalVarsBase* Globals;
 
 	CPlayerInfoManager* PlayerInfo;
@@ -32,6 +33,7 @@ public:
 	CMoveHelper* MoveHelper;
 	ICvar* Cvar;
 
+	void* ClientMode;
 	CVMTHookManager* ClientModeHook;
 	CVMTHookManager* PanelHook;
 	CVMTHookManager* ClientHook;

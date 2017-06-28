@@ -406,11 +406,9 @@ public:
 			char buffer[MAX_PATH];
 			GetModuleFileNameA(hModuleCheats, buffer, MAX_PATH);
 			std::string tmp = buffer;
-			path = tmp.substr(0, tmp.rfind('\\') - 1);
+			path = tmp.substr(0, tmp.rfind('\\'));
 		}
 		
-		
-
 		char buffer[1024];
 
 		time_t t;

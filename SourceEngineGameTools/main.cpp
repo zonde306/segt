@@ -93,7 +93,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 	return TRUE;
 }
 
-typedef void(__fastcall* FnPaintTraverse)(void*, unsigned int, bool, bool);
+typedef void(__thiscall* FnPaintTraverse)(void*, unsigned int, bool, bool);
 void __fastcall Hooked_PaintTraverse(void*, void*, unsigned int, bool, bool);
 static FnPaintTraverse oPaintTraverse;
 
@@ -122,7 +122,7 @@ void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x
 static FnDrawModel oDrawModel;
 
 static DrawManager* drawRender;
-static CBaseEntity* pCurrentAiming;
+static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
@@ -138,6 +138,7 @@ void meleeAttack();
 void thirdPerson();
 void showSpectator();
 void transparent();
+void autoShot();
 
 void StartCheat(HINSTANCE instance)
 {
@@ -291,10 +292,11 @@ void StartCheat(HINSTANCE instance)
 	printo("engine.dll", engine);
 	printo("materialsystem.dll", material);
 	printo("localPlayer", (DWORD)GetLocalClient());
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoShot, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
+	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
 	fmWait = 45;
 	bindAlias(fmWait);
@@ -700,26 +702,6 @@ void StartCheat(HINSTANCE instance)
 	}
 }
 
-bool IsEnemyVisible(CBaseEntity* enemy)
-{
-	CBaseEntity* client = GetLocalClient();
-	Vector end = enemy->GetAbsOrigin();
-
-	trace_t trace;
-	Ray_t ray;
-
-	CTraceFilter filter;
-	filter.pSkip1 = client;
-
-	ray.Init(client->GetEyePosition(), end);
-	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
-	if (trace.m_pEnt && trace.m_pEnt->GetTeam() != client->GetTeam() && trace.m_pEnt->GetHealth() > 0 &&
-		!trace.m_pEnt->IsDormant() && trace.physicsBone <= 128 && trace.physicsBone > 0)
-		return true;
-
-	return false;
-}
-
 Vector GetHeadPosition(CBaseEntity* player)
 {
 	Vector position;
@@ -773,6 +755,48 @@ Vector GetHeadPosition(CBaseEntity* player)
 	}
 
 	return position;
+}
+
+CBaseEntity* GetAimingTarget()
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client == nullptr || !client->IsAlive())
+		return nullptr;
+
+	trace_t trace;
+	Vector end;
+	Ray_t ray;
+
+	CTraceFilter filter;
+	filter.pSkip1 = client;
+	ray.Init(client->GetEyePosition(), end);
+
+	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+	if (trace.m_pEnt != nullptr && !trace.m_pEnt->IsDormant())
+		return trace.m_pEnt;
+
+	return nullptr;
+}
+
+bool IsTargetVisible(const Vector& end)
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client == nullptr || !client->IsAlive())
+		return false;
+
+	trace_t trace;
+	Ray_t ray;
+
+	CTraceFilter filter;
+	filter.pSkip1 = client;
+
+	ray.Init(client->GetEyePosition(), end);
+	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+	if (trace.m_pEnt != nullptr && trace.m_pEnt->GetTeam() != client->GetTeam() && !trace.m_pEnt->IsDormant() &&
+		trace.m_pEnt->GetHealth() > 0 && trace.physicsBone <= 128 && trace.physicsBone > 0)
+		return true;
+
+	return false;
 }
 
 void ResetDeviceHook(IDirect3DDevice9* device)
@@ -851,6 +875,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	{
 		showHint = false;
 		std::cout << XorStr("Hooked_CreateMove trigged.") << std::endl;
+		Utils::log(XorStr("Hooked_CreateMove success"));
 	}
 	
 	oCreateMove(sequence_number, input_sample_frametime, active);
@@ -859,57 +884,110 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	__asm mov dwEBP, ebp
 	PBYTE pSendPacket = (PBYTE)(*(PDWORD)(dwEBP) - 0x21);
 
-	CVerifiedUserCmd* verified = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
+	// 用不了，待修复
+	// CVerifiedUserCmd* verified = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
 	// CUserCmd* cmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
-	CUserCmd* cmd = Interfaces.Input->GetUserCmd(sequence_number);
+
+	// CUserCmd* cmd = Interfaces.Input->GetUserCmd(sequence_number);
 	CBaseEntity* client = GetLocalClient();
 	
-	if (!client || !cmd)
+	if (client == nullptr || !Interfaces.Engine->IsInGame() || Interfaces.Engine->IsConsoleVisible())
 		return;
 
-	// 连跳
-	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	// 自动瞄准
+	if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
 	{
-		static bool lastJump = false;
-		static bool shouldFake = false;
+		Vector myOrigin = client->GetEyePosition(), myAngles = client->GetEyeAngles();
+		
+		// 寻找目标
+		if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() || !pCurrentAiming->IsAlive() ||
+			pCurrentAiming->GetHealth() <= 0)
+		{
+			int team = client->GetTeam(), zombieClass;
+			float distance = 32767.0f, dist, fov;
+			bool visible = false;
+			Vector headPos;
 
-		if (!lastJump && shouldFake)
-		{
-			shouldFake = false;
-			cmd->buttons |= IN_JUMP;
-		}
-		else if (cmd->buttons & IN_JUMP)
-		{
-			if (client->GetFlags() & FL_ONGROUND)
+			for (int i = 1; i < 64; ++i)
 			{
-				lastJump = true;
-				shouldFake = true;
-			}
-			else
-			{
-				cmd->buttons &= ~IN_JUMP;
-				lastJump = false;
-			}
-		}
-		else
-		{
-			lastJump = false;
-			shouldFake = false;
-		}
+				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+				if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
+					!target->IsAlive() || target->GetHealth() <= 0)
+					continue;
 
-		// strafe
-		if (!(client->GetFlags() & FL_ONGROUND))
-		{
-			if (cmd->mousedx < 0)
-				cmd->sidemove = -400.f;
-			
-			if (cmd->mousedx > 0)
-				cmd->sidemove = 400.f;
+				zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
+					continue;
+
+				// 选择最近的敌人
+				try
+				{
+					headPos = GetHeadPosition(target);
+					visible = IsTargetVisible(headPos);
+				}
+				catch (...)
+				{
+					headPos = target->GetEyePosition();
+					if (zombieClass == ZC_JOCKEY)
+						headPos.z = target->GetAbsOrigin().z + 30.0f;
+					else if (zombieClass == ZC_HUNTER && (target->GetFlags() & FL_DUCKING))
+						headPos.z -= 12.0f;
+
+					visible = true;
+				}
+
+				dist = target->GetEyePosition().DistTo(myOrigin);
+				fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
+				if (visible && dist < distance && fov <= 30.f)
+				{
+					pCurrentAiming = target;
+					distance = dist;
+				}
+			}
+
+			// 瞄准
+			if (pCurrentAiming != nullptr)
+			{
+				// 目标位置
+				Vector position;
+				try
+				{
+					// 根据头部骨头来瞄准，这玩意很不稳定，时不时会 boom
+					// 好处是瞄得准，不会被其他因数影响
+					position = GetHeadPosition(pCurrentAiming);
+				}
+				catch (...)
+				{
+					// 获取骨骼位置失败
+					position = pCurrentAiming->GetEyePosition();
+					Interfaces.Engine->ClientCmd(XorStr("echo \"*** setupbone error ***\""));
+					logerr("获取骨头发生未知错误");
+
+					// 根据不同的情况确定高度
+					int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+					if (zombieClass == ZC_JOCKEY)
+						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+						position.z -= 12.0f;
+				}
+
+				// 速度预测，会导致屏幕晃动，所以不需要
+				// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
+
+				Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+			}
 		}
 	}
 
-	verified->m_cmd = *cmd;
-	verified->m_crc = cmd->GetChecksum();
+	// 自动开枪
+	if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+	{
+		CBaseEntity* target = GetAimingTarget();
+		if (target != nullptr && target->GetTeam() != client->GetTeam() && target->GetHealth() > 0)
+			pTriggerAiming = target;
+		else if (pTriggerAiming != nullptr)
+			pTriggerAiming = nullptr;
+	}
 }
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
@@ -919,6 +997,7 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 	{
 		showHint = false;
 		std::cout << XorStr("Hooked_CreateMoveShared trigged.") << std::endl;
+		Utils::log(XorStr("Hooked_CreateMoveShared success"));
 	}
 	
 	CBaseEntity* client = GetLocalClient();
@@ -977,6 +1056,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	{
 		showHint = false;
 		std::cout << XorStr("Hooked_PaintTraverse trigged.") << std::endl;
+		Utils::log(XorStr("Hooked_PaintTraverse success"));
 	}
 	
 	static unsigned int MatSystemTopPanel = 0;
@@ -986,21 +1066,27 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	{
 		const char* panelName = Interfaces.Panel->GetName(panel);
 		if (panelName[0] == 'M' && panelName[3] == 'S' && panelName[9] == 'T')
+		{
 			MatSystemTopPanel = panel;
+			Utils::log(XorStr("panel %s found %d"), panelName, MatSystemTopPanel);
+		}
 		else if (panelName[0] == 'F' && panelName[5] == 'O')
+		{
 			FocusOverlayPanel = panel;
+			Utils::log(XorStr("panel %s found %d"), panelName, FocusOverlayPanel);
+		}
 	}
 
 	if (FocusOverlayPanel > 0 && panel == FocusOverlayPanel)
 	{
-
+		// Interfaces.Surface->SetDrawColor(255, 255, 255, 255);
+		// Interfaces.Surface->DrawSetTextColor(255, 255, 128, 255);
+		// Interfaces.Surface->DrawFilledRect(100, 100, 200, 200);
 	}
 
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
 	{
-		Interfaces.Surface->SetDrawColor(255, 255, 255, 255);
-		Interfaces.Surface->DrawSetTextColor(255, 255, 128, 255);
-		Interfaces.Surface->DrawFilledRect(100, 100, 200, 200);
+		
 	}
 
 	// ((FnPaintTraverse)Interfaces.PanelHook->GetOriginalFunction(indexes::PaintTraverse))(ecx, panel, forcePaint, allowForce);
@@ -1014,23 +1100,22 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	{
 		showHint = false;
 		std::cout << XorStr("Hooked_FrameStageNotify trigged.") << std::endl;
+		Utils::log(XorStr("Hooked_FrameStageNotify success"));
 	}
 	
-	QAngle aim, view;
-	
+	QAngle punch;
+	CBaseEntity* client = GetLocalClient();
+
 	if (stage == FRAME_RENDER_START && Interfaces.Engine->IsInGame())
 	{
-		aim = GetLocalClient()->GetAimPunch();
-		view = GetLocalClient()->GetViewPunch();
+		if (client != nullptr && client->IsAlive())
+			punch = client->GetNetProp<Vector>("m_vecPunchAngle", "DT_BasePlayer");
 	}
 
 	oFrameStageNotify(stage);
 
-	if (aim && view)
-	{
-		GetLocalClient()->GetAimPunch() = aim;
-		GetLocalClient()->GetViewPunch() = view;
-	}
+	if (client != nullptr && client->IsAlive() && punch.IsValid())
+		client->SetNetProp<Vector>("m_vecPunchAngle", punch, "DT_BasePlayer");
 }
 
 int __stdcall Hooked_InKeyEvent(int eventcode, ButtonCode_t keynum, const char *pszCurrentBinding)
@@ -1057,6 +1142,9 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	{
 		showHint = false;
 		std::cout << XorStr("Hooked_Reset trigged.") << std::endl;
+
+		if((DWORD)dh::gDeviceInternal == (DWORD)device)
+			Utils::log(XorStr("Hooked_Reset success"));
 	}
 
 	if (dh::gDeviceInternal == nullptr)
@@ -1087,6 +1175,9 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		showHint = false;
 		// printf("Hooked_EndScene trigged.");
 		std::cout << XorStr("Hooked_EndScene trigged.") << std::endl;
+
+		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
+			Utils::log(XorStr("Hooked_EndScene success"));
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1110,13 +1201,13 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		CBaseEntity* local = GetLocalClient();
 		static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255), team = D3DCOLOR_RGBA(0, 0, 255, 255);
 
-		if(GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+		if(GetAsyncKeyState(VK_SHIFT) & 0x8000)
 		{
 			int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
 			for (int i = 1; i < maxEntity; ++i)
 			{
 				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
-				if (entity == nullptr || entity->IsDormant())
+				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local)
 					continue;
 
 				if (i < 64)
@@ -1167,7 +1258,9 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 	{
 		showHint = false;
 		// printf("Hooked_DrawIndexedPrimitive trigged.");
-		std::cout << XorStr("Hooked_DrawIndexedPrimitive trigged.") << std::endl;
+		// std::cout << XorStr("Hooked_DrawIndexedPrimitive trigged.") << std::endl;
+		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
+			Utils::log(XorStr("Hooked_DrawIndexedPrimitive success"));
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1201,7 +1294,9 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 	{
 		showHint = false;
 		// printf("Hooked_CreateQuery trigged.");
-		std::cout << XorStr("Hooked_CreateQuery trigged.") << std::endl;
+		// std::cout << XorStr("Hooked_CreateQuery trigged.") << std::endl;
+		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
+			Utils::log(XorStr("Hooked_CreateQuery success"));
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1223,7 +1318,9 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	{
 		showHint = false;
 		// printf("Hooked_Present trigged.");
-		std::cout << XorStr("Hooked_Present trigged.") << std::endl;
+		// std::cout << XorStr("Hooked_Present trigged.") << std::endl;
+		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
+			Utils::log(XorStr("Hooked_Present success"));
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1808,4 +1905,28 @@ void transparent()
 	}
 
 	Sleep(1);
+}
+
+void autoShot()
+{
+	CBaseEntity* local = nullptr;
+	for (;;)
+	{
+		local = GetLocalClient();
+		if (local != nullptr && Interfaces.Engine->IsInGame() && local->IsAlive())
+		{
+			CBaseEntity* weapon = (CBaseEntity*)local->GetActiveWeapon();
+			if (weapon)
+				local = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+
+			if (weapon != nullptr && pTriggerAiming != nullptr)
+			{
+				Interfaces.Engine->ClientCmd(XorStr("+attack"));
+				Sleep(9);
+				Interfaces.Engine->ClientCmd(XorStr("-attack"));
+			}
+		}
+
+		Sleep(1);
+	}
 }

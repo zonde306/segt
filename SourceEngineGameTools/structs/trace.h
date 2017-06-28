@@ -28,7 +28,7 @@ struct Ray_t
 	bool    m_IsRay;    // are the extents zero?
 	bool    m_IsSwept;    // is delta != 0?
 
-	void Init(Vector& vecStart, Vector& vecEnd)
+	void Init(const Vector& vecStart, const Vector& vecEnd)
 	{
 		m_Delta = vecEnd - vecStart;
 
