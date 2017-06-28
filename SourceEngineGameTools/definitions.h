@@ -294,6 +294,8 @@ enum SolidFlags_t
 // cbaseentity offset
 #define m_iCrosshairsId			0x19D8
 #define m_iLastCrosshairsId		0x19E8
+#define m_iButtons				0x72A670		// client.dll
+#define m_dwLocalPlayer			0x6FC9D8		// client.dll
 
 // other
 #define D3DDevice				0x173988		// shaderapidx9.dll

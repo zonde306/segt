@@ -420,7 +420,7 @@ public:
 		localtime_s(&tmp, &t);
 
 		// 文件创建日期
-		strftime(buffer, 1024, "segt_%Y%m%d.log", &tmp);
+		strftime(buffer, 1024, "\\segt_%Y%m%d.log", &tmp);
 
 		std::fstream file(path + buffer, std::ios::out|std::ios::app|std::ios::ate);
 

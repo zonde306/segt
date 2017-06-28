@@ -21,7 +21,7 @@ public:
 	
 	}*/
 	template<typename Function>
-	Function getvfunc(PVOID Base, DWORD Index)
+	static Function getvfunc(PVOID Base, DWORD Index)
 	{
 		DWORD **VTablePointer = nullptr, *VTableFunctionBase = nullptr, dwAddress = NULL;
 		
@@ -43,7 +43,7 @@ public:
 		return (Function)(dwAddress);
 	}
 
-	inline void* GetFunction(void* Instance, int Index)
+	static void* GetFunction(void* Instance, int Index)
 	{
 		DWORD VirtualPointer = NULL;
 		void* VirtualFunction = nullptr;

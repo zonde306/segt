@@ -128,7 +128,7 @@ static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtextu
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
 static bool bImGuiInitialized = false;
 
-void bunnyHop();
+void bunnyHop(void*);
 void autoPistol();
 void autoAim();
 void esp();
@@ -143,7 +143,6 @@ void StartCheat(HINSTANCE instance)
 {
 	// GetClientModeNormal B8 ? ? ? ? C3
 
-	/*
 	typedef void*(__stdcall* FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
@@ -171,42 +170,49 @@ void StartCheat(HINSTANCE instance)
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
 	{
 		oPaintTraverse = (FnPaintTraverse)Interfaces.PanelHook->HookFunction(indexes::PaintTraverse, Hooked_PaintTraverse);
+		Interfaces.PanelHook->HookTable(true);
 		printo("oPaintTraverse", oPaintTraverse);
 	}
 
 	if (Interfaces.ClientModeHook && indexes::SharedCreateMove > -1)
 	{
 		oCreateMoveShared = (FnCreateMoveShared)Interfaces.ClientModeHook->HookFunction(indexes::SharedCreateMove, Hooked_CreateMoveShared);
+		Interfaces.ClientModeHook->HookTable(true);
 		printo("oCreateMoveShared", oCreateMoveShared);
 	}
 
 	if (Interfaces.ClientHook && indexes::CreateMove > -1)
 	{
 		oCreateMove = (FnCreateMove)Interfaces.ClientHook->HookFunction(indexes::CreateMove, Hooked_CreateMove);
+		Interfaces.ClientHook->HookTable(true);
 		printo("oCreateMove", oCreateMove);
 	}
 
 	if (Interfaces.ClientHook && indexes::FrameStageNotify > -1)
 	{
 		oFrameStageNotify = (FnFrameStageNotify)Interfaces.ClientHook->HookFunction(indexes::FrameStageNotify, Hooked_FrameStageNotify);
+		Interfaces.ClientHook->HookTable(true);
 		printo("oFrameStageNotify", oFrameStageNotify);
 	}
 
 	if (Interfaces.ClientHook && indexes::InKeyEvent > -1)
 	{
 		oInKeyEvent = (FnInKeyEvent)Interfaces.ClientHook->HookFunction(indexes::InKeyEvent, Hooked_InKeyEvent);
+		Interfaces.ClientHook->HookTable(true);
 		printo("oInKeyEvent", oInKeyEvent);
 	}
 
 	if (Interfaces.PredictionHook && indexes::RunCommand > -1)
 	{
 		oRunCommand = (FnRunCommand)Interfaces.ClientHook->HookFunction(indexes::RunCommand, Hooked_RunCommand);
+		Interfaces.ClientHook->HookTable(true);
 		printo("oRunCommand", oRunCommand);
 	}
 
 	if (Interfaces.ModelRenderHook && indexes::DrawModel > -1)
 	{
 		oDrawModel = (FnDrawModel)Interfaces.ClientHook->HookFunction(indexes::DrawModel, Hooked_DrawModel);
+		Interfaces.ClientHook->HookTable(true);
 		printo("oDrawModel", oDrawModel);
 	}
 
@@ -218,7 +224,6 @@ void StartCheat(HINSTANCE instance)
 		printv(PrintToConsole);
 		printv(PrintToConsoleColor);
 	}
-	*/
 
 	if (Interfaces.Cvar)
 	{
@@ -285,9 +290,9 @@ void StartCheat(HINSTANCE instance)
 	printo("client.dll", client);
 	printo("engine.dll", engine);
 	printo("materialsystem.dll", material);
-	// printf("localPlayer = 0x%X\n", (DWORD)GetLocalClient());
+	printo("localPlayer", (DWORD)GetLocalClient());
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, NULL, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
@@ -507,12 +512,6 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
 				showSpectator();
-
-			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
-				transparent();
-
-			if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
-				esp();
 
 			if (!connected)
 			{
@@ -796,6 +795,7 @@ void ResetDeviceHook(IDirect3DDevice9* device)
 	oEndScene = gDirectXHook.SetupHook(42, Hooked_EndScene);
 	oDrawIndexedPrimitive = gDirectXHook.SetupHook(82, Hooked_DrawIndexedPrimitive);
 	oCreateQuery = gDirectXHook.SetupHook(118, Hooked_CreateQuery);
+	gDirectXHook.HookTable(true);
 
 	std::cout << XorStr("========= Hook D3D Device =========") << std::endl;
 	printv(dh::gDeviceInternal);
@@ -1235,7 +1235,7 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	return oPresent(device, source, dest, window, region);
 }
 
-void bunnyHop()
+void bunnyHop(void* client)
 {
 	for (;;)
 	{
@@ -1255,6 +1255,12 @@ void bunnyHop()
 			if (flags != FL_CLIENT && flags != (FL_DUCKING | FL_CLIENT) && flags != (FL_INWATER | FL_CLIENT) &&
 				flags != (FL_DUCKING | FL_CLIENT | FL_INWATER))
 			{
+				if (Utils::readMemory<int>((DWORD)client + m_iButtons) & IN_JUMP)
+				{
+					Interfaces.Engine->ClientCmd(XorStr("-jump"));
+					Sleep(1);
+				}
+
 				Interfaces.Engine->ClientCmd(XorStr("+jump"));
 				repeat = true;
 			}
@@ -1793,12 +1799,12 @@ void transparent()
 	CBaseEntity* local = GetLocalClient();
 	if (local != nullptr && Interfaces.Engine->IsInGame() && local->IsAlive())
 	{
-		local->SetNetProp("m_nRenderMode", RENDER_NONE);
+		// local->SetNetProp("m_nRenderMode", RENDER_NONE);
 		local->SetNetProp("m_CollisionGroup", CG_DEBRIS);
-		local->SetNetProp("m_nSolidType", SOLID_NONE, "DT_CollisionProperty");
-		local->SetNetProp("m_usSolidFlags", SF_NOT_SOLID, "DT_CollisionProperty");
+		// local->SetNetProp("m_nSolidType", (int)SOLID_NONE, "DT_CollisionProperty");
+		// local->SetNetProp("m_usSolidFlags", SF_NOT_SOLID, "DT_CollisionProperty");
 		local->SetNetProp("m_fEffects", local->GetNetProp<int>("m_fEffects") | EF_NODRAW);
-		local->SetNetProp("movetype", MOVETYPE_FLYGRAVITY);
+		// local->SetNetProp("movetype", MOVETYPE_FLYGRAVITY);
 	}
 
 	Sleep(1);
