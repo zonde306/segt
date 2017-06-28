@@ -296,7 +296,7 @@ void StartCheat(HINSTANCE instance)
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
-	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
 	fmWait = 45;
 	bindAlias(fmWait);
@@ -700,6 +700,35 @@ void StartCheat(HINSTANCE instance)
 
 		Sleep(1);
 	}
+}
+
+std::string GetZombieClassName(CBaseEntity* player)
+{
+	if (player == nullptr)
+		return "";
+	
+	int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+	switch (zombie)
+	{
+	case ZC_SMOKER:
+		return "smoker";
+	case ZC_BOOMER:
+		return "boomer";
+	case ZC_HUNTER:
+		return "hunter";
+	case ZC_SPITTER:
+		return "spitter";
+	case ZC_JOCKEY:
+		return "jockey";
+	case ZC_CHARGER:
+		return "charger";
+	case ZC_TANK:
+		return "tank";
+	case ZC_SURVIVORBOT:
+		return "survivor";
+	}
+
+	return "";
 }
 
 Vector GetHeadPosition(CBaseEntity* player)
@@ -1172,104 +1201,6 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 
 	if (client != nullptr && client->IsAlive() && punch.IsValid())
 		client->SetNetProp<Vector>("m_vecPunchAngle", punch, "DT_BasePlayer");
-
-	if (stage == FRAME_RENDER_END && Interfaces.Engine->IsInGame())
-	{
-		if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
-		{
-			Vector myOrigin = client->GetEyePosition(), myAngles = client->GetEyeAngles();
-
-			// 寻找目标
-			if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() || !pCurrentAiming->IsAlive() ||
-				pCurrentAiming->GetHealth() <= 0)
-			{
-				int team = client->GetTeam(), zombieClass;
-				float distance = 32767.0f, dist, fov;
-				bool visible = false;
-				Vector headPos;
-
-				for (int i = 1; i < 64; ++i)
-				{
-					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-					if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
-						!target->IsAlive() || target->GetHealth() <= 0 || (DWORD)target == (DWORD)client)
-						continue;
-
-					zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-					if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
-						continue;
-
-					// 选择最近的敌人
-					try
-					{
-						headPos = GetHeadPosition(target);
-						visible = IsTargetVisible(headPos);
-					}
-					catch (...)
-					{
-						headPos = target->GetEyePosition();
-						if (zombieClass == ZC_JOCKEY)
-							headPos.z = target->GetAbsOrigin().z + 30.0f;
-						else if (zombieClass == ZC_HUNTER && (target->GetFlags() & FL_DUCKING))
-							headPos.z -= 12.0f;
-
-						visible = true;
-					}
-
-					dist = target->GetEyePosition().DistTo(myOrigin);
-					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
-					if (visible && dist < distance && fov <= 30.f)
-					{
-						pCurrentAiming = target;
-						distance = dist;
-					}
-				}
-
-				// 瞄准
-				if (pCurrentAiming != nullptr)
-				{
-					// 目标位置
-					Vector position;
-					try
-					{
-						// 根据头部骨头来瞄准，这玩意很不稳定，时不时会 boom
-						// 好处是瞄得准，不会被其他因数影响
-						position = GetHeadPosition(pCurrentAiming);
-					}
-					catch (...)
-					{
-						// 获取骨骼位置失败
-						position = pCurrentAiming->GetEyePosition();
-						Interfaces.Engine->ClientCmd(XorStr("echo \"*** setupbone error ***\""));
-						logerr("获取骨头发生未知错误");
-
-						// 根据不同的情况确定高度
-						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-						if (zombieClass == ZC_JOCKEY)
-							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-						else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-							position.z -= 12.0f;
-					}
-
-					// 速度预测，会导致屏幕晃动，所以不需要
-					// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
-
-					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
-				}
-			}
-		}
-
-		// 自动开枪
-		if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
-		{
-			CBaseEntity* target = GetAimingTarget();
-			if (target != nullptr && target->GetTeam() != client->GetTeam() && target->GetHealth() > 0)
-				pTriggerAiming = target;
-			else if (pTriggerAiming != nullptr)
-				pTriggerAiming = nullptr;
-		}
-	}
-
 }
 
 int __stdcall Hooked_InKeyEvent(int eventcode, ButtonCode_t keynum, const char *pszCurrentBinding)
@@ -1391,15 +1322,21 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 						if (Interfaces.Engine->GetPlayerInfo(i, &info))
 						{
 							// 绘制名字
-							drawRender->RenderText(color, head.x, head.y + 15.0, true, "[%d] %s",
+							drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
 								entity->GetHealth(), info.name);
+						}
+						else
+						{
+							// 显示类型
+							drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
+								entity->GetHealth(), GetZombieClassName(entity).c_str());
 						}
 
 						float height = fabs(head.y - foot.y);
 						float width = height * 0.65f;
 
 						// 绘制一个框
-						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -head.y);
+						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
 					}
 				}
 				else
