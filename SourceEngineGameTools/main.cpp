@@ -126,7 +126,7 @@ static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
-static bool bImGuiInitialized = false;
+static bool bImGuiInitialized = false, bBoxEsp = true;
 
 void bunnyHop(void*);
 void autoPistol();
@@ -369,7 +369,7 @@ void StartCheat(HINSTANCE instance)
 #ifdef USE_CVAR_CHANGE
 				}
 #endif
-
+				bBoxEsp = !bBoxEsp;
 				Sleep(1000);
 			}
 
@@ -889,6 +889,8 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	// CUserCmd* cmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
 
 	// CUserCmd* cmd = Interfaces.Input->GetUserCmd(sequence_number);
+	
+	/*
 	CBaseEntity* client = GetLocalClient();
 	
 	if (client == nullptr || !Interfaces.Engine->IsInGame() || Interfaces.Engine->IsConsoleVisible())
@@ -988,6 +990,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		else if (pTriggerAiming != nullptr)
 			pTriggerAiming = nullptr;
 	}
+	*/
 }
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
@@ -1079,14 +1082,67 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 	if (FocusOverlayPanel > 0 && panel == FocusOverlayPanel)
 	{
-		// Interfaces.Surface->SetDrawColor(255, 255, 255, 255);
-		// Interfaces.Surface->DrawSetTextColor(255, 255, 128, 255);
-		// Interfaces.Surface->DrawFilledRect(100, 100, 200, 200);
+		
 	}
 
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
 	{
-		
+		/*
+		CBaseEntity* local = GetLocalClient();
+		if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+		{
+			int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
+			for (int i = 1; i < maxEntity; ++i)
+			{
+				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
+				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local)
+					continue;
+
+				if (i < 64)
+				{
+					// 玩家
+					if (!entity->IsAlive() || entity->GetHealth() <= 0)
+						continue;
+
+					Vector head, foot;
+
+					if (WorldToScreen(entity->GetEyePosition(), head) &&
+						WorldToScreen(entity->GetAbsOrigin(), foot))
+					{
+						player_info_t info;
+						if (Interfaces.Engine->GetPlayerInfo(i, &info))
+						{
+							
+							
+							if(entity->GetTeam() == local->GetTeam())
+								Interfaces.Surface->DrawSetTextColor(0, 0, 255, 255);
+							else
+								Interfaces.Surface->DrawSetTextColor(255, 0, 0, 255);
+
+							// 绘制名字
+							Interfaces.Surface->DrawSetTextPos(head.x, head.y);
+						}
+
+						float height = fabs(head.y - foot.y);
+						float width = height * 0.65f;
+
+						if (entity->GetTeam() == local->GetTeam())
+							Interfaces.Surface->SetDrawColor(0, 0, 255, 255);
+						else
+							Interfaces.Surface->SetDrawColor(255, 0, 0, 255);
+
+						// 绘制一个框
+						Interfaces.Surface->DrawOutlinedRect(foot.x - width / 2, head.y, width, -height);
+					}
+				}
+				else
+				{
+					// 普感
+					// TODO: 如果这个实体是普感，就绘制出来
+				}
+			}
+		}
+		*/
 	}
 
 	// ((FnPaintTraverse)Interfaces.PanelHook->GetOriginalFunction(indexes::PaintTraverse))(ecx, panel, forcePaint, allowForce);
@@ -1116,6 +1172,104 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 
 	if (client != nullptr && client->IsAlive() && punch.IsValid())
 		client->SetNetProp<Vector>("m_vecPunchAngle", punch, "DT_BasePlayer");
+
+	if (stage == FRAME_RENDER_END && Interfaces.Engine->IsInGame())
+	{
+		if (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
+		{
+			Vector myOrigin = client->GetEyePosition(), myAngles = client->GetEyeAngles();
+
+			// 寻找目标
+			if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() || !pCurrentAiming->IsAlive() ||
+				pCurrentAiming->GetHealth() <= 0)
+			{
+				int team = client->GetTeam(), zombieClass;
+				float distance = 32767.0f, dist, fov;
+				bool visible = false;
+				Vector headPos;
+
+				for (int i = 1; i < 64; ++i)
+				{
+					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+					if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
+						!target->IsAlive() || target->GetHealth() <= 0 || (DWORD)target == (DWORD)client)
+						continue;
+
+					zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+					if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
+						continue;
+
+					// 选择最近的敌人
+					try
+					{
+						headPos = GetHeadPosition(target);
+						visible = IsTargetVisible(headPos);
+					}
+					catch (...)
+					{
+						headPos = target->GetEyePosition();
+						if (zombieClass == ZC_JOCKEY)
+							headPos.z = target->GetAbsOrigin().z + 30.0f;
+						else if (zombieClass == ZC_HUNTER && (target->GetFlags() & FL_DUCKING))
+							headPos.z -= 12.0f;
+
+						visible = true;
+					}
+
+					dist = target->GetEyePosition().DistTo(myOrigin);
+					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
+					if (visible && dist < distance && fov <= 30.f)
+					{
+						pCurrentAiming = target;
+						distance = dist;
+					}
+				}
+
+				// 瞄准
+				if (pCurrentAiming != nullptr)
+				{
+					// 目标位置
+					Vector position;
+					try
+					{
+						// 根据头部骨头来瞄准，这玩意很不稳定，时不时会 boom
+						// 好处是瞄得准，不会被其他因数影响
+						position = GetHeadPosition(pCurrentAiming);
+					}
+					catch (...)
+					{
+						// 获取骨骼位置失败
+						position = pCurrentAiming->GetEyePosition();
+						Interfaces.Engine->ClientCmd(XorStr("echo \"*** setupbone error ***\""));
+						logerr("获取骨头发生未知错误");
+
+						// 根据不同的情况确定高度
+						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+						if (zombieClass == ZC_JOCKEY)
+							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+						else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+							position.z -= 12.0f;
+					}
+
+					// 速度预测，会导致屏幕晃动，所以不需要
+					// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
+
+					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+				}
+			}
+		}
+
+		// 自动开枪
+		if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+		{
+			CBaseEntity* target = GetAimingTarget();
+			if (target != nullptr && target->GetTeam() != client->GetTeam() && target->GetHealth() > 0)
+				pTriggerAiming = target;
+			else if (pTriggerAiming != nullptr)
+				pTriggerAiming = nullptr;
+		}
+	}
+
 }
 
 int __stdcall Hooked_InKeyEvent(int eventcode, ButtonCode_t keynum, const char *pszCurrentBinding)
@@ -1195,14 +1349,25 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	}
 	else
 	{
+		ImGui::GetIO().MouseDrawCursor = !Interfaces.Engine->IsInGame();
+		
 		ImGui_ImplDX9_NewFrame();
 		drawRender->BeginRendering();
 
 		CBaseEntity* local = GetLocalClient();
-		static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255), team = D3DCOLOR_RGBA(0, 0, 255, 255);
-
-		if(GetAsyncKeyState(VK_SHIFT) & 0x8000)
+		if(bBoxEsp)
 		{
+			static auto getPlayerColor = [](CBaseEntity* local, CBaseEntity* other) -> D3DCOLOR
+			{
+				static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255),
+					team = D3DCOLOR_RGBA(0, 0, 255, 255);
+				
+				if (local->GetTeam() == other->GetTeam())
+					return team;
+
+				return enemy;
+			};
+			
 			int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
 			for (int i = 1; i < maxEntity; ++i)
 			{
@@ -1216,23 +1381,25 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 					if (!entity->IsAlive() || entity->GetHealth() <= 0)
 						continue;
 					
-					Vector body, head;
-					if (WorldToScreen(entity->GetAbsOrigin(), body) &&
-						WorldToScreen(GetHeadPosition(entity), head))
+					Vector head, foot;
+					D3DCOLOR color = getPlayerColor(local, entity);
+
+					if (WorldToScreen(entity->GetEyePosition(), head) &&
+						WorldToScreen(entity->GetAbsOrigin(), foot))
 					{
-						float height = abs(head.y - body.y);
+						player_info_t info;
+						if (Interfaces.Engine->GetPlayerInfo(i, &info))
+						{
+							// 绘制名字
+							drawRender->RenderText(color, head.x, head.y + 15.0, true, "[%d] %s",
+								entity->GetHealth(), info.name);
+						}
+
+						float height = fabs(head.y - foot.y);
 						float width = height * 0.65f;
 
-						// 框
-						drawRender->RenderRect((entity->GetTeam() == local->GetTeam() ? team : enemy),
-							body.x - width * 2, body.y, width, -height);
-
-						player_info_t info;
-						Interfaces.Engine->GetPlayerInfo(i, &info);
-
-						// 名字
-						drawRender->RenderText((entity->GetTeam() == local->GetTeam() ? team : enemy),
-							body.x, body.y, true, info.name);
+						// 绘制一个框
+						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -head.y);
 					}
 				}
 				else
@@ -1272,7 +1439,9 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 	IDirect3DVertexBuffer9* stream = nullptr;
 	UINT offsetByte, stride;
 	device->GetStreamSource(0, &stream, &offsetByte, &stride);
-	if (l4d2_special(stride, numVertices, primitiveCount))
+	if (l4d2_special(stride, numVertices, primitiveCount) ||
+		l4d2_weapons(stride, numVertices, primitiveCount) ||
+		l4d2_stuff(stride, numVertices, primitiveCount))
 	{
 		static DWORD oldZEnable;
 		device->GetRenderState(D3DRS_ZENABLE, &oldZEnable);

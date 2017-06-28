@@ -433,19 +433,19 @@ enum entityGender_t
 
 #define l4d2_ellisbody(_s,_n,_p)	(_s == 32 && _n == 4822 && _p == 8088) 
 #define l4d2_ellishead(_s,_n,_p)	(_s == 32 && ((_n == 2037 && _p == 3832) || (_n == 2661 && _p == 4872))) 
-#define l4d2_ellis(_s,_n,_p)		(l4d2_ellisbody || l4d2_ellishead)
+#define l4d2_ellis(_s,_n,_p)		(l4d2_ellisbody(_s,_n,_p) || l4d2_ellishead(_s,_n,_p))
 
 #define l4d2_coatchbody(_s,_n,_p)	(_s == 32 && _n == 5710 && _p == 9262) 
 #define l4d2_coatchead(_s,_n,_p)	(_s == 32 && ( (_n == 1819 && _p == 3375) || (_n == 2387 && _p == 4527) ))
-#define l4d2_coatch(_s,_n,_p)		(l4d2_coatchbody || l4d2_coatchead )
+#define l4d2_coatch(_s,_n,_p)		(l4d2_coatchbody(_s,_n,_p) || l4d2_coatchead(_s,_n,_p))
 
 #define l4d2_rachellebody(_s,_n,_p)	(_s == 32 && _n == 6443 && _p == 10138) 
 #define l4d2_rachellehead(_s,_n,_p)	(_s == 32 && ( (_n == 1647 && _p == 3069) || (_n == 3947 && _p == 6910) ))
-#define l4d2_rachelle(_s,_n,_p)		(l4d2_rachellebody || l4d2_rachellehead )
+#define l4d2_rachelle(_s,_n,_p)		(l4d2_rachellebody(_s,_n,_p) || l4d2_rachellehead(_s,_n,_p))
 
 #define l4d2_nickbody(_s,_n,_p)		(_s == 32 && ( (_n == 7957 && _p == 11314) || (_n == 7913 && _p == 12247) )) 
 #define l4d2_nickhead(_s,_n,_p)		(_s == 32 && ( (_n == 1680 && _p == 3133) || (_n == 2384 && _p == 4540) )) 
-#define l4d2_nick(_s,_n,_p)			(l4d2_nickbody || l4d2_nickhead)
+#define l4d2_nick(_s,_n,_p)			(l4d2_nickbody(_s,_n,_p) || l4d2_nickhead(_s,_n,_p))
 
 #define l4d2_survivor(_s,_n,_p)		(l4d2_ellis(_s,_n,_p) || l4d2_coatch(_s,_n,_p) || l4d2_rachelle(_s,_n,_p) || l4d2_nick(_s,_n,_p))
 
@@ -505,7 +505,7 @@ enum entityGender_t
 #define l4d2_military(_s,_n,_p)		(_s == 32 && _n == 4278 && _p == 4059)
 #define l4d2_huntingrifle(_s,_n,_p)	(_s == 32 && _n == 2514 && _p == 2069) 
 
-#define l4d2_snipers(_s,_n,_p)		(l4d2_awp(_s,_n,_p) || l4d2_scout(_s,_n,_p) || l4d2_militarysniper(_s,_n,_p) || l4d2_huntingrifle(_s,_n,_p))
+#define l4d2_snipers(_s,_n,_p)		(l4d2_awp(_s,_n,_p) || l4d2_scout(_s,_n,_p) || l4d2_military(_s,_n,_p) || l4d2_huntingrifle(_s,_n,_p))
 
 //GRENADELAUNCHER
 #define l4d2_grenade(_s,_n,_p)		(_n == 2575 && _p == 2265) 
