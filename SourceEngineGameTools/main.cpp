@@ -1299,8 +1299,8 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 				return enemy;
 			};
 			
-			int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
-			for (int i = 1; i < maxEntity; ++i)
+			// int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
+			for (int i = 1; i < 64; ++i)
 			{
 				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
 				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local)
@@ -1322,13 +1322,24 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 						if (Interfaces.Engine->GetPlayerInfo(i, &info))
 						{
 							// 绘制名字
+							/*
 							drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
 								entity->GetHealth(), info.name);
+							*/
+
+							drawRender->DrawString(foot.x, foot.y, color, "[%d] %s",
+								entity->GetHealth(), info.name);
+
 						}
 						else
 						{
 							// 显示类型
+							/*
 							drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
+								entity->GetHealth(), GetZombieClassName(entity).c_str());
+							*/
+
+							drawRender->DrawString(foot.x, foot.y, color, "[%d] %s",
 								entity->GetHealth(), GetZombieClassName(entity).c_str());
 						}
 
@@ -1336,7 +1347,8 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 						float width = height * 0.65f;
 
 						// 绘制一个框
-						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
+						// drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
+						drawRender->DrawRect(foot.x - width / 2, foot.y, width, -height, color);
 					}
 				}
 				else
