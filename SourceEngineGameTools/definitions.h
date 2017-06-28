@@ -7,6 +7,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define GREEN(COLORCODE) ((int)(COLORCODE >> 16) & 0xFF)
 #define ALPHA(COLORCODE) ((int)COLORCODE & 0xFF)
 
+// These defines are for client button presses.
 #define IN_ATTACK					(1 << 0)
 #define IN_JUMP						(1 << 1)
 #define IN_DUCK						(1 << 2)
@@ -23,54 +24,76 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define IN_RELOAD					(1 << 13)
 #define IN_ALT1						(1 << 14)
 #define IN_ALT2						(1 << 15)
-#define IN_SCORE					(1 << 16)   
-#define IN_SPEED					(1 << 17)	
-#define IN_WALK						(1 << 18)	
-#define IN_ZOOM						(1 << 19)	
-#define IN_WEAPON1					(1 << 20)	
-#define IN_WEAPON2					(1 << 21)
+#define IN_SCORE					(1 << 16)   /**< Used by client.dll for when scoreboard is held down */
+#define IN_SPEED					(1 << 17)	/**< Player is holding the speed key */
+#define IN_WALK						(1 << 18)	/**< Player holding walk key */
+#define IN_ZOOM						(1 << 19)	/**< Zoom key for HUD zoom */
+#define IN_WEAPON1					(1 << 20)	/**< weapon defines these bits */
+#define IN_WEAPON2					(1 << 21)	/**< weapon defines these bits */
 #define IN_BULLRUSH					(1 << 22)
-#define IN_GRENADE1					(1 << 23)
-#define IN_GRENADE2					(1 << 24)	
-#define	IN_ATTACK3					(1 << 25)
+#define IN_GRENADE1					(1 << 23)	/**< grenade 1 */
+#define IN_GRENADE2					(1 << 24)	/**< grenade 2 */
+#define IN_ATTACK3					(1 << 25)
 
-#define	FL_ONGROUND					(1 << 0)	
-#define FL_DUCKING					(1 << 1)	
-#define	FL_WATERJUMP				(1 << 2)	
-#define FL_ONTRAIN					(1 << 3)
-#define FL_INRAIN					(1 << 4)	
-#define FL_FROZEN					(1 << 5)
-#define FL_ATCONTROLS				(1 << 6)
-#define	FL_CLIENT					(1 << 7)	
-#define FL_FAKECLIENT				(1 << 8)	
-#define	FL_INWATER					(1 << 9)										
-#define	FL_FLY						(1 << 10)	
-#define	FL_SWIM						(1 << 11)
+// Note: these are only for use with GetEntityFlags and SetEntityFlags
+//       and may not match the game's actual, internal m_fFlags values.
+// PLAYER SPECIFIC FLAGS FIRST BECAUSE WE USE ONLY A FEW BITS OF NETWORK PRECISION
+#define	FL_ONGROUND					(1 << 0)	/**< At rest / on the ground */
+#define FL_DUCKING					(1 << 1)	/**< Player flag -- Player is fully crouched */
+#define	FL_WATERJUMP				(1 << 2)	/**< player jumping out of water */
+#define FL_ONTRAIN					(1 << 3)	/**< Player is _controlling_ a train, so movement commands should be ignored on client during prediction. */
+#define FL_INRAIN					(1 << 4)	/**< Indicates the entity is standing in rain */
+#define FL_FROZEN					(1 << 5)	/**< Player is frozen for 3rd person camera */
+#define FL_ATCONTROLS				(1 << 6)	/**< Player can't move, but keeps key inputs for controlling another entity */
+#define	FL_CLIENT					(1 << 7)	/**< Is a player */
+#define FL_FAKECLIENT				(1 << 8)	/**< Fake client, simulated server side; don't send network messages to them */
+// NOTE if you move things up, make sure to change this value
+#define PLAYER_FLAG_BITS		9
+// NON-PLAYER SPECIFIC (i.e., not used by GameMovement or the client .dll ) -- Can still be applied to players, though
+#define	FL_INWATER					(1 << 9)	/**< In water */
+#define	FL_FLY						(1 << 10)	/**< Changes the SV_Movestep() behavior to not need to be on ground */
+#define	FL_SWIM						(1 << 11)	/**< Changes the SV_Movestep() behavior to not need to be on ground (but stay in water) */
 #define	FL_CONVEYOR					(1 << 12)
 #define	FL_NPC						(1 << 13)
 #define	FL_GODMODE					(1 << 14)
 #define	FL_NOTARGET					(1 << 15)
-#define	FL_AIMTARGET				(1 << 16)	
-#define	FL_PARTIALGROUND			(1 << 17)	
-#define FL_STATICPROP				(1 << 18)
-#define FL_GRAPHED					(1 << 19) 
+#define	FL_AIMTARGET				(1 << 16)	/**< set if the crosshair needs to aim onto the entity */
+#define	FL_PARTIALGROUND			(1 << 17)	/**< not all corners are valid */
+#define FL_STATICPROP				(1 << 18)	/**< Eetsa static prop!		 */
+#define FL_GRAPHED					(1 << 19)	/**< worldgraph has this ent listed as something that blocks a connection */
 #define FL_GRENADE					(1 << 20)
-#define FL_STEPMOVEMENT				(1 << 21)	
-#define FL_DONTTOUCH				(1 << 22)
-#define FL_BASEVELOCITY				(1 << 23)
-#define FL_WORLDBRUSH				(1 << 24)	
-#define FL_OBJECT					(1 << 25) 
-#define FL_KILLME					(1 << 26)
-#define FL_ONFIRE					(1 << 27)	
-#define FL_DISSOLVING				(1 << 28)
-#define FL_TRANSRAGDOLL				(1 << 29)
-#define FL_UNBLOCKABLE_BY_PLAYER	(1 << 30) 
+#define FL_STEPMOVEMENT				(1 << 21)	/**< Changes the SV_Movestep() behavior to not do any processing */
+#define FL_DONTTOUCH				(1 << 22)	/**< Doesn't generate touch functions, generates Untouch() for anything it was touching when this flag was set */
+#define FL_BASEVELOCITY				(1 << 23)	/**< Base velocity has been applied this frame (used to convert base velocity into momentum) */
+#define FL_WORLDBRUSH				(1 << 24)	/**< Not moveable/removeable brush entity (really part of the world, but represented as an entity for transparency or something) */
+#define FL_OBJECT					(1 << 25)	/**< Terrible name. This is an object that NPCs should see. Missiles, for example. */
+#define FL_KILLME					(1 << 26)	/**< This entity is marked for death -- will be freed by game DLL */
+#define FL_ONFIRE					(1 << 27)	/**< You know... */
+#define FL_DISSOLVING				(1 << 28)	/**< We're dissolving! */
+#define FL_TRANSRAGDOLL				(1 << 29)	/**< In the process of turning into a client side ragdoll. */
+#define FL_UNBLOCKABLE_BY_PLAYER	(1 << 30)	/**< pusher that can't be blocked by the player */
+#define FL_FREEZING					(1 << 31)	/**< We're becoming frozen! */
+
+#define EF_BONEMERGE				(1 << 0)	// Merges bones of names shared with a parent entity to the position and direction of the parent's.
+#define EF_BRIGHTLIGHT				(1 << 1)	// Emits a dynamic light of RGB(250,250,250) and a random radius of 400 to 431 from the origin.
+#define EF_DIMLIGHT					(1 << 2)	// Emits a dynamic light of RGB(100,100,100) and a random radius of 200 to 231 from the origin.
+#define EF_NOINTERP					(1 << 3)	// Don't interpolate on the next frame.
+#define EF_NOSHADOW					(1 << 4)	// Don't cast a shadow. To do: Does this also apply to shadow maps?
+#define EF_NODRAW					(1 << 5)	// Entity is completely ignored by the client. Can cause prediction errors if a player proceeds to collide with it on the server.
+#define EF_NORECEIVESHADOW			(1 << 6)	// Don't receive dynamic shadows.
+#define EF_BONEMERGE_FASTCULL		(1 << 7)	// For use with EF_BONEMERGE. If set, the entity will use its parent's origin to calculate whether it is visible; if not set, it will set up parent's bones every frame even if the parent is not in the PVS.
+#define EF_ITEM_BLINK				(1 << 8)	// Blink an item so that the user notices it. Added for Xbox 1, and really not very subtle.
+#define EF_PARENT_ANIMATES			(1 << 9)	// Assume that the parent entity is always animating. Causes it to realign every frame.
+
+#ifndef PLAYER_FLAG_BITS
 #define PLAYER_FLAG_BITS			10
-#define DISPSURF_FLAG_SURFACE		(1<<0)
-#define DISPSURF_FLAG_WALKABLE		(1<<1)
-#define DISPSURF_FLAG_BUILDABLE		(1<<2)
-#define DISPSURF_FLAG_SURFPROP1		(1<<3)
-#define DISPSURF_FLAG_SURFPROP2		(1<<4)
+#endif
+
+#define DISPSURF_FLAG_SURFACE		(1 << 0)
+#define DISPSURF_FLAG_WALKABLE		(1 << 1)
+#define DISPSURF_FLAG_BUILDABLE		(1 << 2)
+#define DISPSURF_FLAG_SURFPROP1		(1 << 3)
+#define DISPSURF_FLAG_SURFPROP2		(1 << 4)
 
 #define	CONTENTS_EMPTY			0		/**< No contents. */
 #define	CONTENTS_SOLID			0x1		/**< an eye is never valid in a solid . */
@@ -82,7 +105,7 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define	CONTENTS_MIST			0x40
 #define CONTENTS_OPAQUE			0x80		/**< things that cannot be seen through (may be non-solid though). */
 #define	LAST_VISIBLE_CONTENTS	0x80
-#define ALL_VISIBLE_CONTENTS 	(LAST_VISIBLE_CONTENTS | (LAST_VISIBLE_CONTENTS-1))
+#define ALL_VISIBLE_CONTENTS 	(LAST_VISIBLE_CONTENTS | (LAST_VISIBLE_CONTENTS - 1))
 #define CONTENTS_TESTFOGVOLUME	0x100
 #define CONTENTS_UNUSED5		0x200
 #define CONTENTS_UNUSED6		0x4000
@@ -140,6 +163,117 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 /**
 * @endsection
 */
+
+enum MoveType
+{
+	MOVETYPE_NONE = 0,			/**< never moves */
+	MOVETYPE_ISOMETRIC,			/**< For players */
+	MOVETYPE_WALK,				/**< Player only - moving on the ground */
+	MOVETYPE_STEP,				/**< gravity, special edge handling -- monsters use this */
+	MOVETYPE_FLY,				/**< No gravity, but still collides with stuff */
+	MOVETYPE_FLYGRAVITY,		/**< flies through the air + is affected by gravity */
+	MOVETYPE_VPHYSICS,			/**< uses VPHYSICS for simulation */
+	MOVETYPE_PUSH,				/**< no clip to world, push and crush */
+	MOVETYPE_NOCLIP,			/**< No gravity, no collisions, still do velocity/avelocity */
+	MOVETYPE_LADDER,			/**< Used by players only when going onto a ladder */
+	MOVETYPE_OBSERVER,			/**< Observer movement, depends on player's observer mode */
+	MOVETYPE_CUSTOM				/**< Allows the entity to describe its own physics */
+};
+
+enum RenderMode
+{
+	RENDER_NORMAL,				/**< src */
+	RENDER_TRANSCOLOR,			/**< c*a+dest*(1-a) */
+	RENDER_TRANSTEXTURE,		/**< src*a+dest*(1-a) */
+	RENDER_GLOW,				/**< src*a+dest -- No Z buffer checks -- Fixed size in screen space */
+	RENDER_TRANSALPHA,			/**< src*srca+dest*(1-srca) */
+	RENDER_TRANSADD,			/**< src*a+dest */
+	RENDER_ENVIRONMENTAL,		/**< not drawn, used for environmental effects */
+	RENDER_TRANSADDFRAMEBLEND,	/**< use a fractional frame value to blend between animation frames */
+	RENDER_TRANSALPHAADD,		/**< src + dest*(1-a) */
+	RENDER_WORLDGLOW,			/**< Same as kRenderGlow but not fixed size in screen space */
+	RENDER_NONE					/**< Don't render. */
+};
+
+enum RenderFx
+{
+	RENDERFX_NONE = 0,
+	RENDERFX_PULSE_SLOW,
+	RENDERFX_PULSE_FAST,
+	RENDERFX_PULSE_SLOW_WIDE,
+	RENDERFX_PULSE_FAST_WIDE,
+	RENDERFX_FADE_SLOW,
+	RENDERFX_FADE_FAST,
+	RENDERFX_SOLID_SLOW,
+	RENDERFX_SOLID_FAST,
+	RENDERFX_STROBE_SLOW,
+	RENDERFX_STROBE_FAST,
+	RENDERFX_STROBE_FASTER,
+	RENDERFX_FLICKER_SLOW,
+	RENDERFX_FLICKER_FAST,
+	RENDERFX_NO_DISSIPATION,
+	RENDERFX_DISTORT,			/**< Distort/scale/translate flicker */
+	RENDERFX_HOLOGRAM,			/**< kRenderFxDistort + distance fade */
+	RENDERFX_EXPLODE,			/**< Scale up really big! */
+	RENDERFX_GLOWSHELL,			/**< Glowing Shell */
+	RENDERFX_CLAMP_MIN_SCALE,	/**< Keep this sprite from getting very small (SPRITES only!) */
+	RENDERFX_ENV_RAIN,			/**< for environmental rendermode, make rain */
+	RENDERFX_ENV_SNOW,			/**<  "        "            "    , make snow */
+	RENDERFX_SPOTLIGHT,			/**< TEST CODE for experimental spotlight */
+	RENDERFX_RAGDOLL,			/**< HACKHACK: TEST CODE for signalling death of a ragdoll character */
+	RENDERFX_PULSE_FAST_WIDER,
+	RENDERFX_MAX
+};
+
+enum CollisionGroup_t
+{
+	CG_NONE = 0,
+	CG_DEBRIS,					// Collides with nothing but world and static stuff
+	CG_DEBRIS_TRIGGER,			// Same as debris, but hits triggers
+	CG_INTERACTIVE_DEBRIS,		// Collides with everything except other interactive debris or debris
+	CG_INTERACTIVE,				// Collides with everything except interactive debris or debris
+	CG_PLAYER,
+	CG_BREAKABLE_GLASS,
+	CG_VEHICLE,
+	CG_PLAYER_MOVEMENT,			// For HL2, same as CG_Player  
+	CG_NPC,						// Generic NPC group
+	CG_IN_VEHICLE,				// for any entity inside a vehicle
+	CG_WEAPON,					// for any weapons that need collision detection
+	CG_VEHICLE_CLIP,			// vehicle clip brush to restrict vehicle movement
+	CG_PROJECTILE,				// Projectiles!
+	CG_DOOR_BLOCKER,			// Blocks entities not permitted to get near moving doors
+	CG_PASSABLE_DOOR,			// Doors that the player shouldn't collide with
+	CG_DISSOLVING,				// Things that are dissolving are in this group
+	CG_PUSHAWAY,				// Nonsolid on client and server, pushaway in player code
+	CG_NPC_ACTOR,				// Used so NPCs in scripts ignore the player.  
+	CG_NPC_SCRIPTED				// USed for NPCs in scripts that should not collide with each other
+};
+
+enum SolidType_t
+{
+	SOLID_NONE = 0,				// no solid model
+	SOLID_BSP,					// a BSP tree
+	SOLID_BBOX,					// an AABB
+	SOLID_OBB,					// an OBB (not implemented yet)
+	SOLID_OBB_YAW,				// an OBB, constrained so that it can only yaw
+	SOLID_CUSTOM,				// Always call into the entity for tests
+	SOLID_VPHYSICS				// solid vphysics object, get vcollide from the model and collide with that
+};
+
+enum SolidFlags_t
+{
+	SF_CUSTOMRAYTEST = 0x0001,			// Ignore solid type + always call into the entity for ray tests
+	SF_CUSTOMBOXTEST = 0x0002,			// Ignore solid type + always call into the entity for swept box tests
+	SF_NOT_SOLID = 0x0004,				// Are we currently not solid?
+	SF_TRIGGER = 0x0008,				// This is something may be collideable but fires touch functions
+	// even when it's not collideable (when the SF_NOT_SOLID flag is set)
+	SF_NOT_STANDABLE = 0x0010,			// You can't stand on this
+	SF_VOLUME_CONTENTS = 0x0020,		// Contains volumetric contents (like water)
+	SF_FORCE_WORLD_ALIGNED = 0x0040,	// Forces the collision rep to be world-aligned even if it's SOLID_BSP or SOLID_VPHYSICS
+	SF_USE_TRIGGER_BOUNDS = 0x0080,		// Uses a special trigger bounds separate from the normal OBB
+	SF_ROOT_PARENT_ALIGNED = 0x0100,	// Collisions are defined in root parent's local coordinate space
+	SF_TRIGGER_TOUCH_DEBRIS = 0x0200	// This trigger will touch debris objects
+};
 
 //----------------------------------
 //----------------------------------

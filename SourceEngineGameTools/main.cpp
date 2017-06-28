@@ -1,6 +1,6 @@
 #include "main.h"
 
-// #define USE_PLAYER_INFO
+#define USE_PLAYER_INFO
 #define USE_CVAR_CHANGE
 
 extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -137,6 +137,7 @@ void pure(void*);
 void meleeAttack();
 void thirdPerson();
 void showSpectator();
+void transparent();
 
 void StartCheat(HINSTANCE instance)
 {
@@ -506,6 +507,12 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
 				showSpectator();
+
+			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+				transparent();
+
+			if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+				esp();
 
 			if (!connected)
 			{
@@ -1549,7 +1556,7 @@ void showSpectator()
 			int mode = player->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer");
 
 #ifdef USE_PLAYER_INFO
-			Interfaces.Engine->GetPlayerInfo(player->GetIndex(), &info);
+			Interfaces.Engine->GetPlayerInfo(i, &info);
 #endif
 
 			if (team == 1)
@@ -1565,7 +1572,7 @@ void showSpectator()
 				if (target == nullptr || (int)target == -1)
 					continue;
 				
-				if (target->GetIndex() == local->GetIndex())
+				if ((DWORD)target == (DWORD)local)
 				{
 					// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
@@ -1617,7 +1624,7 @@ void showSpectator()
 					if (target == nullptr || (int)target == -1)
 						continue;
 
-					if (target->GetIndex() == local->GetIndex())
+					if ((DWORD)target == (DWORD)local)
 					{
 						// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
@@ -1710,7 +1717,7 @@ void showSpectator()
 					if (target == nullptr || (int)target == -1)
 						continue;
 
-					if (target->GetIndex() == local->GetIndex())
+					if ((DWORD)target == (DWORD)local)
 					{
 						// 正在观察本地玩家
 #ifdef USE_PLAYER_INFO
@@ -1779,4 +1786,20 @@ void bindAlias(int wait)
 	Interfaces.Engine->ClientCmd(XorStr("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\""));
 	Interfaces.Engine->ClientCmd(XorStr("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\""));
 	Interfaces.Engine->ClientCmd(XorStr("echo \"echo \"========= alias end =========\"\""));
+}
+
+void transparent()
+{
+	CBaseEntity* local = GetLocalClient();
+	if (local != nullptr && Interfaces.Engine->IsInGame() && local->IsAlive())
+	{
+		local->SetNetProp("m_nRenderMode", RENDER_NONE);
+		local->SetNetProp("m_CollisionGroup", CG_DEBRIS);
+		local->SetNetProp("m_nSolidType", SOLID_NONE, "DT_CollisionProperty");
+		local->SetNetProp("m_usSolidFlags", SF_NOT_SOLID, "DT_CollisionProperty");
+		local->SetNetProp("m_fEffects", local->GetNetProp<int>("m_fEffects") | EF_NODRAW);
+		local->SetNetProp("movetype", MOVETYPE_FLYGRAVITY);
+	}
+
+	Sleep(1);
 }
