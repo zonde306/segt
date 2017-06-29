@@ -1385,9 +1385,9 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	}
 	else
 	{
-		ImGui::GetIO().MouseDrawCursor = !Interfaces.Engine->IsInGame();
+		// ImGui::GetIO().MouseDrawCursor = !Interfaces.Engine->IsInGame();
 		
-		ImGui_ImplDX9_NewFrame();
+		// ImGui_ImplDX9_NewFrame();
 		drawRender->BeginRendering();
 
 		CBaseEntity* local = GetLocalClient();
@@ -1450,7 +1450,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 			}
 		}
 
-		ImGui::Render();
+		// ImGui::Render();
 		drawRender->EndRendering();
 	}
 
