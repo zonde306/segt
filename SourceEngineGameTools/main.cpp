@@ -778,7 +778,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 
 	if (id == ET_TANK || id == ET_WITCH)
 	{
-		if ((solid & SF_NOT_SOLID) /*|| sequence > 70*/)
+		if ((solid & SF_NOT_SOLID) || sequence > 70)
 			return false;
 	}
 	else if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
@@ -790,7 +790,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 	}
 	else if (id == ET_INFECTED)
 	{
-		if ((solid & SF_NOT_SOLID) /*|| sequence > 305*/)
+		if ((solid & SF_NOT_SOLID) || sequence > 305)
 			return false;
 	}
 	else if (id == ET_CTERRORPLAYER || id == ET_SURVIVORBOT)
@@ -936,11 +936,16 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		(trace.m_pEnt != nullptr ? trace.m_pEnt->GetClientClass()->m_ClassID : -1));
 	*/
 
-	if (trace.m_pEnt != nullptr && !trace.m_pEnt->IsDormant() && trace.physicsBone > 0 &&
-		trace.hitbox > 0 && (hitbox <= 0 || trace.hitbox == hitbox))
-		return trace.m_pEnt;
+	// 检查目标是否为一个有效的实体
+	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
+		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
+		return nullptr;
 
-	return nullptr;
+	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
+	if(trace.hitbox == 0 || trace.physicsBone == 0 || (hitbox > 0 && trace.hitbox != hitbox))
+		return nullptr;
+
+	return trace.m_pEnt;
 }
 
 bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
@@ -963,10 +968,21 @@ bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
 		ray.Init(client->GetEyePosition(), entity->GetHitboxPosition(HITBOX_PLAYER));
 
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
-	if (trace.m_pEnt != nullptr && !trace.m_pEnt->IsDormant() && trace.hitbox > 0 && trace.physicsBone > 0)
-		return true;
 
-	return false;
+	// 检查是否为目标
+	if((DWORD)entity != (DWORD)trace.m_pEnt)
+		return false;
+
+	// 检查目标是否为一个有效的实体
+	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
+		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
+		return false;
+
+	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
+	if (trace.hitbox == 0 || trace.physicsBone == 0)
+		return false;
+
+	return true;
 }
 
 void ResetDeviceHook(IDirect3DDevice9* device)
@@ -1096,10 +1112,8 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 						if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
 							continue;
 
-						/*
 						if (zombieClass == ZC_TANK && target->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter") > 70)
 							continue;
-						*/
 
 						// 选择最近的敌人
 						try
@@ -1156,40 +1170,44 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 					}
 				}
 
-				// 瞄准
 				if (pCurrentAiming != nullptr)
+					Interfaces.Engine->ClientCmd(XorStr("ehco \"target selected 0x%X | classId = %d\""),
+						pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID);
+			}
+
+			// 瞄准
+			if (pCurrentAiming != nullptr)
+			{
+				// 目标位置
+				Vector position;
+				try
 				{
-					// 目标位置
-					Vector position;
-					try
-					{
-						if(pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
-							position = pCurrentAiming->GetHitboxPosition(HITBOX_COMMON);
-						else
-							position = pCurrentAiming->GetHitboxPosition(HITBOX_PLAYER);
-					}
-					catch (...)
-					{
-						if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
-							goto end_aimbot;
-						
-						// 获取骨骼位置失败
-						position = pCurrentAiming->GetEyePosition();
-						Utils::log(XorStr("CBasePlayer::SetupBone error"));
-
-						// 根据不同的情况确定高度
-						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-						if (zombieClass == ZC_JOCKEY)
-							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-						else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-							position.z -= 12.0f;
-					}
-
-					// 速度预测，会导致屏幕晃动，所以不需要
-					// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
-
-					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+					if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
+						position = pCurrentAiming->GetHitboxPosition(HITBOX_COMMON);
+					else
+						position = pCurrentAiming->GetHitboxPosition(HITBOX_PLAYER);
 				}
+				catch (...)
+				{
+					if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
+						goto end_aimbot;
+
+					// 获取骨骼位置失败
+					position = pCurrentAiming->GetEyePosition();
+					Utils::log(XorStr("CBasePlayer::SetupBone error"));
+
+					// 根据不同的情况确定高度
+					int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+					if (zombieClass == ZC_JOCKEY)
+						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+						position.z -= 12.0f;
+				}
+
+				// 速度预测，会导致屏幕晃动，所以不需要
+				// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
+
+				Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
 			}
 		}
 		
@@ -1200,6 +1218,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		{
 			CBaseEntity* target = GetAimingTarget();
 			if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
+				target->GetClientClass()->m_ClassID != ET_WORLD &&
 				(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED))
 				pTriggerAiming = target;
 			else if (pTriggerAiming != nullptr)
