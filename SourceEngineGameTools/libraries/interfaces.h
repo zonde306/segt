@@ -58,9 +58,11 @@ public:
 		RenderView = (CRenderView*)GetPointer(XorStr("engine.dll"), XorStr("VEngineRenderView"));
 		Cvar = (ICvar*)GetPointer(XorStr("vstdlib.dll"), XorStr("VEngineCvar"));
 		
-		PDWORD pdwClient = (PDWORD)*(PDWORD)Client;
+		PDWORD pdwClient = *(PDWORD*)Client;
 		// Input = *(CInput**)((*(DWORD**)Client)[15] + 0x1);
-		Input = *(CInput**)((*(DWORD**)Client)[20] + 0x28);
+
+		Input = (CInput*)*(PDWORD**)*(PDWORD**)(pdwClient[indexes::CreateMove] + 0x28);
+
 		DWORD dwInitAddr = (DWORD)(pdwClient[0]);
 		for (DWORD dwIter = 0; dwIter <= 0xFF; dwIter++)
 		{

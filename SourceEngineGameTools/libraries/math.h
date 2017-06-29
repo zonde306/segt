@@ -43,6 +43,19 @@ void VectorNormalize(Vector& v)
 		v[i] /= length;
 }
 
+void AngleNormalize(Vector& angles)
+{
+	for (int i = 0; i < 3; ++i)
+	{
+		if (angles[i] < -180.0f)
+			angles[i] += 360.0f;
+
+		if (angles[i] > 180.0f)
+			angles[i] -= 360.0f;
+	}
+}
+
+
 void AngleVectors(const QAngle &angles, Vector *forward)
 {
 	// Assert(s_bMathlibInitialized);
@@ -384,6 +397,7 @@ Vector CalculateAim(const Vector &origin, const Vector &target)
 	angles.x = atan2(-(deltaPos.z), sqrt(deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y)) * 180 / M_PI;
 	angles.z = 0.0f;
 
+	AngleNormalize(angles);
 	return angles;
 }
 
@@ -401,6 +415,7 @@ Vector CalcAngle(const Vector& source, const Vector& destination)
 	if (delta.x >= 0.0)
 		angles.y += 180.0;
 
+	AngleNormalize(angles);
 	return angles;
 }
 

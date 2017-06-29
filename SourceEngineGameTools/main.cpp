@@ -127,7 +127,8 @@ static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
-static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true, bAutoFire = true;
+static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
+	bRapidFire = true, bSilentAim = false;
 static std::timed_mutex mAimbot;
 
 void bunnyHop(void*);
@@ -321,9 +322,9 @@ void StartCheat(HINSTANCE instance)
 	printo("localPlayer", (DWORD)GetLocalClient());
 	*/
 
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoShot, NULL, NULL, NULL);
+	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoShot, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
+	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
@@ -573,9 +574,9 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_F12) & 0x01)
 			{
-				bAutoFire = !bAutoFire;
+				bRapidFire = !bRapidFire;
 				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto pistol fire %s\""),
-					(bAutoFire ? XorStr("enable") : XorStr("disabled")));
+					(bRapidFire ? XorStr("enable") : XorStr("disabled")));
 
 				Sleep(1000);
 			}
@@ -776,38 +777,45 @@ bool IsAliveTarget(CBaseEntity* entity)
 	int solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_BaseCombatCharacter");
 	int sequence = entity->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter");
 
-	if (id == ET_TANK || id == ET_WITCH)
+	if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
+		id == ET_JOCKEY || id == ET_CHARGER || id == ET_TANK)
 	{
-		if ((solid & SF_NOT_SOLID) || sequence > 70)
+		if (entity->GetHealth() < 1 || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
+		{
+#ifdef _DEBUG
+			Interfaces.Engine->ClientCmd(XorStr("echo \"Special 0x%X healh = %d, ghost = %d\""), (DWORD)entity,
+				entity->GetNetProp<int>("m_iHealth", "DT_TerrorPlayer"), entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"));
+#endif
 			return false;
+		}
 	}
-	else if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
-		id == ET_JOCKEY || id == ET_CHARGER)
+	else if (id == ET_INFECTED || id == ET_WITCH)
 	{
-		if ((solid & SF_NOT_SOLID) || entity->GetHealth() < 1 ||
-			entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
+		if ((solid & SF_NOT_SOLID))
+		{
+#ifdef _DEBUG
+			Interfaces.Engine->ClientCmd(XorStr("echo \"Common 0x%X is dead\""), (DWORD)entity);
+#endif
 			return false;
-	}
-	else if (id == ET_INFECTED)
-	{
-		if ((solid & SF_NOT_SOLID) || sequence > 305)
-			return false;
+		}
 	}
 	else if (id == ET_CTERRORPLAYER || id == ET_SURVIVORBOT)
 	{
 		if (!entity->IsAlive())
+		{
+#ifdef _DEBUG
+			Interfaces.Engine->ClientCmd(XorStr("echo \"Survivor 0x%X is dead %d\""), (DWORD)entity,
+				entity->GetNetProp<int>("m_iHealth", "DT_TerrorPlayer"));
+#endif
 			return false;
+		}
 	}
 	else
 	{
-		static time_t next = 0;
-		if (next < time(NULL))
-			goto end_time_next;
-		next = time(NULL) + 1;
-
-		Utils::log(XorStr("Invalid ClassId = %d | sequence = %d | solid = %d"), id, sequence, solid);
-
-	end_time_next:
+#ifdef _DEBUG
+		// Utils::log(XorStr("Invalid ClassId = %d | sequence = %d | solid = %d"), id, sequence, solid);
+		Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X ClassId %d\""), (DWORD)entity, id);
+#endif
 		return false;
 	}
 
@@ -923,27 +931,39 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 
 	ray.Init(src, dst);
 
-	/*
+#ifdef _DEBUG
 	Utils::log(XorStr("TraceRay: skip = 0x%X | start = (%.2f %.2f %.2f) | end = (%.2f %.2f %.2f)"),
 		(DWORD)client, src.x, src.y, src.z, dst.x, dst.y, dst.z);
-	*/
+#endif
 
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 
-	/*
+#ifdef _DEBUG
 	Utils::log(XorStr("TraceRay: entity = 0x%X | hitbox = %d | bone = %d | hitGroup = %d | fraction = %.2f | classId = %d"),
 		trace.m_pEnt, trace.hitbox, trace.physicsBone, trace.hitGroup, trace.fraction,
 		(trace.m_pEnt != nullptr ? trace.m_pEnt->GetClientClass()->m_ClassID : -1));
-	*/
+#endif
 
 	// 检查目标是否为一个有效的实体
 	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
 		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
+	{
+#ifdef _DEBUG
+		Interfaces.Engine->ClientCmd(XorStr("echo \"invalid entity 0x%X\""), (DWORD)trace.m_pEnt);
+#endif
 		return nullptr;
+	}
 
 	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
-	if(trace.hitbox == 0 || trace.physicsBone == 0 || (hitbox > 0 && trace.hitbox != hitbox))
+	if (trace.hitbox == 0 || (hitbox > 0 && trace.hitbox != hitbox))
+	{
+#ifdef _DEBUG
+		Interfaces.Engine->ClientCmd(XorStr("echo \"invalid hitbox 0x%X | hitbox = %d | bone = %d | group = %d\""),
+			(DWORD)trace.m_pEnt, trace.hitbox, trace.physicsBone, trace.hitGroup);
+#endif
+
 		return nullptr;
+	}
 
 	return trace.m_pEnt;
 }
@@ -969,17 +989,13 @@ bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
 
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 
-	// 检查是否为目标
-	if((DWORD)entity != (DWORD)trace.m_pEnt)
-		return false;
-
 	// 检查目标是否为一个有效的实体
 	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
 		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
 		return false;
 
 	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
-	if (trace.hitbox == 0 || trace.physicsBone == 0)
+	if (trace.hitbox == 0)
 		return false;
 
 	return true;
@@ -1059,120 +1075,166 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	static bool showHint = true;
 	if (showHint)
 	{
-		showHint = false;
+		// showHint = false;
 		std::cout << XorStr("Hooked_CreateMove trigged.") << std::endl;
 		Utils::log(XorStr("Hooked_CreateMove success"));
 	}
 	
 	oCreateMove(sequence_number, input_sample_frametime, active);
 
-	/*
-	DWORD dwEBP;
+	DWORD dwEBP = NULL;
 	__asm mov dwEBP, ebp
 	PBYTE pSendPacket = (PBYTE)(*(PDWORD)(dwEBP) - 0x21);
-	*/
 
-	// 用不了，待修复
-	// CVerifiedUserCmd* verified = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
-	// CUserCmd* cmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
-
-	// CUserCmd* cmd = Interfaces.Input->GetUserCmd(sequence_number);
+	CVerifiedUserCmd *pVerifiedCmd = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
+	CUserCmd *pCmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
+	if (showHint)
+	{
+		showHint = false;
+		Utils::log(XorStr("pVerifiedCmd = 0x%X"), (DWORD)pVerifiedCmd);
+		Utils::log(XorStr("pCmd = 0x%X"), (DWORD)pCmd);
+	}
 	
 	CBaseEntity* client = GetLocalClient();
-	if (client != nullptr && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-		client->IsAlive() && mAimbot.try_lock())
+	if (client == nullptr || pCmd == nullptr || pVerifiedCmd == nullptr || !client->IsAlive() ||
+		Interfaces.Engine->IsConsoleVisible())
+		return;
+
+	float serverTime = GetServerTime();
+	CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
+	if (weapon != nullptr)
+		weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+	else
+		weapon = nullptr;
+
+	QAngle oldViewAngles = pCmd->viewangles;
+	float oldSidemove = pCmd->sidemove;
+	float oldForwardmove = pCmd->fowardmove;
+
+	// 连跳
+	if (bBhop && (GetAsyncKeyState(VK_SPACE) & 0x8000))
+	{
+		static bool lastJump = false;
+		static bool shouldFake = false;
+
+		if (!lastJump && shouldFake)
+		{
+			shouldFake = false;
+			pCmd->buttons |= IN_JUMP;
+		}
+		else if (pCmd->buttons & IN_JUMP)
+		{
+			if (client->GetFlags() & FL_ONGROUND)
+			{
+				lastJump = true;
+				shouldFake = true;
+			}
+			else
+			{
+				pCmd->buttons &= ~IN_JUMP;
+				lastJump = false;
+			}
+		}
+		else
+		{
+			lastJump = false;
+			shouldFake = false;
+		}
+
+		// strafe
+
+		/*
+		if (!(client->GetFlags() & FL_ONGROUND))
+		{
+			if (pCmd->mousedx < 0)
+				pCmd->sidemove = -400.f;
+
+			if (pCmd->mousedx > 0)
+				pCmd->sidemove = 400.f;
+		}
+		*/
+	}
+
+end_auto_pistol:
+
+	if (mAimbot.try_lock())
 	{
 		// 自动瞄准
 		if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 		{
-			Vector myOrigin = client->GetEyePosition(), myAngles = client->GetEyeAngles();
+			Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
 
 			// 寻找目标
-			if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() || !IsAliveTarget(pCurrentAiming))
+			if (!IsAliveTarget(pCurrentAiming))
 			{
-				int team = client->GetTeam(), zombieClass;
+				int team = client->GetTeam()/*, zombieClass*/;
 				float distance = 32767.0f, dist, fov;
-				bool visible = false;
+				// bool visible = false;
 				Vector headPos;
 
 				pCurrentAiming = nullptr;
-				for (int i = 1; i < 64; ++i)
+				int maxEntity = Interfaces.Engine->GetMaxClients();
+				for (int i = 1; i < maxEntity; ++i)
 				{
 					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-					if (target == nullptr || target->IsDormant() || target->GetTeam() == team)
+					
+					// 检查是否为一个有效的并且活着的敌人
+					if (!IsAliveTarget(target) || target->GetTeam() == team)
+					{
+						// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X\""), (DWORD)target);
 						continue;
-
-					if (i < 64)
-					{
-						// 寻找一个玩家敌人
-						if (!target->IsAlive() || target->GetHealth() <= 0)
-							continue;
-
-						zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-						if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
-							continue;
-
-						if (zombieClass == ZC_TANK && target->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter") > 70)
-							continue;
-
-						// 选择最近的敌人
-						try
-						{
-							// 通过 hitbox 可以准确的获得目标的头部位置
-							headPos = target->GetHitboxPosition(HITBOX_PLAYER);
-
-							// 检查目标是否可以被看见，看不见的就不能成为目标
-							visible = IsTargetVisible(target, headPos);
-						}
-						catch (...)
-						{
-							headPos = target->GetEyePosition();
-							if (zombieClass == ZC_JOCKEY)
-								headPos.z = target->GetAbsOrigin().z + 30.0f;
-							else if (zombieClass == ZC_HUNTER && (target->GetFlags() & FL_DUCKING))
-								headPos.z -= 12.0f;
-
-							visible = true;
-						}
-
-						dist = headPos.DistTo(myOrigin);
-						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
-						if (visible && dist < distance && fov <= 30.f)
-						{
-							pCurrentAiming = target;
-							distance = dist;
-						}
 					}
-					else if (i > 64 && pCurrentAiming == nullptr && team == 2 && IsAliveTarget(target))
+
+					// 优先选择特感
+					if (i > 64 && pCurrentAiming != nullptr)
+						break;
+
+					int classId = target->GetClientClass()->m_ClassID;
+
+					// 检查是否为特感/普感/生还者/石头
+					if (classId != ET_SMOKER && classId != ET_BOOMER && classId != ET_HUNTER &&
+						classId != ET_SPITTER && classId != ET_JOCKEY && classId != ET_CHARGER &&
+						classId != ET_TANK && classId != ET_INFECTED && classId != ET_CTERRORPLAYER &&
+						classId != ET_SURVIVORBOT && classId != ET_TANKROCK)
 					{
-						// 寻找一个普感敌人
-						// 选择最近的敌人
-						try
-						{
-							// 通过 hitbox 可以准确的获得目标的头部位置
-							headPos = target->GetHitboxPosition(HITBOX_COMMON);
+						// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid 0x%X ClassId %d\""), (DWORD)target, classId);
+						continue;
+					}
 
-							// 检查目标是否可以被看见，看不见的就不能成为目标
-							visible = IsTargetVisible(target, headPos);
-						}
-						catch (...)
-						{
+					if (classId == ET_INFECTED)
+					{
+						// 特感是不需要瞄准普感的
+						if (team == 3)
 							continue;
-						}
+						
+						// 普感的头部的 hitbox 或许 16 也可以
+						headPos = target->GetHitboxPosition(HITBOX_COMMON);
+					}
+					else if (classId == ET_TANKROCK)
+					{
+						// Tank 投掷的石头，可以被打爆
+						headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
+					}
+					else
+					{
+						// 生还者/特感
+						headPos = target->GetHitboxPosition(HITBOX_PLAYER);
+					}
 
-						dist = headPos.DistTo(myOrigin);
-						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
-						if (visible && dist < distance && fov <= 30.f)
-						{
-							pCurrentAiming = target;
-							distance = dist;
-						}
+					dist = headPos.DistTo(myOrigin);
+					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
+
+					// 选择最近的，靠近准星，并且可以看见的目标
+					if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
+					{
+						pCurrentAiming = target;
+						distance = dist;
 					}
 				}
 
 				if (pCurrentAiming != nullptr)
-					Interfaces.Engine->ClientCmd(XorStr("ehco \"target selected 0x%X | classId = %d\""),
-						pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID);
+					Interfaces.Engine->ClientCmd(XorStr("echo \"target selected 0x%X | classId = %d | health = %d\""),
+						pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
 			}
 
 			// 瞄准
@@ -1207,28 +1269,52 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 				// 速度预测，会导致屏幕晃动，所以不需要
 				// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
-				Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+				// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+				pCmd->viewangles = CalculateAim(myOrigin, position);
 			}
 		}
 		
 	end_aimbot:
-
-		// 自动开枪
-		if (bTriggerBot)
-		{
-			CBaseEntity* target = GetAimingTarget();
-			if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
-				target->GetClientClass()->m_ClassID != ET_WORLD &&
-				(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED))
-				pTriggerAiming = target;
-			else if (pTriggerAiming != nullptr)
-				pTriggerAiming = nullptr;
-		}
-		else if (pTriggerAiming != nullptr)
-			pTriggerAiming = nullptr;
-
 		mAimbot.unlock();
 	}
+
+	// 自动开枪
+	if (bTriggerBot)
+	{
+		CBaseEntity* target = GetAimingTarget();
+#ifdef _DEBUG
+		if (target != nullptr)
+		{
+			if (!IsAliveTarget(target))
+				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming dead 0x%X\""), (DWORD)target);
+			if (target->GetTeam() == client->GetTeam())
+				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming team 0x%X\""), (DWORD)target);
+			if (target->GetClientClass()->m_ClassID == ET_INFECTED)
+				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming infected 0x%X\""), (DWORD)target);
+		}
+#endif
+
+		if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
+			(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED))
+			pCmd->buttons |= IN_ATTACK;
+	}
+
+	if(bSilentAim)
+	{
+		if ((pCmd->buttons & IN_ATTACK) &&
+			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
+			*pSendPacket = false;
+		else
+		{
+			*pSendPacket = true;
+			pCmd->viewangles = oldViewAngles;
+			pCmd->sidemove = oldSidemove;
+			pCmd->fowardmove = oldForwardmove;
+		}
+	}
+
+	pVerifiedCmd->m_cmd = *pCmd;
+	pVerifiedCmd->m_crc = pCmd->GetChecksum();
 }
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
@@ -1365,6 +1451,9 @@ int __stdcall Hooked_InKeyEvent(int eventcode, ButtonCode_t keynum, const char *
 void __stdcall Hooked_RunCommand(CBaseEntity* pEntity, CUserCmd* pCmd, CMoveHelper* moveHelper)
 {
 	oRunCommand(pEntity, pCmd, moveHelper);
+
+	if (Interfaces.MoveHelper == nullptr)
+		Utils::log(XorStr("MoveHelperPointer = 0x%X"), (DWORD)moveHelper);
 
 	Interfaces.MoveHelper = moveHelper;
 }
@@ -1653,7 +1742,7 @@ void autoPistol()
 	for (;;)
 	{
 		client = GetLocalClient();
-		if (bAutoFire && client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
+		if (bRapidFire && client && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
 			client->IsAlive() && (GetAsyncKeyState(VK_LBUTTON) & 0x8000))
 		{
 			CBaseEntity* weapon = (CBaseEntity*)client->GetActiveWeapon();
@@ -1730,7 +1819,7 @@ void autoAim()
 					for (int i = 1; i <= 64; ++i)
 					{
 						CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-						if (target == nullptr /*|| target->IsDormant()*/ || target->GetTeam() == team ||
+						if (target == nullptr || target->IsDormant() || target->GetTeam() == team ||
 							!target->IsAlive() || target->GetHealth() <= 0)
 							continue;
 

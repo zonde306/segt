@@ -66,9 +66,9 @@ namespace indexes
 	const int GetUserCmd = 8;
 
 	// Prediction
+	const int RunCommand = 18;
 	const int SetupMove = 19;
 	const int FinishMove = 20;
-	const int RunCommand = -1;
 
 	// GameMovement
 	const int ProccessMovement = 1;
