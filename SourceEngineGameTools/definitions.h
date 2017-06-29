@@ -374,7 +374,8 @@ enum EntityType_t
 	ET_SPITTER = 271,
 	ET_CHARGER = 99,
 	ET_HUNTER = 262,
-	ET_SMOKER = 269
+	ET_SMOKER = 269,
+	ET_TANKROCK = 13
 };
 
 enum ZombieClass_t
