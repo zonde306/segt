@@ -24,11 +24,11 @@ public:
      void BeginRendering();
      void EndRendering();
 
-     void RenderLine(unsigned long color, int x1, int y1, int x2, int y2);
-     void RenderRect(unsigned long color, int x, int y, int w, int h);
-     void RenderCircle(unsigned long color, int x, int y, int r, int resolution = 64);
-     void RenderText(unsigned long color, int x, int y, bool centered, const char* fmt, ...);
-     void FillRect(unsigned long color, int x, int y, int w, int h);
+     void RenderLine(D3DCOLOR color, int x1, int y1, int x2, int y2);
+     void RenderRect(D3DCOLOR color, int x, int y, int w, int h);
+     void RenderCircle(D3DCOLOR color, int x, int y, int r, int resolution = 64);
+     void RenderText(D3DCOLOR color, int x, int y, bool centered, const char* fmt, ...);
+     void FillRect(D3DCOLOR color, int x, int y, int w, int h);
 
 	 void DrawString(int x, int y, const std::string& text, D3DCOLOR color);
 	 void DrawString(int x, int y, D3DCOLOR color, const char* text, ...);

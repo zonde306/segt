@@ -127,7 +127,7 @@ class ITraceFilter
 {
 public:
 	virtual bool			ShouldHitEntity(void* pEntity, int mask) = 0;
-	virtual TraceType_t            GetTraceType() const = 0;
+	virtual TraceType_t		GetTraceType() const = 0;
 };
 
 

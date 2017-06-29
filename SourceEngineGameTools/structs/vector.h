@@ -54,7 +54,7 @@ public:
 	inline Vector& operator*=(const float &f) { x *= f; y *= f; z *= f; return *this; }
 	inline Vector& operator/=(const float &f) { x /= f; y /= f; z /= f; return *this; }
 
-	inline bool IsValid() { return IsFinite(x) && IsFinite(y) && IsFinite(z); }
+	inline bool IsValid() const { return IsFinite(x) && IsFinite(y) && IsFinite(z); }
 	inline void Invalidate() { x = y = z = VEC_T_NAN; }
 
 	float LengthSqr(void) { return (x*x + y*y + z*z); }

@@ -6,14 +6,14 @@
 
 struct D3DVertex
 {
-	D3DVertex(float _x, float _y, float _z, unsigned long _color) : x(_x), y(_y), z(_z), color(_color)
+	D3DVertex(float _x, float _y, float _z, D3DCOLOR _color) : x(_x), y(_y), z(_z), color(_color)
 	{}
 
 	float x;
 	float y;
 	float z;
 	float rhw = 0;
-	DWORD color;
+	D3DCOLOR color;
 };
 
 DrawManager::DrawManager(IDirect3DDevice9* pDevice)
@@ -84,7 +84,7 @@ void DrawManager::EndRendering()
 	m_pStateBlock->Apply();
 }
 
-void DrawManager::RenderLine(unsigned long color, int x1, int y1, int x2, int y2)
+void DrawManager::RenderLine(D3DCOLOR color, int x1, int y1, int x2, int y2)
 {
 	D3DVertex vertices[2] =
 	{
@@ -95,7 +95,7 @@ void DrawManager::RenderLine(unsigned long color, int x1, int y1, int x2, int y2
 	m_pDevice->DrawPrimitiveUP(D3DPT_LINELIST, 1, vertices, sizeof(D3DVertex));
 }
 
-void DrawManager::RenderRect(unsigned long color, int x, int y, int w, int h)
+void DrawManager::RenderRect(D3DCOLOR color, int x, int y, int w, int h)
 {
 	D3DVertex vertices[5] =
 	{
@@ -108,7 +108,7 @@ void DrawManager::RenderRect(unsigned long color, int x, int y, int w, int h)
 	m_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, vertices, sizeof(D3DVertex));
 }
 
-void DrawManager::RenderCircle(unsigned long color, int x, int y, int r, int resolution)
+void DrawManager::RenderCircle(D3DCOLOR color, int x, int y, int r, int resolution)
 {
 	float curPointX;
 	float curPointY;
@@ -128,7 +128,7 @@ void DrawManager::RenderCircle(unsigned long color, int x, int y, int r, int res
 	}
 }
 
-void DrawManager::RenderText(unsigned long color, int x, int y, bool centered, const char* fmt, ...)
+void DrawManager::RenderText(D3DCOLOR color, int x, int y, bool centered, const char* fmt, ...)
 {
 	char buffer[512];
 	va_list args;
@@ -150,20 +150,19 @@ void DrawManager::RenderText(unsigned long color, int x, int y, bool centered, c
 		m_pDefaultFont->DrawTextA(NULL, buffer, -1, &rec, DT_CALCRECT | DT_NOCLIP, color);
 		rec = {x - rec.right / 2, y, 0, 0};
 
-		drawShadow(rec);
-		m_pDefaultFont->DrawTextA(NULL, buffer, -1, &rec, DT_TOP | DT_LEFT | DT_NOCLIP, color);
-
+		// drawShadow(rec);
+		// m_pDefaultFont->DrawTextA(NULL, buffer, -1, &rec, DT_TOP | DT_LEFT | DT_NOCLIP, color);
 	}
 	else
 	{
 		RECT rec = {x, y, 1000, 100};
 
-		drawShadow(rec);
+		// drawShadow(rec);
 		m_pDefaultFont->DrawTextA(NULL, buffer, -1, &rec, DT_TOP | DT_LEFT | DT_NOCLIP, color);
 	}
 }
 
-void DrawManager::FillRect(unsigned long color, int x, int y, int w, int h)
+void DrawManager::FillRect(D3DCOLOR color, int x, int y, int w, int h)
 {
 	D3DVertex vertices[4] =
 	{

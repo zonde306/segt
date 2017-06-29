@@ -160,6 +160,11 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define MASK_NPCWORLDSTATIC		(CONTENTS_SOLID|CONTENTS_WINDOW|CONTENTS_MONSTERCLIP|CONTENTS_GRATE) 					/**< just the world, used for route rebuilding */
 #define MASK_SPLITAREAPORTAL	(CONTENTS_WATER|CONTENTS_SLIME) 									/**< These are things that can split areaportals */
 
+#define HITBOX_COMMON			15	// 普感
+#define HITBOX_PLAYER			10	// 生还者/特感
+#define CLASSID_COMMON			263	// 普感
+#define CLASSID_WORLD			260	// 游戏地图
+
 /**
 * @endsection
 */

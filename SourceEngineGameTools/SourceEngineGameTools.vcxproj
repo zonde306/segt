@@ -158,6 +158,7 @@
     <ClInclude Include="libraries\vmt.h" />
     <ClInclude Include="libraries\xorstr.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="ntdll.h" />
     <ClInclude Include="structs\angle.h" />
     <ClInclude Include="structs\baseentity.h" />
     <ClInclude Include="structs\checksum_md5.h" />
