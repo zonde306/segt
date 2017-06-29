@@ -773,12 +773,12 @@ bool IsAliveTarget(CBaseEntity* entity)
 		return false;
 
 	int id = entity->GetClientClass()->m_ClassID;
-	int solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_CollisionProperty");
+	int solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_BaseCombatCharacter");
 	int sequence = entity->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter");
 
 	if (id == ET_TANK || id == ET_WITCH)
 	{
-		if ((solid & SF_NOT_SOLID) || sequence > 70)
+		if ((solid & SF_NOT_SOLID) /*|| sequence > 70*/)
 			return false;
 	}
 	else if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
@@ -790,7 +790,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 	}
 	else if (id == ET_INFECTED)
 	{
-		if ((solid & SF_NOT_SOLID) || sequence > 305)
+		if ((solid & SF_NOT_SOLID) /*|| sequence > 305*/)
 			return false;
 	}
 	else if (id == ET_CTERRORPLAYER || id == ET_SURVIVORBOT)
@@ -799,7 +799,17 @@ bool IsAliveTarget(CBaseEntity* entity)
 			return false;
 	}
 	else
+	{
+		static time_t next = 0;
+		if (next < time(NULL))
+			goto end_time_next;
+		next = time(NULL) + 1;
+
+		Utils::log(XorStr("Invalid ClassId = %d | sequence = %d | solid = %d"), id, sequence, solid);
+
+	end_time_next:
 		return false;
+	}
 
 	return true;
 }
@@ -927,7 +937,7 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 	*/
 
 	if (trace.m_pEnt != nullptr && !trace.m_pEnt->IsDormant() && trace.physicsBone > 0 &&
-		trace.hitbox > 0 && (hitbox == 0 || trace.hitbox == hitbox))
+		trace.hitbox > 0 && (hitbox <= 0 || trace.hitbox == hitbox))
 		return trace.m_pEnt;
 
 	return nullptr;
@@ -1070,7 +1080,6 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 				Vector headPos;
 
 				pCurrentAiming = nullptr;
-				// int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
 				for (int i = 1; i < 64; ++i)
 				{
 					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
@@ -1087,8 +1096,10 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 						if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
 							continue;
 
-						if (zombieClass == ZC_TANK && target->GetNetProp<int>("m_zombieClass", "DT_BaseCombatCharacter") > 70)
+						/*
+						if (zombieClass == ZC_TANK && target->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter") > 70)
 							continue;
+						*/
 
 						// 选择最近的敌人
 						try
@@ -1188,7 +1199,8 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		if (bTriggerBot)
 		{
 			CBaseEntity* target = GetAimingTarget();
-			if (target != nullptr && target->GetTeam() != client->GetTeam() && IsAliveTarget(target))
+			if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
+				(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED))
 				pTriggerAiming = target;
 			else if (pTriggerAiming != nullptr)
 				pTriggerAiming = nullptr;
@@ -1571,9 +1583,9 @@ void bunnyHop(void* client)
 	
 	for (;;)
 	{
-		 client = GetLocalClient();
-		if (bBhop && local && Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible() &&
-			local->IsAlive() && (GetAsyncKeyState(VK_SPACE) & 0x8000))
+		local = GetLocalClient();
+		if (bBhop && (GetAsyncKeyState(VK_SPACE) & 0x8000) && local != nullptr && local->IsAlive() &&
+			Interfaces.Engine->IsInGame() && !Interfaces.Engine->IsConsoleVisible())
 		{
 			/*
 			if (client->GetFlags() & FL_ONGROUND)
