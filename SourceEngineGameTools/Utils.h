@@ -156,7 +156,7 @@ public:
 		do
 		{
 			hmModuleHandle = GetModuleHandleA(pszModuleName.c_str());
-			Sleep(1);
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		} while (hmModuleHandle == NULL);
 
 		return hmModuleHandle;

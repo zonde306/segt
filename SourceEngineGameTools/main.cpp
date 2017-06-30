@@ -233,8 +233,8 @@ void StartCheat(HINSTANCE instance)
 	HMODULE tier0 = Utils::GetModuleHandleSafe("tier0.dll");
 	if (tier0 != NULL)
 	{
-		PrintToConsole = (FnConMsg)GetProcAddress(tier0, "ConMsg");
-		PrintToConsoleColor = (FnConColorMsg)GetProcAddress(tier0, "ConColorMsg");
+		PrintToConsole = (FnConMsg)GetProcAddress(tier0, "?ConMsg@@YAXPBDZZ");
+		PrintToConsoleColor = (FnConColorMsg)GetProcAddress(tier0, "?ConColorMsg@@YAXABVColor@@PBDZZ");
 		Utils::log(XorStr("PrintToConsole = 0x%X"), (DWORD)PrintToConsole);
 		Utils::log(XorStr("PrintToConsoleColor = 0x%X"), (DWORD)PrintToConsoleColor);
 	}
@@ -401,7 +401,7 @@ void StartCheat(HINSTANCE instance)
 				}
 #endif
 				bBoxEsp = !bBoxEsp;
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_HOME) & 0x01)
@@ -442,7 +442,7 @@ void StartCheat(HINSTANCE instance)
 				}
 #endif
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
@@ -501,7 +501,7 @@ void StartCheat(HINSTANCE instance)
 				}
 #endif
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_APPS) & 0x01)
@@ -537,7 +537,7 @@ void StartCheat(HINSTANCE instance)
 						Utils::readMemory<int>(engine + sv_cheats));
 				}
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_NEXT) & 0x01)
@@ -552,7 +552,7 @@ void StartCheat(HINSTANCE instance)
 				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] trigger bot set %s\""),
 					(bTriggerBot ? XorStr("enable") : XorStr("disabled")));
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_F10) & 0x01)
@@ -561,7 +561,7 @@ void StartCheat(HINSTANCE instance)
 				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] aim bot set %s\""),
 					(bAimBot ? XorStr("enable") : XorStr("disabled")));
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_F11) & 0x01)
@@ -570,7 +570,7 @@ void StartCheat(HINSTANCE instance)
 				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto bunnyHop set %s\""),
 					(bBhop ? XorStr("enable") : XorStr("disabled")));
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (GetAsyncKeyState(VK_F12) & 0x01)
@@ -579,7 +579,7 @@ void StartCheat(HINSTANCE instance)
 				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto pistol fire %s\""),
 					(bRapidFire ? XorStr("enable") : XorStr("disabled")));
 
-				Sleep(1000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (!connected)
@@ -682,7 +682,7 @@ void StartCheat(HINSTANCE instance)
 				disconnected = false;
 				Interfaces.Engine->ClientCmd(XorStr("echo \"********* disconnected *********\""));
 				logfile("disconnected");
-				Sleep(9000);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 
@@ -690,14 +690,14 @@ void StartCheat(HINSTANCE instance)
 		{
 			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), ++fmWait);
 			Interfaces.Engine->ClientCmd(XorStr("echo \"fastmelee wait set %d\""), fmWait);
-			Sleep(1000);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 
 		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
 		{
 			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), --fmWait);
 			Interfaces.Engine->ClientCmd(XorStr("echo \"fastmelee wait set %d\""), fmWait);
-			Sleep(1000);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 
 		if (Interfaces.Engine->IsConnected())
@@ -752,7 +752,7 @@ void StartCheat(HINSTANCE instance)
 				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_pure and sv_consistency set %d\""),
 					Utils::readMemory<int>(engine + sv_pure));
 
-				Sleep(100);
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 
@@ -765,20 +765,25 @@ void StartCheat(HINSTANCE instance)
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
 			Interfaces.Engine->ClientCmd(XorStr("disconnect"));
 
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 }
 
 bool IsAliveTarget(CBaseEntity* entity)
 {
 	int id = 0, solid = 0, sequence = 0;
+	ClientClass* cc = nullptr;
 	
 	try
 	{
 		if (entity == nullptr || entity->IsDormant())
 			return false;
 
-		id = entity->GetClientClass()->m_ClassID;
+		cc = entity->GetClientClass();
+		if (cc == nullptr)
+			return false;
+
+		id = cc->m_ClassID;
 		solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_BaseCombatCharacter");
 		sequence = entity->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter");
 	}
@@ -790,8 +795,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 	if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
 		id == ET_JOCKEY || id == ET_CHARGER || id == ET_TANK)
 	{
-		if (entity->GetHealth() < 1 || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0 ||
-			!entity->IsAlive())
+		if (!entity->IsAlive() || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
 		{
 #ifdef _DEBUG
 			Interfaces.Engine->ClientCmd(XorStr("echo \"Special 0x%X healh = %d, ghost = %d\""), (DWORD)entity,
@@ -1082,7 +1086,7 @@ void pure(void* engine)
 				Utils::readMemory<int>((DWORD)engine + sv_pure));
 		}
 
-		Sleep(100);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
 
@@ -1500,7 +1504,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 					1, 255, 0, 0, 255);
 
 				// Ë³±ã¸ø Aimbot Ñ°ÕÒÄ¿±ê
-				if (bAimBot && !(GetAsyncKeyState(VK_LBUTTON) & 0x8000) && !IsAliveTarget(pCurrentAiming))
+				if (bAimBot && (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) || !IsAliveTarget(pCurrentAiming)))
 				{
 					pCurrentAiming = nullptr;
 					if (entity->GetTeam() != local->GetTeam())
@@ -1817,7 +1821,7 @@ void bunnyHop(void* client)
 				if (Utils::readMemory<int>((DWORD)client + m_iButtons) & IN_JUMP)
 				{
 					Interfaces.Engine->ClientCmd(XorStr("-jump"));
-					Sleep(1);
+					std::this_thread::sleep_for(std::chrono::microseconds(1));
 				}
 
 				Interfaces.Engine->ClientCmd(XorStr("+jump"));
@@ -1829,16 +1833,16 @@ void bunnyHop(void* client)
 				Interfaces.Engine->ClientCmd(XorStr("-jump"));
 				if (repeat)
 				{
-					Sleep(16);
+					std::this_thread::sleep_for(std::chrono::milliseconds(16));
 					Interfaces.Engine->ClientCmd(XorStr("+jump"));
-					Sleep(1);
+					std::this_thread::sleep_for(std::chrono::microseconds(1));
 					Interfaces.Engine->ClientCmd(XorStr("-jump"));
 					repeat = false;
 				}
 			}
 		}
 
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 }
 
@@ -1874,7 +1878,7 @@ void autoPistol()
 						weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
 					{
 						Interfaces.Engine->ClientCmd(XorStr("+attack"));
-						Sleep(10);
+						std::this_thread::sleep_for(std::chrono::milliseconds(9));
 						Interfaces.Engine->ClientCmd(XorStr("-attack"));
 					}
 				}
@@ -1889,7 +1893,7 @@ void autoPistol()
 			}
 		}
 
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 }
 
@@ -1999,7 +2003,7 @@ void autoAim()
 		}
 
 		mAimbot.unlock();
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 }
 
@@ -2034,10 +2038,10 @@ void esp()
 			*/
 		}
 		
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::microseconds(1));
 }
 
 void meleeAttack()
@@ -2057,10 +2061,10 @@ void meleeAttack()
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
 			Interfaces.Engine->ClientCmd(XorStr("+attack"));
-			Sleep(10);
+			std::this_thread::sleep_for(std::chrono::milliseconds(9));
 			Interfaces.Engine->ClientCmd(XorStr("-attack"));
 			Interfaces.Engine->ClientCmd(XorStr("slot1"));
-			Sleep(10);
+			std::this_thread::sleep_for(std::chrono::milliseconds(9));
 			Interfaces.Engine->ClientCmd(XorStr("slot2"));
 			tookoutTime = GetServerTime() + 0.5f;
 		}
@@ -2068,7 +2072,7 @@ void meleeAttack()
 	else
 		tookoutTime = 0.0f;
 	
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::microseconds(1));
 }
 
 void thirdPerson()
@@ -2099,7 +2103,7 @@ void thirdPerson()
 		*/
 	}
 
-	Sleep(1000);
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void showSpectator()
@@ -2317,7 +2321,7 @@ void showSpectator()
 		Interfaces.Engine->ClientCmd(XorStr("echo \"========= list end =========\""));
 	}
 
-	Sleep(1000);
+	std::this_thread::sleep_for(std::chrono::microseconds(1));
 }
 
 void bindAlias(int wait)
@@ -2370,7 +2374,7 @@ void transparent()
 		// local->SetNetProp("movetype", MOVETYPE_FLYGRAVITY);
 	}
 
-	Sleep(1);
+	std::this_thread::sleep_for(std::chrono::microseconds(1));
 }
 
 void autoShot()
@@ -2388,11 +2392,11 @@ void autoShot()
 			if (weapon != nullptr && pTriggerAiming != nullptr)
 			{
 				Interfaces.Engine->ClientCmd(XorStr("+attack"));
-				Sleep(9);
+				std::this_thread::sleep_for(std::chrono::milliseconds(9));
 				Interfaces.Engine->ClientCmd(XorStr("-attack"));
 			}
 		}
 
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 }

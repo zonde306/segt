@@ -16,6 +16,8 @@
 #include <ctime>
 #include <fstream>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 #include <map>
 
 using namespace std;
