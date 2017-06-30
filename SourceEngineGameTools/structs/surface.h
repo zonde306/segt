@@ -110,6 +110,7 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
+			printf("DrawPrintText Fail!");
 			return false;
 		}
 

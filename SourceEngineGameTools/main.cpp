@@ -790,7 +790,8 @@ bool IsAliveTarget(CBaseEntity* entity)
 	if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
 		id == ET_JOCKEY || id == ET_CHARGER || id == ET_TANK)
 	{
-		if (entity->GetHealth() < 1 || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
+		if (entity->GetHealth() < 1 || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0 ||
+			!entity->IsAlive())
 		{
 #ifdef _DEBUG
 			Interfaces.Engine->ClientCmd(XorStr("echo \"Special 0x%X healh = %d, ghost = %d\""), (DWORD)entity,
@@ -1408,7 +1409,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	if (font == 0)
 	{
 		font = Interfaces.Surface->SCreateFont();
-		Interfaces.Surface->SetFontGlyphSet(font, "Calibri", FONT_SIZE, FW_DONTCARE, 0, 0, 0x200);
+		Interfaces.Surface->SetFontGlyphSet(font, "arial", FONT_SIZE, FW_DONTCARE, 0, 0, 0x200);
 	}
 
 	if (FocusOverlayPanel > 0 && panel == FocusOverlayPanel)
