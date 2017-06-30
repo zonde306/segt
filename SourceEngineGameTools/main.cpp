@@ -128,7 +128,7 @@ static CVMTHookManager gDirectXHook;
 static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
 	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
 static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
-	bRapidFire = true, bSilentAim = false;
+	bRapidFire = true, bSilentAim = false, bAutoStrafe = false;
 static std::timed_mutex mAimbot;
 
 void bunnyHop(void*);
@@ -1143,8 +1143,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 		// strafe
 
-		/*
-		if (!(client->GetFlags() & FL_ONGROUND))
+		if (bAutoStrafe && !(client->GetFlags() & FL_ONGROUND))
 		{
 			if (pCmd->mousedx < 0)
 				pCmd->sidemove = -400.f;
@@ -1152,10 +1151,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			if (pCmd->mousedx > 0)
 				pCmd->sidemove = 400.f;
 		}
-		*/
 	}
-
-end_auto_pistol:
 
 	if (mAimbot.try_lock())
 	{
@@ -1404,6 +1400,13 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 		}
 	}
 
+	static unsigned long font = 0;
+	if (font == 0)
+	{
+		font = Interfaces.Surface->SCreateFont();
+		Interfaces.Surface->SetFontGlyphSet(font, "Calibri", 20, FW_DONTCARE, 0, 0, 0x200);
+	}
+
 	if (FocusOverlayPanel > 0 && panel == FocusOverlayPanel)
 	{
 		
@@ -1411,7 +1414,40 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
 	{
+		CBaseEntity* local = GetLocalClient();
+		if (bBoxEsp && local != nullptr && Interfaces.Engine->IsInGame())
+		{
+			int maxEntity = Interfaces.Engine->GetMaxClients();
+			for (int i = 1; i < maxEntity; ++i)
+			{
+				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
+				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local ||
+					!IsAliveTarget(entity))
+					continue;
 
+				Vector head, foot;
+				if (WorldToScreen(entity->GetEyePosition(), head) &&
+					WorldToScreen(entity->GetAbsOrigin(), foot))
+				{
+					Interfaces.Surface->drawString(foot.x, foot.y, 255, 128, 0, font, L"[%d] %s",
+						entity->GetHealth(), GetZombieClassName(entity).c_str());
+
+					static bool showHint = true;
+					if (showHint)
+					{
+						Utils::log(XorStr("zombieClass Draw: %s"), GetZombieClassName(entity).c_str());
+						showHint = false;
+					}
+
+					float height = fabs(head.y - foot.y);
+					float width = height * 0.65f;
+
+					// »æÖÆÒ»¸ö¿ò
+					Interfaces.Surface->drawBox(foot.x - width / 2, foot.y, width, -height,
+						2, 255, 0, 0, 255);
+				}
+			}
+		}
 	}
 
 	// ((FnPaintTraverse)Interfaces.PanelHook->GetOriginalFunction(indexes::PaintTraverse))(ecx, panel, forcePaint, allowForce);
@@ -1526,9 +1562,10 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		// ImGui::GetIO().MouseDrawCursor = !Interfaces.Engine->IsInGame();
 		
 		// ImGui_ImplDX9_NewFrame();
-		drawRender->BeginRendering();
+		// drawRender->BeginRendering();
 
-		CBaseEntity* local = GetLocalClient();
+		// CBaseEntity* local = GetLocalClient();
+		/*
 		if(bBoxEsp)
 		{
 			static auto getPlayerColor = [](CBaseEntity* local, CBaseEntity* other) -> D3DCOLOR
@@ -1587,9 +1624,10 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 				}
 			}
 		}
+		*/
 
 		// ImGui::Render();
-		drawRender->EndRendering();
+		// drawRender->EndRendering();
 	}
 
 	return oEndScene(device);

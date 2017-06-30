@@ -31,7 +31,7 @@ namespace indexes
 	const int GetClientEntityFromHandle = 4;
 	
 	// Surface
-	const int SetDrawColor = 11;
+	const int DrawSetColor = 11;
 	const int DrawFilledRect = 12;
 	const int DrawOutlinedRect = 14;
 	const int DrawLine = 15;
@@ -44,6 +44,7 @@ namespace indexes
 	const int DrawColoredCircle = 152;
 	const int GetTextSize = 72;
 	const int DrawFilledRectFade = 115;
+	const int AddCustomFontFile = 65;
 	
 	// ModelInfo
 	const int GetStudioModel = 30;
