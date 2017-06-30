@@ -1,5 +1,6 @@
 #include "main.h"
 #include <mutex>
+#include <sstream>
 
 #define USE_PLAYER_INFO
 #define USE_CVAR_CHANGE
@@ -824,9 +825,14 @@ bool IsAliveTarget(CBaseEntity* entity)
 
 std::string GetZombieClassName(CBaseEntity* player)
 {
-	if (player == nullptr)
+	if (player == nullptr || player->IsDormant())
 		return "";
 	
+	if (player->GetClientClass()->m_ClassID == ET_INFECTED)
+		return "infected";
+	if (player->GetClientClass()->m_ClassID == ET_WITCH)
+		return "witch";
+
 	int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 	switch (zombie)
 	{
@@ -1153,126 +1159,124 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		}
 	}
 
-	if (mAimbot.try_lock())
+	// 自动瞄准
+	if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 	{
-		// 自动瞄准
-		if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+		Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
+
+		// 寻找目标
+		if (!IsAliveTarget(pCurrentAiming))
 		{
-			Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
+			int team = client->GetTeam()/*, zombieClass*/;
+			float distance = 32767.0f, dist, fov;
+			// bool visible = false;
+			Vector headPos;
 
-			// 寻找目标
-			if (!IsAliveTarget(pCurrentAiming))
+			pCurrentAiming = nullptr;
+			int maxEntity = Interfaces.Engine->GetMaxClients();
+			for (int i = 1; i < maxEntity; ++i)
 			{
-				int team = client->GetTeam()/*, zombieClass*/;
-				float distance = 32767.0f, dist, fov;
-				// bool visible = false;
-				Vector headPos;
+				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
 
-				pCurrentAiming = nullptr;
-				int maxEntity = Interfaces.Engine->GetMaxClients();
-				for (int i = 1; i < maxEntity; ++i)
+				// 检查是否为一个有效的并且活着的敌人
+				if (!IsAliveTarget(target) || target->GetTeam() == team)
 				{
-					CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
-					
-					// 检查是否为一个有效的并且活着的敌人
-					if (!IsAliveTarget(target) || target->GetTeam() == team)
-					{
-						// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X\""), (DWORD)target);
-						continue;
-					}
-
-					// 优先选择特感
-					if (i > 64 && pCurrentAiming != nullptr)
-						break;
-
-					int classId = target->GetClientClass()->m_ClassID;
-
-					// 检查是否为特感/普感/生还者/石头
-					if (classId != ET_SMOKER && classId != ET_BOOMER && classId != ET_HUNTER &&
-						classId != ET_SPITTER && classId != ET_JOCKEY && classId != ET_CHARGER &&
-						classId != ET_TANK && classId != ET_INFECTED && classId != ET_CTERRORPLAYER &&
-						classId != ET_SURVIVORBOT && classId != ET_TANKROCK)
-					{
-						// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid 0x%X ClassId %d\""), (DWORD)target, classId);
-						continue;
-					}
-
-					if (classId == ET_INFECTED)
-					{
-						// 特感是不需要瞄准普感的
-						if (team == 3)
-							continue;
-						
-						// 普感的头部的 hitbox 或许 16 也可以
-						headPos = target->GetHitboxPosition(HITBOX_COMMON);
-					}
-					else if (classId == ET_TANKROCK)
-					{
-						// Tank 投掷的石头，可以被打爆
-						headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
-					}
-					else
-					{
-						// 生还者/特感
-						headPos = target->GetHitboxPosition(HITBOX_PLAYER);
-					}
-
-					dist = headPos.DistTo(myOrigin);
-					fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
-
-					// 选择最近的，靠近准星，并且可以看见的目标
-					if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
-					{
-						pCurrentAiming = target;
-						distance = dist;
-					}
+					// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X\""), (DWORD)target);
+					continue;
 				}
 
-				if (pCurrentAiming != nullptr)
-					Interfaces.Engine->ClientCmd(XorStr("echo \"target selected 0x%X | classId = %d | health = %d\""),
-						pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
+				// 优先选择特感
+				if (i > 64 && pCurrentAiming != nullptr)
+					break;
+
+				int classId = target->GetClientClass()->m_ClassID;
+
+				// 检查是否为特感/普感/生还者/石头
+				/*
+				if (classId != ET_SMOKER && classId != ET_BOOMER && classId != ET_HUNTER &&
+					classId != ET_SPITTER && classId != ET_JOCKEY && classId != ET_CHARGER &&
+					classId != ET_TANK && classId != ET_INFECTED && classId != ET_CTERRORPLAYER &&
+					classId != ET_SURVIVORBOT && classId != ET_TANKROCK)
+				{
+					// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid 0x%X ClassId %d\""), (DWORD)target, classId);
+					continue;
+				}
+				*/
+
+				if (classId == ET_INFECTED)
+				{
+					// 特感是不需要瞄准普感的
+					if (team == 3)
+						continue;
+
+					// 普感的头部的 hitbox 或许 16 也可以
+					headPos = target->GetHitboxPosition(HITBOX_COMMON);
+				}
+				else if (classId == ET_TANKROCK)
+				{
+					// Tank 投掷的石头，可以被打爆
+					headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
+				}
+				else
+				{
+					// 生还者/特感
+					headPos = target->GetHitboxPosition(HITBOX_PLAYER);
+				}
+
+				dist = headPos.DistTo(myOrigin);
+				fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
+
+				// 选择最近的，靠近准星，并且可以看见的目标
+				if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
+				{
+					pCurrentAiming = target;
+					distance = dist;
+				}
 			}
 
-			// 瞄准
 			if (pCurrentAiming != nullptr)
-			{
-				// 目标位置
-				Vector position;
-				try
-				{
-					if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
-						position = pCurrentAiming->GetHitboxPosition(HITBOX_COMMON);
-					else
-						position = pCurrentAiming->GetHitboxPosition(HITBOX_PLAYER);
-				}
-				catch (...)
-				{
-					if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
-						goto end_aimbot;
-
-					// 获取骨骼位置失败
-					position = pCurrentAiming->GetEyePosition();
-					Utils::log(XorStr("CBasePlayer::SetupBone error"));
-
-					// 根据不同的情况确定高度
-					int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-					if (zombieClass == ZC_JOCKEY)
-						position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
-					else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
-						position.z -= 12.0f;
-				}
-
-				// 速度预测，会导致屏幕晃动，所以不需要
-				// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
-
-				// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
-				pCmd->viewangles = CalculateAim(myOrigin, position);
-			}
+				Interfaces.Engine->ClientCmd(XorStr("echo \"target selected 0x%X | classId = %d | health = %d\""),
+					pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
 		}
-		
-	end_aimbot:
-		mAimbot.unlock();
+
+		// 瞄准
+		if (pCurrentAiming != nullptr)
+		{
+			// 目标位置
+			Vector position;
+			try
+			{
+				if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
+					position = pCurrentAiming->GetHitboxPosition(HITBOX_COMMON);
+				else
+					position = pCurrentAiming->GetHitboxPosition(HITBOX_PLAYER);
+			}
+			catch (...)
+			{
+				if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
+					goto end_aimbot;
+
+				// 获取骨骼位置失败
+				position = pCurrentAiming->GetEyePosition();
+				Utils::log(XorStr("CBasePlayer::SetupBone error"));
+
+				// 根据不同的情况确定高度
+				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+				if (zombieClass == ZC_JOCKEY)
+					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
+				else if (zombieClass == ZC_HUNTER && (pCurrentAiming->GetFlags() & FL_DUCKING))
+					position.z -= 12.0f;
+			}
+
+			// 速度预测，会导致屏幕晃动，所以不需要
+			// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
+
+			// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+			pCmd->viewangles = CalculateAim(myOrigin, position);
+		}
 	}
+
+end_aimbot:
 
 	// 自动开枪
 	if (bTriggerBot)
@@ -1429,8 +1433,13 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				if (WorldToScreen(entity->GetEyePosition(), head) &&
 					WorldToScreen(entity->GetAbsOrigin(), foot))
 				{
-					Interfaces.Surface->drawString(foot.x, foot.y, 255, 128, 0, font, L"[%d] %s",
-						entity->GetHealth(), GetZombieClassName(entity).c_str());
+					std::wstringstream ss;
+					if(entity->GetClientClass()->m_ClassID != ET_INFECTED &&
+						entity->GetClientClass()->m_ClassID != ET_WITCH)
+						ss << L"[" << entity->GetHealth() << L"] ";
+					ss << Utils::c2w(GetZombieClassName(entity));
+
+					Interfaces.Surface->drawString(head.x, head.y, 255, 128, 0, font, ss.str().c_str());
 
 					static bool showHint = true;
 					if (showHint)
