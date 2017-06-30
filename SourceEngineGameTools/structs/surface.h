@@ -93,7 +93,7 @@ public:
 		return ((Fn)VMT.GetFunction(this, indexes::GetTextSize))(this, fontName);
 	}
 
-	void drawString(int x, int y, int r, int g, int b, unsigned long font, const wchar_t *pszText, ...)
+	bool drawString(int x, int y, int r, int g, int b, unsigned long font, const wchar_t *pszText, ...)
 	{
 		wchar_t str[1024];
 		va_list ap;
@@ -101,10 +101,19 @@ public:
 		vswprintf_s(str, pszText, ap);
 		va_end(ap);
 
-		DrawSetTextPos(x, y);
-		DrawSetTextFont(font);
-		DrawSetTextColor(r, g, b, 255);
-		DrawPrintText(pszText, wcslen(pszText));
+		__try
+		{
+			DrawSetTextPos(x, y);
+			DrawSetTextFont(font);
+			DrawSetTextColor(r, g, b, 255);
+			DrawPrintText(str, wcslen(str));
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	void FillRGBA(int x, int y, int w, int h, int r, int g, int b, int a)
