@@ -55,6 +55,21 @@ void AngleNormalize(Vector& angles)
 	}
 }
 
+void ClampAngles(Vector& angles)
+{
+	if (angles.x > 89.0f && angles.x <= 180.0f)
+		angles.x = 89.0f;
+
+	if (angles.x > 180.0f)
+		angles.x = angles.x - 360.0f;
+
+	if (angles.x < -89.0f)
+		angles.x = -89.0f;
+
+	angles.y = fmodf(angles.y + 180, 360) - 180;
+
+	angles.z = 0;
+}
 
 void AngleVectors(const QAngle &angles, Vector *forward)
 {

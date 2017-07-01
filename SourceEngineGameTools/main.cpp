@@ -147,6 +147,23 @@ void autoShot();
 void StartCheat(HINSTANCE instance)
 {
 	// GetClientModeNormal B8 ? ? ? ? C3
+	Utils::log(XorStr("VEngineClient 0x%X"), (DWORD)Interfaces.Engine);
+	Utils::log(XorStr("EngineTraceClient 0x%X"), (DWORD)Interfaces.Trace);
+	Utils::log(XorStr("VClient 0x%X"), (DWORD)Interfaces.Client);
+	Utils::log(XorStr("VClientEntityList 0x%X"), (DWORD)Interfaces.ClientEntList);
+	Utils::log(XorStr("VModelInfoClient 0x%X"), (DWORD)Interfaces.ModelInfo);
+	Utils::log(XorStr("VGUI_Panel 0x%X"), (DWORD)Interfaces.Panel);
+	Utils::log(XorStr("VGUI_Surface 0x%X"), (DWORD)Interfaces.Surface);
+	Utils::log(XorStr("PlayerInfoManager 0x%X"), (DWORD)Interfaces.PlayerInfo);
+	Utils::log(XorStr("VClientPrediction 0x%X"), (DWORD)Interfaces.Prediction);
+	Utils::log(XorStr("GameMovement 0x%X"), (DWORD)Interfaces.GameMovement);
+	Utils::log(XorStr("VDebugOverlay 0x%X"), (DWORD)Interfaces.DebugOverlay);
+	Utils::log(XorStr("GameEventsManager 0x%X"), (DWORD)Interfaces.GameEvent);
+	Utils::log(XorStr("VEngineModel 0x%X"), (DWORD)Interfaces.ModelRender);
+	Utils::log(XorStr("VEngineRenderView 0x%X"), (DWORD)Interfaces.RenderView);
+	Utils::log(XorStr("VEngineCvar 0x%X"), (DWORD)Interfaces.Engine);
+	Utils::log(XorStr("GlobalsVariable 0x%X"), (DWORD)Interfaces.Globals);
+	Utils::log(XorStr("Input 0x%X"), (DWORD)Interfaces.Input);
 
 	typedef void*(__stdcall* FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
@@ -545,6 +562,15 @@ void StartCheat(HINSTANCE instance)
 
 			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
 				showSpectator();
+
+			if (GetAsyncKeyState(VK_F8) & 0x01)
+			{
+				bAutoStrafe = !bAutoStrafe;
+				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto strafe set %s\""),
+					(bAutoStrafe ? XorStr("enable") : XorStr("disabled")));
+
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
 
 			if (GetAsyncKeyState(VK_F9) & 0x01)
 			{
@@ -1104,7 +1130,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 	DWORD dwEBP = NULL;
 	__asm mov dwEBP, ebp
-	PBYTE pSendPacket = (PBYTE)(*(PDWORD)(dwEBP) - 0x21);
+	bool* bSendPacket = (bool*)(*(char**)dwEBP - 0x21);
 
 	CVerifiedUserCmd *pVerifiedCmd = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
 	CUserCmd *pCmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
@@ -1161,8 +1187,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			shouldFake = false;
 		}
 
-		// strafe
-
+		// 连跳自动向前移动（不需要按其他键）
 		if (bAutoStrafe && !(client->GetFlags() & FL_ONGROUND))
 		{
 			if (pCmd->mousedx < 0)
@@ -1303,19 +1328,38 @@ end_aimbot:
 			pCmd->buttons |= IN_ATTACK;
 	}
 
-	if(bSilentAim)
+	if (bRapidFire && weapon != nullptr && pCmd->buttons & IN_ATTACK)
+	{
+		int weaponId = weapon->GetWeaponID();
+		float nextAttack = weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon");
+
+		static bool ignoreButton = true;
+		if (IsWeaponSingle(weaponId) && !ignoreButton && nextAttack > serverTime)
+		{
+			pCmd->buttons &= ~IN_ATTACK;
+			ignoreButton = true;
+		}
+		else
+			ignoreButton = false;
+	}
+
+	if(bSilentAim && weapon != nullptr)
 	{
 		if ((pCmd->buttons & IN_ATTACK) &&
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
-			*pSendPacket = false;
+			*bSendPacket = false;
 		else
 		{
-			*pSendPacket = true;
+			*bSendPacket = true;
 			pCmd->viewangles = oldViewAngles;
 			pCmd->sidemove = oldSidemove;
 			pCmd->fowardmove = oldForwardmove;
 		}
 	}
+
+	// 防止因为角度不正常被检测
+	ClampAngles(pCmd->viewangles);
+	AngleNormalize(pCmd->viewangles);
 
 	pVerifiedCmd->m_cmd = *pCmd;
 	pVerifiedCmd->m_crc = pCmd->GetChecksum();
@@ -1465,7 +1509,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				ss.str(L"");
 
 				bool visible = IsTargetVisible(entity, headbox);
-				float dist = myOrigin.DistTo(headbox);
+				float dist = local->GetAbsOrigin().DistTo(entity->GetAbsOrigin());
 				ss << dist;
 
 				// 显示距离
@@ -1871,11 +1915,7 @@ void autoPistol()
 					// 检查当前武器是否需要连点才能持续开枪
 					// 因为这个连点开枪效率并不好，对于自动武器来说，会降低射击速度
 					// 连发霰弹枪连点可以加快射速
-					if (weaponId == Weapon_Pistol || weaponId == Weapon_ShotgunPump ||
-						weaponId == Weapon_ShotgunAuto || weaponId == Weapon_SniperHunting ||
-						weaponId == Weapon_ShotgunChrome || weaponId == Weapon_SniperMilitary ||
-						weaponId == Weapon_ShotgunSpas || weaponId == Weapon_PistolMagnum ||
-						weaponId == Weapon_SniperAWP || weaponId == Weapon_SniperScout)
+					if (IsWeaponSingle(weaponId))
 					{
 						Interfaces.Engine->ClientCmd(XorStr("+attack"));
 						std::this_thread::sleep_for(std::chrono::milliseconds(9));
@@ -2358,6 +2398,39 @@ void bindAlias(int wait)
 	Interfaces.Engine->ClientCmd(XorStr("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\""));
 	Interfaces.Engine->ClientCmd(XorStr("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\""));
 	Interfaces.Engine->ClientCmd(XorStr("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\""));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_alpha 255"));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_blue 0"));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_green 50"));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_red 190"));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_dynamic 0"));
+	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_thickness 1.0"));
+	Interfaces.Engine->ClientCmd(XorStr("crosshair 1"));
+	Interfaces.Engine->ClientCmd(XorStr("con_enable 1"));
+	Interfaces.Engine->ClientCmd(XorStr("muzzleflash_light 1"));
+	Interfaces.Engine->ClientCmd(XorStr("sv_voiceenable 1"));
+	Interfaces.Engine->ClientCmd(XorStr("voice_enable 1"));
+	Interfaces.Engine->ClientCmd(XorStr("voice_forcemicrecord 1"));
+	Interfaces.Engine->ClientCmd(XorStr("mat_monitorgamma 1.6"));
+	Interfaces.Engine->ClientCmd(XorStr("mat_monitorgamma_tv_enabled 1"));
+	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_r 255"));
+	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_g 255"));
+	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_b 255"));
+	Interfaces.Engine->ClientCmd(XorStr("bind space +jump"));
+	Interfaces.Engine->ClientCmd(XorStr("bind mouse1 +attack"));
+	Interfaces.Engine->ClientCmd(XorStr("bind mouse2 +attack2"));
+	Interfaces.Engine->ClientCmd(XorStr("bind mouse3 +zoom"));
+	Interfaces.Engine->ClientCmd(XorStr("bind ctrl +duck"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind ins"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind home"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind pgup"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind pgdn"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind end"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind del"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind f9"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind f10"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind f11"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind f12"));
+	Interfaces.Engine->ClientCmd(XorStr("unbind f8"));
 	Interfaces.Engine->ClientCmd(XorStr("echo \"echo \"========= alias end =========\"\""));
 }
 
