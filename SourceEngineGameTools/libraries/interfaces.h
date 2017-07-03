@@ -42,21 +42,21 @@ public:
 
 	void GetInterfaces()
 	{
-		Engine = (CEngine*)GetPointer(XorStr("engine.dll"), XorStr("VEngineClient"));
-		Trace = (CTrace*)GetPointer(XorStr("engine.dll"), XorStr("EngineTraceClient"));
-		Client = (CClient*)GetPointer(XorStr("client.dll"), XorStr("VClient"));
-		ClientEntList = (CClientEntityList*)GetPointer(XorStr("client.dll"), XorStr("VClientEntityList"));
-		ModelInfo = (CModelInfo*)GetPointer(XorStr("engine.dll"), XorStr("VModelInfoClient"));
-		Panel = (CPanel*)GetPointer(XorStr("vgui2.dll"), XorStr("VGUI_Panel"));
-		Surface = (CSurface*)GetPointer(XorStr("vguimatsurface.dll"), XorStr("VGUI_Surface"));
-		PlayerInfo = (CPlayerInfoManager*)GetPointer(XorStr("server.dll"), XorStr("PlayerInfoManager"));
-		Prediction = (CPrediction*)GetPointer(XorStr("client.dll"), XorStr("VClientPrediction"));
-		GameMovement = (CGameMovement*)GetPointer(XorStr("client.dll"), XorStr("GameMovement"));
-		DebugOverlay = (CDebugOverlay*)GetPointer(XorStr("engine.dll"), XorStr("VDebugOverlay"));
-		GameEvent = (CGameEvent*)GetPointer(XorStr("engine.dll"), XorStr("GAMEEVENTSMANAGER"));
-		ModelRender = (CModelRender*)GetPointer(XorStr("engine.dll"), XorStr("VEngineModel"));
-		RenderView = (CRenderView*)GetPointer(XorStr("engine.dll"), XorStr("VEngineRenderView"));
-		Cvar = (ICvar*)GetPointer(XorStr("vstdlib.dll"), XorStr("VEngineCvar"));
+		Engine = (CEngine*)GetPointer("engine.dll", "VEngineClient");
+		Trace = (CTrace*)GetPointer("engine.dll", "EngineTraceClient");
+		Client = (CClient*)GetPointer("client.dll", "VClient");
+		ClientEntList = (CClientEntityList*)GetPointer("client.dll", "VClientEntityList");
+		ModelInfo = (CModelInfo*)GetPointer("engine.dll", "VModelInfoClient");
+		Panel = (CPanel*)GetPointer("vgui2.dll", "VGUI_Panel");
+		Surface = (CSurface*)GetPointer("vguimatsurface.dll", "VGUI_Surface");
+		PlayerInfo = (CPlayerInfoManager*)GetPointer("server.dll", "PlayerInfoManager");
+		Prediction = (CPrediction*)GetPointer("client.dll", "VClientPrediction");
+		GameMovement = (CGameMovement*)GetPointer("client.dll", "GameMovement");
+		DebugOverlay = (CDebugOverlay*)GetPointer("engine.dll", "VDebugOverlay");
+		GameEvent = (CGameEvent*)GetPointer("engine.dll", "GAMEEVENTSMANAGER");
+		ModelRender = (CModelRender*)GetPointer("engine.dll", "VEngineModel");
+		RenderView = (CRenderView*)GetPointer("engine.dll", "VEngineRenderView");
+		Cvar = (ICvar*)GetPointer("vstdlib.dll", "VEngineCvar");
 		
 		PDWORD pdwClient = *(PDWORD*)Client;
 		// Input = *(CInput**)((*(DWORD**)Client)[15] + 0x1);

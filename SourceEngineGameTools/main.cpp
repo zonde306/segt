@@ -54,15 +54,15 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		HMENU hMenu = GetSystemMenu(hwnd, FALSE);
 		if (hMenu) DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
 
-		SetConsoleTitleA(XorStr("Console"));
+		SetConsoleTitleA("Console");
 		freopen("CONIN$", "r", stdin);
 		freopen("CONOUT$", "w", stdout);
 		// printf("RUN\n");
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
-		errlog.open(XorStr("segt.log"), std::ofstream::out|std::ofstream::app);
-		Utils::log(XorStr("========= cheats start ========="));
+		errlog.open("segt.log", std::ofstream::out|std::ofstream::app);
+		Utils::log("========= cheats start =========");
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
 	}
@@ -147,37 +147,37 @@ void autoShot();
 void StartCheat(HINSTANCE instance)
 {
 	// GetClientModeNormal B8 ? ? ? ? C3
-	Utils::log(XorStr("VEngineClient 0x%X"), (DWORD)Interfaces.Engine);
-	Utils::log(XorStr("EngineTraceClient 0x%X"), (DWORD)Interfaces.Trace);
-	Utils::log(XorStr("VClient 0x%X"), (DWORD)Interfaces.Client);
-	Utils::log(XorStr("VClientEntityList 0x%X"), (DWORD)Interfaces.ClientEntList);
-	Utils::log(XorStr("VModelInfoClient 0x%X"), (DWORD)Interfaces.ModelInfo);
-	Utils::log(XorStr("VGUI_Panel 0x%X"), (DWORD)Interfaces.Panel);
-	Utils::log(XorStr("VGUI_Surface 0x%X"), (DWORD)Interfaces.Surface);
-	Utils::log(XorStr("PlayerInfoManager 0x%X"), (DWORD)Interfaces.PlayerInfo);
-	Utils::log(XorStr("VClientPrediction 0x%X"), (DWORD)Interfaces.Prediction);
-	Utils::log(XorStr("GameMovement 0x%X"), (DWORD)Interfaces.GameMovement);
-	Utils::log(XorStr("VDebugOverlay 0x%X"), (DWORD)Interfaces.DebugOverlay);
-	Utils::log(XorStr("GameEventsManager 0x%X"), (DWORD)Interfaces.GameEvent);
-	Utils::log(XorStr("VEngineModel 0x%X"), (DWORD)Interfaces.ModelRender);
-	Utils::log(XorStr("VEngineRenderView 0x%X"), (DWORD)Interfaces.RenderView);
-	Utils::log(XorStr("VEngineCvar 0x%X"), (DWORD)Interfaces.Engine);
-	Utils::log(XorStr("GlobalsVariable 0x%X"), (DWORD)Interfaces.Globals);
-	Utils::log(XorStr("Input 0x%X"), (DWORD)Interfaces.Input);
+	Utils::log("VEngineClient 0x%X", (DWORD)Interfaces.Engine);
+	Utils::log("EngineTraceClient 0x%X", (DWORD)Interfaces.Trace);
+	Utils::log("VClient 0x%X", (DWORD)Interfaces.Client);
+	Utils::log("VClientEntityList 0x%X", (DWORD)Interfaces.ClientEntList);
+	Utils::log("VModelInfoClient 0x%X", (DWORD)Interfaces.ModelInfo);
+	Utils::log("VGUI_Panel 0x%X", (DWORD)Interfaces.Panel);
+	Utils::log("VGUI_Surface 0x%X", (DWORD)Interfaces.Surface);
+	Utils::log("PlayerInfoManager 0x%X", (DWORD)Interfaces.PlayerInfo);
+	Utils::log("VClientPrediction 0x%X", (DWORD)Interfaces.Prediction);
+	Utils::log("GameMovement 0x%X", (DWORD)Interfaces.GameMovement);
+	Utils::log("VDebugOverlay 0x%X", (DWORD)Interfaces.DebugOverlay);
+	Utils::log("GameEventsManager 0x%X", (DWORD)Interfaces.GameEvent);
+	Utils::log("VEngineModel 0x%X", (DWORD)Interfaces.ModelRender);
+	Utils::log("VEngineRenderView 0x%X", (DWORD)Interfaces.RenderView);
+	Utils::log("VEngineCvar 0x%X", (DWORD)Interfaces.Engine);
+	Utils::log("GlobalsVariable 0x%X", (DWORD)Interfaces.Globals);
+	Utils::log("Input 0x%X", (DWORD)Interfaces.Input);
 
 	typedef void*(__stdcall* FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
 	DWORD size, address;
-	address = Utils::GetModuleBase(XorStr("client.dll"), &size);
+	address = Utils::GetModuleBase("client.dll", &size);
 
-	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, XorStr("B8 ? ? ? ? C3"))) != nullptr)
+	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, "B8 ? ? ? ? C3")) != nullptr)
 	{
 		Interfaces.ClientMode = GetClientModeNormal();
 		if (Interfaces.ClientMode)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
 			// printo("ClientModePtr", Interfaces.ClientMode);
-			Utils::log(XorStr("ClientModePointer = 0x%X"), (DWORD)Interfaces.ClientMode);
+			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
 		}
 	}
 	else
@@ -187,7 +187,7 @@ void StartCheat(HINSTANCE instance)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
 			// printo("ClientModePtr", Interfaces.ClientMode);
-			Utils::log(XorStr("ClientModePointer = 0x%X"), (DWORD)Interfaces.ClientMode);
+			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
 		}
 	}
 	
@@ -196,7 +196,7 @@ void StartCheat(HINSTANCE instance)
 		oPaintTraverse = (FnPaintTraverse)Interfaces.PanelHook->HookFunction(indexes::PaintTraverse, Hooked_PaintTraverse);
 		Interfaces.PanelHook->HookTable(true);
 		// printo("oPaintTraverse", oPaintTraverse);
-		Utils::log(XorStr("oPaintTraverse = 0x%X"), (DWORD)oPaintTraverse);
+		Utils::log("oPaintTraverse = 0x%X", (DWORD)oPaintTraverse);
 	}
 
 	if (Interfaces.ClientModeHook && indexes::SharedCreateMove > -1)
@@ -204,7 +204,7 @@ void StartCheat(HINSTANCE instance)
 		oCreateMoveShared = (FnCreateMoveShared)Interfaces.ClientModeHook->HookFunction(indexes::SharedCreateMove, Hooked_CreateMoveShared);
 		Interfaces.ClientModeHook->HookTable(true);
 		// printo("oCreateMoveShared", oCreateMoveShared);
-		Utils::log(XorStr("oCreateMoveShared = 0x%X"), (DWORD)oCreateMoveShared);
+		Utils::log("oCreateMoveShared = 0x%X", (DWORD)oCreateMoveShared);
 	}
 
 	if (Interfaces.ClientHook && indexes::CreateMove > -1)
@@ -212,7 +212,7 @@ void StartCheat(HINSTANCE instance)
 		oCreateMove = (FnCreateMove)Interfaces.ClientHook->HookFunction(indexes::CreateMove, Hooked_CreateMove);
 		Interfaces.ClientHook->HookTable(true);
 		// printo("oCreateMove", oCreateMove);
-		Utils::log(XorStr("oCreateMove = 0x%X"), (DWORD)oCreateMove);
+		Utils::log("oCreateMove = 0x%X", (DWORD)oCreateMove);
 	}
 
 	if (Interfaces.ClientHook && indexes::FrameStageNotify > -1)
@@ -220,7 +220,7 @@ void StartCheat(HINSTANCE instance)
 		oFrameStageNotify = (FnFrameStageNotify)Interfaces.ClientHook->HookFunction(indexes::FrameStageNotify, Hooked_FrameStageNotify);
 		Interfaces.ClientHook->HookTable(true);
 		// printo("oFrameStageNotify", oFrameStageNotify);
-		Utils::log(XorStr("oFrameStageNotify = 0x%X"), (DWORD)oFrameStageNotify);
+		Utils::log("oFrameStageNotify = 0x%X", (DWORD)oFrameStageNotify);
 	}
 
 	if (Interfaces.ClientHook && indexes::InKeyEvent > -1)
@@ -228,7 +228,7 @@ void StartCheat(HINSTANCE instance)
 		oInKeyEvent = (FnInKeyEvent)Interfaces.ClientHook->HookFunction(indexes::InKeyEvent, Hooked_InKeyEvent);
 		Interfaces.ClientHook->HookTable(true);
 		// printo("oInKeyEvent", oInKeyEvent);
-		Utils::log(XorStr("oInKeyEvent = 0x%X"), (DWORD)oInKeyEvent);
+		Utils::log("oInKeyEvent = 0x%X", (DWORD)oInKeyEvent);
 	}
 
 	if (Interfaces.PredictionHook && indexes::RunCommand > -1)
@@ -236,7 +236,7 @@ void StartCheat(HINSTANCE instance)
 		oRunCommand = (FnRunCommand)Interfaces.ClientHook->HookFunction(indexes::RunCommand, Hooked_RunCommand);
 		Interfaces.ClientHook->HookTable(true);
 		// printo("oRunCommand", oRunCommand);
-		Utils::log(XorStr("oRunCommand = 0x%X"), (DWORD)oRunCommand);
+		Utils::log("oRunCommand = 0x%X", (DWORD)oRunCommand);
 	}
 
 	if (Interfaces.ModelRenderHook && indexes::DrawModel > -1)
@@ -244,7 +244,7 @@ void StartCheat(HINSTANCE instance)
 		oDrawModel = (FnDrawModel)Interfaces.ClientHook->HookFunction(indexes::DrawModel, Hooked_DrawModel);
 		Interfaces.ClientHook->HookTable(true);
 		// printo("oDrawModel", oDrawModel);
-		Utils::log(XorStr("oDrawModel = 0x%X"), (DWORD)oDrawModel);
+		Utils::log("oDrawModel = 0x%X", (DWORD)oDrawModel);
 	}
 
 	HMODULE tier0 = Utils::GetModuleHandleSafe("tier0.dll");
@@ -252,20 +252,20 @@ void StartCheat(HINSTANCE instance)
 	{
 		PrintToConsole = (FnConMsg)GetProcAddress(tier0, "?ConMsg@@YAXPBDZZ");
 		PrintToConsoleColor = (FnConColorMsg)GetProcAddress(tier0, "?ConColorMsg@@YAXABVColor@@PBDZZ");
-		Utils::log(XorStr("PrintToConsole = 0x%X"), (DWORD)PrintToConsole);
-		Utils::log(XorStr("PrintToConsoleColor = 0x%X"), (DWORD)PrintToConsoleColor);
+		Utils::log("PrintToConsole = 0x%X", (DWORD)PrintToConsole);
+		Utils::log("PrintToConsoleColor = 0x%X", (DWORD)PrintToConsoleColor);
 	}
 
 	if (Interfaces.Cvar)
 	{
-		cvar_sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
-		cvar_r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
-		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
-		cvar_mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
-		cvar_sv_pure = Interfaces.Cvar->FindVar(XorStr("sv_pure"));
-		cvar_sv_consistency = Interfaces.Cvar->FindVar(XorStr("sv_consistency"));
-		cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
-		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
+		cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
+		cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
+		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+		cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
+		cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
+		cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
+		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
+		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
 		
 		/*
 		printo("sv_cheats", cvar_sv_cheats);
@@ -278,16 +278,16 @@ void StartCheat(HINSTANCE instance)
 		printo("c_thirdpersonshoulder", cvar_c_thirdpersonshoulder);
 		*/
 
-		Utils::log(XorStr("*** ConVar ***"));
-		Utils::log(XorStr("sv_cheats = 0x%X"), (DWORD)cvar_sv_cheats);
-		Utils::log(XorStr("r_drawothermodels = 0x%X"), (DWORD)cvar_r_drawothermodels);
-		Utils::log(XorStr("cl_drawshadowtexture = 0x%X"), (DWORD)cvar_cl_drawshadowtexture);
-		Utils::log(XorStr("mat_fullbright = 0x%X"), (DWORD)cvar_mat_fullbright);
-		Utils::log(XorStr("sv_pure = 0x%X"), (DWORD)cvar_sv_pure);
-		Utils::log(XorStr("sv_consistency = 0x%X"), (DWORD)cvar_sv_consistency);
-		Utils::log(XorStr("mp_gamemode = 0x%X"), (DWORD)cvar_mp_gamemode);
-		Utils::log(XorStr("c_thirdpersonshoulder = 0x%X"), (DWORD)cvar_c_thirdpersonshoulder);
-		Utils::log(XorStr("*** end ***"));
+		Utils::log("*** ConVar ***");
+		Utils::log("sv_cheats = 0x%X", (DWORD)cvar_sv_cheats);
+		Utils::log("r_drawothermodels = 0x%X", (DWORD)cvar_r_drawothermodels);
+		Utils::log("cl_drawshadowtexture = 0x%X", (DWORD)cvar_cl_drawshadowtexture);
+		Utils::log("mat_fullbright = 0x%X", (DWORD)cvar_mat_fullbright);
+		Utils::log("sv_pure = 0x%X", (DWORD)cvar_sv_pure);
+		Utils::log("sv_consistency = 0x%X", (DWORD)cvar_sv_consistency);
+		Utils::log("mp_gamemode = 0x%X", (DWORD)cvar_mp_gamemode);
+		Utils::log("c_thirdpersonshoulder = 0x%X", (DWORD)cvar_c_thirdpersonshoulder);
+		Utils::log("*** end ***");
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -316,22 +316,22 @@ void StartCheat(HINSTANCE instance)
 		printo("oPresent", oPresent);
 		*/
 
-		Utils::log(XorStr("oReset = 0x%X"), (DWORD)oReset);
-		Utils::log(XorStr("oPresent = 0x%X"), (DWORD)oPresent);
-		Utils::log(XorStr("oEndScene = 0x%X"), (DWORD)oEndScene);
-		Utils::log(XorStr("oDrawIndexedPrimitive = 0x%X"), (DWORD)oDrawIndexedPrimitive);
-		Utils::log(XorStr("oCreateQuery = 0x%X"), (DWORD)oCreateQuery);
+		Utils::log("oReset = 0x%X", (DWORD)oReset);
+		Utils::log("oPresent = 0x%X", (DWORD)oPresent);
+		Utils::log("oEndScene = 0x%X", (DWORD)oEndScene);
+		Utils::log("oDrawIndexedPrimitive = 0x%X", (DWORD)oDrawIndexedPrimitive);
+		Utils::log("oCreateQuery = 0x%X", (DWORD)oCreateQuery);
 	});
 
 	DWORD client, engine, material, fmWait;
-	client = Utils::GetModuleBase(XorStr("client.dll"));
-	engine = Utils::GetModuleBase(XorStr("engine.dll"));
-	material = Utils::GetModuleBase(XorStr("materialsystem.dll"));
+	client = Utils::GetModuleBase("client.dll");
+	engine = Utils::GetModuleBase("engine.dll");
+	material = Utils::GetModuleBase("materialsystem.dll");
 
-	Utils::log(XorStr("client.dll = 0x%X"), client);
-	Utils::log(XorStr("engine.dll = 0x%X"), engine);
-	Utils::log(XorStr("materialsystem.dll = 0x%X"), material);
-	Utils::log(XorStr("localPlayer = 0x%X"), (DWORD)GetLocalClient());
+	Utils::log("client.dll = 0x%X", client);
+	Utils::log("engine.dll = 0x%X", engine);
+	Utils::log("materialsystem.dll = 0x%X", material);
+	Utils::log("localPlayer = 0x%X", (DWORD)GetLocalClient());
 
 	/*
 	printo("client.dll", client);
@@ -343,11 +343,13 @@ void StartCheat(HINSTANCE instance)
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoShot, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)bunnyHop, (void*)client, NULL, NULL);
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
+	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
 	fmWait = 45;
 	bindAlias(fmWait);
+	FreeConsole();
+	Interfaces.Engine->ClientCmd("clear");
 
 	for (;;)
 	{
@@ -391,9 +393,9 @@ void StartCheat(HINSTANCE instance)
 						cvar_cl_drawshadowtexture->SetValue(1);
 					}
 
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] r_drawothermodels set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
 						cvar_r_drawothermodels->GetInt());
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] cvar_cl_drawshadowtexture set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] cvar_cl_drawshadowtexture set %d\"",
 						cvar_cl_drawshadowtexture->GetInt());
 				}
 				else
@@ -410,9 +412,9 @@ void StartCheat(HINSTANCE instance)
 						Utils::writeMemory(1, client + cl_drawshadowtexture);
 					}
 
-					Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
 						Utils::readMemory<int>(client + r_drawothermodels));
-					Interfaces.Engine->ClientCmd(XorStr("echo \"cl_drawshadowtexture set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"cl_drawshadowtexture set %d\"",
 						Utils::readMemory<int>(client + cl_drawshadowtexture));
 #ifdef USE_CVAR_CHANGE
 				}
@@ -442,7 +444,7 @@ void StartCheat(HINSTANCE instance)
 					else
 						cvar_mat_fullbright->SetValue(1);
 
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] mat_fullbright set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
 						cvar_mat_fullbright->GetInt());
 				}
 				else
@@ -453,7 +455,7 @@ void StartCheat(HINSTANCE instance)
 					else
 						Utils::writeMemory(1, material + mat_fullbright);
 
-					Interfaces.Engine->ClientCmd(XorStr("echo \"mat_fullbright set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
 						Utils::readMemory<int>(material + mat_fullbright));
 #ifdef USE_CVAR_CHANGE
 				}
@@ -479,18 +481,18 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_mp_gamemode != nullptr)
 				{
 					const char* mode = cvar_mp_gamemode->GetString();
-					if (_strcmpi(mode, XorStr("versus")) == 0 || _strcmpi(mode, XorStr("realismversus")) == 0)
+					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
 					{
-						cvar_mp_gamemode->SetValue(XorStr("coop"));
+						cvar_mp_gamemode->SetValue("coop");
 						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "coop");
 					}
 					else
 					{
-						cvar_mp_gamemode->SetValue(XorStr("versus"));
-						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, XorStr("versus"));
+						cvar_mp_gamemode->SetValue("versus");
+						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "versus");
 					}
 
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] mp_gamemode set %s\""),
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
 						cvar_mp_gamemode->GetString());
 				}
 				else
@@ -503,16 +505,16 @@ void StartCheat(HINSTANCE instance)
 
 						if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
 						{
-							if (_strcmpi(mode, XorStr("versus")) == 0 || _strcmpi(mode, XorStr("realismversus")) == 0)
-								strcpy_s(mode, 16, XorStr("coop"));
+							if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+								strcpy_s(mode, 16, "coop");
 							else
-								strcpy_s(mode, 16, XorStr("versus"));
+								strcpy_s(mode, 16, "versus");
 							VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
 						}
 						else
 							printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
 
-						Interfaces.Engine->ClientCmd(XorStr("echo \"mp_gamemode set %s\""), mode);
+						Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
 					}
 #ifdef USE_CVAR_CHANGE
 				}
@@ -526,11 +528,11 @@ void StartCheat(HINSTANCE instance)
 #ifdef USE_CVAR_CHANGE
 				if (cvar_sv_cheats != nullptr)
 				{
-					// 解除修改限制
+					// 瑙ｉ櫎淇敼闄愬埗
 					if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 						cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					// 防止被发现
+					// 闃叉琚彂鐜
 					if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 						cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
@@ -542,7 +544,7 @@ void StartCheat(HINSTANCE instance)
 					cvar_sv_cheats->SetValue(1);
 					cvar_sv_cheats->m_fValue = 1.0f;
 					cvar_sv_cheats->m_nValue = 1;
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[ConVar] sv_cheats set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
 						cvar_sv_cheats->GetInt());
 				}
 #endif
@@ -550,7 +552,7 @@ void StartCheat(HINSTANCE instance)
 				if (Utils::readMemory<int>(engine + sv_cheats) != 1)
 				{
 					Utils::writeMemory(1, engine + sv_cheats);
-					Interfaces.Engine->ClientCmd(XorStr("echo \"sv_cheats set %d\""),
+					Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
 						Utils::readMemory<int>(engine + sv_cheats));
 				}
 
@@ -566,8 +568,8 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_F8) & 0x01)
 			{
 				bAutoStrafe = !bAutoStrafe;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto strafe set %s\""),
-					(bAutoStrafe ? XorStr("enable") : XorStr("disabled")));
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto strafe set %s\"",
+					(bAutoStrafe ? "enable" : "disabled"));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
@@ -575,8 +577,8 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_F9) & 0x01)
 			{
 				bTriggerBot = !bTriggerBot;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] trigger bot set %s\""),
-					(bTriggerBot ? XorStr("enable") : XorStr("disabled")));
+				Interfaces.Engine->ClientCmd("echo \"[segt] trigger bot set %s\"",
+					(bTriggerBot ? "enable" : "disabled"));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
@@ -584,8 +586,8 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_F10) & 0x01)
 			{
 				bAimBot = !bAimBot;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] aim bot set %s\""),
-					(bAimBot ? XorStr("enable") : XorStr("disabled")));
+				Interfaces.Engine->ClientCmd("echo \"[segt] aim bot set %s\"",
+					(bAimBot ? "enable" : "disabled"));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
@@ -593,8 +595,8 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_F11) & 0x01)
 			{
 				bBhop = !bBhop;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto bunnyHop set %s\""),
-					(bBhop ? XorStr("enable") : XorStr("disabled")));
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto bunnyHop set %s\"",
+					(bBhop ? "enable" : "disabled"));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
@@ -602,34 +604,26 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_F12) & 0x01)
 			{
 				bRapidFire = !bRapidFire;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"[segt] auto pistol fire %s\""),
-					(bRapidFire ? XorStr("enable") : XorStr("disabled")));
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto pistol fire %s\"",
+					(bRapidFire ? "enable" : "disabled"));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 
 			if (!connected)
 			{
-				Interfaces.Engine->ClientCmd(XorStr("echo \"********* connected *********\""));
-				cvar_sv_cheats = Interfaces.Cvar->FindVar(XorStr("sv_cheats"));
-				cvar_r_drawothermodels = Interfaces.Cvar->FindVar(XorStr("r_drawothermodels"));
-				cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar(XorStr("cl_drawshadowtexture"));
-				cvar_mat_fullbright = Interfaces.Cvar->FindVar(XorStr("mat_fullbright"));
-				cvar_sv_pure = Interfaces.Cvar->FindVar(XorStr("sv_pure"));
-				cvar_sv_consistency = Interfaces.Cvar->FindVar(XorStr("sv_consistency"));
-				cvar_mp_gamemode = Interfaces.Cvar->FindVar(XorStr("mp_gamemode"));
-				cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar(XorStr("c_thirdpersonshoulder"));
+				Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
 
-				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_cheats = 0x%X\""), (DWORD)cvar_sv_cheats);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels = 0x%X\""), (DWORD)cvar_r_drawothermodels);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"r_drawothermodels = 0x%X\""), (DWORD)cvar_r_drawothermodels);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"mat_fullbright = 0x%X\""), (DWORD)cvar_mat_fullbright);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_pure = 0x%X\""), (DWORD)cvar_sv_pure);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_consistency = 0x%X\""), (DWORD)cvar_sv_consistency);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"mp_gamemode = 0x%X\""), (DWORD)cvar_mp_gamemode);
-				Interfaces.Engine->ClientCmd(XorStr("echo \"c_thirdpersonshoulder = 0x%X\""), (DWORD)cvar_c_thirdpersonshoulder);
+				cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
+				cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
+				cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+				cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
+				cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
+				cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
+				cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
+				cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
 
-				logfile("connected");
+				Utils::log("*** connected ***");
 			}
 
 			connected = true;
@@ -706,23 +700,23 @@ void StartCheat(HINSTANCE instance)
 			if (disconnected)
 			{
 				disconnected = false;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"********* disconnected *********\""));
-				logfile("disconnected");
+				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
+				Utils::log("*** disconnected ***");
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
 
 		if (GetAsyncKeyState(VK_ADD) & 0x01)
 		{
-			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), ++fmWait);
-			Interfaces.Engine->ClientCmd(XorStr("echo \"fastmelee wait set %d\""), fmWait);
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 
 		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
 		{
-			Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\""), --fmWait);
-			Interfaces.Engine->ClientCmd(XorStr("echo \"fastmelee wait set %d\""), fmWait);
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 
@@ -756,7 +750,7 @@ void StartCheat(HINSTANCE instance)
 				if (cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
 					cvar_c_thirdpersonshoulder->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				// 防止被某些插件查询到
+				// 闃叉琚煇浜涙彃浠舵煡璇㈠埌
 				if (!cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
 					cvar_c_thirdpersonshoulder->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
@@ -775,7 +769,7 @@ void StartCheat(HINSTANCE instance)
 				Utils::writeMemory(0, engine + sv_pure);
 				Utils::writeMemory(0, engine + sv_consistency);
 
-				Interfaces.Engine->ClientCmd(XorStr("echo \"sv_pure and sv_consistency set %d\""),
+				Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
 					Utils::readMemory<int>(engine + sv_pure));
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -789,7 +783,7 @@ void StartCheat(HINSTANCE instance)
 		}
 
 		if (GetAsyncKeyState(VK_DELETE) & 0x01)
-			Interfaces.Engine->ClientCmd(XorStr("disconnect"));
+			Interfaces.Engine->ClientCmd("disconnect");
 
 		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
@@ -824,7 +818,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 		if (!entity->IsAlive() || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
 		{
 #ifdef _DEBUG
-			Interfaces.Engine->ClientCmd(XorStr("echo \"Special 0x%X healh = %d, ghost = %d\""), (DWORD)entity,
+			Interfaces.Engine->ClientCmd("echo \"Special 0x%X healh = %d, ghost = %d\"", (DWORD)entity,
 				entity->GetNetProp<int>("m_iHealth", "DT_TerrorPlayer"), entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"));
 #endif
 			return false;
@@ -835,7 +829,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 		if ((solid & SF_NOT_SOLID))
 		{
 #ifdef _DEBUG
-			Interfaces.Engine->ClientCmd(XorStr("echo \"Common 0x%X is dead\""), (DWORD)entity);
+			Interfaces.Engine->ClientCmd("echo \"Common 0x%X is dead\"", (DWORD)entity);
 #endif
 			return false;
 		}
@@ -845,7 +839,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 		if (!entity->IsAlive())
 		{
 #ifdef _DEBUG
-			Interfaces.Engine->ClientCmd(XorStr("echo \"Survivor 0x%X is dead %d\""), (DWORD)entity,
+			Interfaces.Engine->ClientCmd("echo \"Survivor 0x%X is dead %d\"", (DWORD)entity,
 				entity->GetNetProp<int>("m_iHealth", "DT_TerrorPlayer"));
 #endif
 			return false;
@@ -854,8 +848,8 @@ bool IsAliveTarget(CBaseEntity* entity)
 	else
 	{
 #ifdef _DEBUG
-		// Utils::log(XorStr("Invalid ClassId = %d | sequence = %d | solid = %d"), id, sequence, solid);
-		Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X ClassId %d\""), (DWORD)entity, id);
+		// Utils::log("Invalid ClassId = %d | sequence = %d | solid = %d", id, sequence, solid);
+		Interfaces.Engine->ClientCmd("echo \"Invalid Entity 0x%X ClassId %d\"", (DWORD)entity, id);
 #endif
 		return false;
 	}
@@ -877,21 +871,21 @@ std::string GetZombieClassName(CBaseEntity* player)
 	switch (zombie)
 	{
 	case ZC_SMOKER:
-		return XorStr("smoker");
+		return "smoker";
 	case ZC_BOOMER:
-		return XorStr("boomer");
+		return "boomer";
 	case ZC_HUNTER:
-		return XorStr("hunter");
+		return "hunter";
 	case ZC_SPITTER:
-		return XorStr("spitter");
+		return "spitter";
 	case ZC_JOCKEY:
-		return XorStr("jockey");
+		return "jockey";
 	case ZC_CHARGER:
-		return XorStr("charger");
+		return "charger";
 	case ZC_TANK:
-		return XorStr("tank");
+		return "tank";
 	case ZC_SURVIVORBOT:
-		return XorStr("survivor");
+		return "survivor";
 	}
 
 	return "";
@@ -978,33 +972,33 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 	ray.Init(src, dst);
 
 #ifdef _DEBUG
-	Utils::log(XorStr("TraceRay: skip = 0x%X | start = (%.2f %.2f %.2f) | end = (%.2f %.2f %.2f)"),
+	Utils::log("TraceRay: skip = 0x%X | start = (%.2f %.2f %.2f) | end = (%.2f %.2f %.2f)",
 		(DWORD)client, src.x, src.y, src.z, dst.x, dst.y, dst.z);
 #endif
 
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 
 #ifdef _DEBUG
-	Utils::log(XorStr("TraceRay: entity = 0x%X | hitbox = %d | bone = %d | hitGroup = %d | fraction = %.2f | classId = %d"),
+	Utils::log("TraceRay: entity = 0x%X | hitbox = %d | bone = %d | hitGroup = %d | fraction = %.2f | classId = %d",
 		trace.m_pEnt, trace.hitbox, trace.physicsBone, trace.hitGroup, trace.fraction,
 		(trace.m_pEnt != nullptr ? trace.m_pEnt->GetClientClass()->m_ClassID : -1));
 #endif
 
-	// 检查目标是否为一个有效的实体
+	// 妫�鏌ョ洰鏍囨槸鍚︿负涓�涓湁鏁堢殑瀹炰綋
 	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
 		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
 	{
 #ifdef _DEBUG
-		Interfaces.Engine->ClientCmd(XorStr("echo \"invalid entity 0x%X\""), (DWORD)trace.m_pEnt);
+		Interfaces.Engine->ClientCmd("echo \"invalid entity 0x%X\"", (DWORD)trace.m_pEnt);
 #endif
 		return nullptr;
 	}
 
-	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
+	// 妫�鏌ョ洰鏍囨槸鍚︿负涓�涓彲瑙佺殑鐗╀綋锛屾垨鑰呰鐗╀綋鏄惁鍙互琚嚮涓紝浠ュ強鏄惁涓烘寚瀹氫綅
 	if (trace.hitbox == 0 || (hitbox > 0 && trace.hitbox != hitbox))
 	{
 #ifdef _DEBUG
-		Interfaces.Engine->ClientCmd(XorStr("echo \"invalid hitbox 0x%X | hitbox = %d | bone = %d | group = %d\""),
+		Interfaces.Engine->ClientCmd("echo \"invalid hitbox 0x%X | hitbox = %d | bone = %d | group = %d\"",
 			(DWORD)trace.m_pEnt, trace.hitbox, trace.physicsBone, trace.hitGroup);
 #endif
 
@@ -1035,12 +1029,12 @@ bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
 
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 
-	// 检查目标是否为一个有效的实体
+	// 妫�鏌ョ洰鏍囨槸鍚︿负涓�涓湁鏁堢殑瀹炰綋
 	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
 		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
 		return false;
 
-	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位置
+	// 妫�鏌ョ洰鏍囨槸鍚︿负涓�涓彲瑙佺殑鐗╀綋锛屾垨鑰呰鐗╀綋鏄惁鍙互琚嚮涓紝浠ュ強鏄惁涓烘寚瀹氫綅缃
 	if (trace.hitbox == 0)
 		return false;
 
@@ -1069,14 +1063,15 @@ void ResetDeviceHook(IDirect3DDevice9* device)
 	oCreateQuery = gDirectXHook.SetupHook(118, Hooked_CreateQuery);
 	gDirectXHook.HookTable(true);
 
-	std::cout << XorStr("========= Hook D3D Device =========") << std::endl;
-	printv(dh::gDeviceInternal);
-	printv(oReset);
-	printv(oPresent);
-	printv(oEndScene);
-	printv(oDrawIndexedPrimitive);
-	printv(oCreateQuery);
-	std::cout << XorStr("========= Hook End =========") << std::endl;
+	Utils::log("========= Hook D3D Device =========");
+	Utils::log("pD3DDevice = 0x%X", dh::gDeviceInternal);
+	Utils::log("oReset = 0x%X", oReset);
+	Utils::log("oPresent = 0x%X", oPresent);
+	Utils::log("oEndScene = 0x%X", oEndScene);
+	Utils::log("oDrawIndexedPrimitive = 0x%X", oDrawIndexedPrimitive);
+	Utils::log("oCreateQuery = 0x%X", oCreateQuery);
+	Utils::log("========= Hook Device End =========");
+	Interfaces.Engine->ClientCmd("clear");
 }
 
 void pure(void* engine)
@@ -1108,7 +1103,7 @@ void pure(void* engine)
 			Utils::writeMemory(0, (DWORD)engine + sv_pure);
 			Utils::writeMemory(0, (DWORD)engine + sv_consistency);
 
-			Interfaces.Engine->ClientCmd(XorStr("echo \"sv_pure and sv_consistency set %d\""),
+			Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
 				Utils::readMemory<int>((DWORD)engine + sv_pure));
 		}
 
@@ -1122,8 +1117,8 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	if (showHint)
 	{
 		// showHint = false;
-		std::cout << XorStr("Hooked_CreateMove trigged.") << std::endl;
-		Utils::log(XorStr("Hooked_CreateMove success"));
+		std::cout << "Hooked_CreateMove trigged." << std::endl;
+		Utils::log("Hooked_CreateMove success");
 	}
 	
 	oCreateMove(sequence_number, input_sample_frametime, active);
@@ -1137,8 +1132,8 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	if (showHint)
 	{
 		showHint = false;
-		Utils::log(XorStr("pVerifiedCmd = 0x%X"), (DWORD)pVerifiedCmd);
-		Utils::log(XorStr("pCmd = 0x%X"), (DWORD)pCmd);
+		Utils::log("pVerifiedCmd = 0x%X", (DWORD)pVerifiedCmd);
+		Utils::log("pCmd = 0x%X", (DWORD)pCmd);
 	}
 	
 	CBaseEntity* client = GetLocalClient();
@@ -1157,7 +1152,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	float oldSidemove = pCmd->sidemove;
 	float oldForwardmove = pCmd->fowardmove;
 
-	// 连跳
+	// 杩炶烦
 	if (bBhop && (GetAsyncKeyState(VK_SPACE) & 0x8000))
 	{
 		static bool lastJump = false;
@@ -1187,7 +1182,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			shouldFake = false;
 		}
 
-		// 连跳自动向前移动（不需要按其他键）
+		// 杩炶烦鑷姩鍚戝墠绉诲姩锛堜笉闇�瑕佹寜鍏朵粬閿級
 		if (bAutoStrafe && !(client->GetFlags() & FL_ONGROUND))
 		{
 			if (pCmd->mousedx < 0)
@@ -1198,12 +1193,12 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		}
 	}
 
-	// 自动瞄准
+	// 鑷姩鐬勫噯
 	if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 	{
 		Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
 
-		// 寻找目标
+		// 瀵绘壘鐩爣
 		/*
 		if (!IsAliveTarget(pCurrentAiming))
 		{
@@ -1218,14 +1213,14 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			{
 				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
 
-				// 检查是否为一个有效的并且活着的敌人
+				// 妫�鏌ユ槸鍚︿负涓�涓湁鏁堢殑骞朵笖娲荤潃鐨勬晫浜
 				if (!IsAliveTarget(target) || target->GetTeam() == team)
 				{
-					// Interfaces.Engine->ClientCmd(XorStr("echo \"Invalid Entity 0x%X\""), (DWORD)target);
+					// Interfaces.Engine->ClientCmd("echo \"Invalid Entity 0x%X\"", (DWORD)target);
 					continue;
 				}
 
-				// 优先选择特感
+				// 浼樺厛閫夋嫨鐗规劅
 				if (i > 64 && pCurrentAiming != nullptr)
 					break;
 
@@ -1233,28 +1228,28 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 				if (classId == ET_INFECTED)
 				{
-					// 特感是不需要瞄准普感的
+					// 鐗规劅鏄笉闇�瑕佺瀯鍑嗘櫘鎰熺殑
 					if (team == 3)
 						continue;
 
-					// 普感的头部的 hitbox 或许 16 也可以
+					// 鏅劅鐨勫ご閮ㄧ殑 hitbox 鎴栬 16 涔熷彲浠
 					headPos = target->GetHitboxPosition(HITBOX_COMMON);
 				}
 				else if (classId == ET_TANKROCK)
 				{
-					// Tank 投掷的石头，可以被打爆
+					// Tank 鎶曟幏鐨勭煶澶达紝鍙互琚墦鐖
 					headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
 				}
 				else
 				{
-					// 生还者/特感
+					// 鐢熻繕鑰?鐗规劅
 					headPos = target->GetHitboxPosition(HITBOX_PLAYER);
 				}
 
 				dist = headPos.DistTo(myOrigin);
 				fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
 
-				// 选择最近的，靠近准星，并且可以看见的目标
+				// 閫夋嫨鏈�杩戠殑锛岄潬杩戝噯鏄燂紝骞朵笖鍙互鐪嬭鐨勭洰鏍
 				if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
 				{
 					pCurrentAiming = target;
@@ -1263,15 +1258,15 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			}
 			
 			if (pCurrentAiming != nullptr)
-				Interfaces.Engine->ClientCmd(XorStr("echo \"target selected 0x%X | classId = %d | health = %d\""),
+				Interfaces.Engine->ClientCmd("echo \"target selected 0x%X | classId = %d | health = %d\"",
 					pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
 		}
 		*/
 
-		// 瞄准
+		// 鐬勫噯
 		if (pCurrentAiming != nullptr)
 		{
-			// 目标位置
+			// 鐩爣浣嶇疆
 			Vector position;
 			try
 			{
@@ -1285,11 +1280,11 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 				if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
 					goto end_aimbot;
 
-				// 获取骨骼位置失败
+				// 鑾峰彇楠ㄩ浣嶇疆澶辫触
 				position = pCurrentAiming->GetEyePosition();
-				Utils::log(XorStr("CBasePlayer::SetupBone error"));
+				Utils::log("CBasePlayer::SetupBone error");
 
-				// 根据不同的情况确定高度
+				// 鏍规嵁涓嶅悓鐨勬儏鍐电‘瀹氶珮搴
 				int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 				if (zombieClass == ZC_JOCKEY)
 					position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
@@ -1297,7 +1292,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 					position.z -= 12.0f;
 			}
 
-			// 速度预测，会导致屏幕晃动，所以不需要
+			// 閫熷害棰勬祴锛屼細瀵艰嚧灞忓箷鏅冨姩锛屾墍浠ヤ笉闇�瑕
 			// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
 			// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
@@ -1307,7 +1302,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 end_aimbot:
 
-	// 自动开枪
+	// 鑷姩寮�鏋
 	if (bTriggerBot)
 	{
 		CBaseEntity* target = GetAimingTarget();
@@ -1315,16 +1310,18 @@ end_aimbot:
 		if (target != nullptr)
 		{
 			if (!IsAliveTarget(target))
-				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming dead 0x%X\""), (DWORD)target);
+				Interfaces.Engine->ClientCmd("echo \"aiming dead 0x%X\"", (DWORD)target);
 			if (target->GetTeam() == client->GetTeam())
-				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming team 0x%X\""), (DWORD)target);
+				Interfaces.Engine->ClientCmd("echo \"aiming team 0x%X\"", (DWORD)target);
 			if (target->GetClientClass()->m_ClassID == ET_INFECTED)
-				Interfaces.Engine->ClientCmd(XorStr("echo \"aiming infected 0x%X\""), (DWORD)target);
+				Interfaces.Engine->ClientCmd("echo \"aiming infected 0x%X\"", (DWORD)target);
 		}
 #endif
 
 		if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
-			(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED))
+			(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED) &&
+			weapon != nullptr && weapon->GetWeaponID() != Weapon_Melee &&
+			target->GetClientClass()->m_ClassID != ET_WITCH)
 			pCmd->buttons |= IN_ATTACK;
 	}
 
@@ -1357,7 +1354,7 @@ end_aimbot:
 		}
 	}
 
-	// 防止因为角度不正常被检测
+	// 闃叉鍥犱负瑙掑害涓嶆甯歌妫�娴
 	ClampAngles(pCmd->viewangles);
 	AngleNormalize(pCmd->viewangles);
 
@@ -1371,8 +1368,8 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << XorStr("Hooked_CreateMoveShared trigged.") << std::endl;
-		Utils::log(XorStr("Hooked_CreateMoveShared success"));
+		std::cout << "Hooked_CreateMoveShared trigged." << std::endl;
+		Utils::log("Hooked_CreateMoveShared success");
 	}
 	
 	CBaseEntity* client = GetLocalClient();
@@ -1380,7 +1377,7 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 	if (!client || !cmd)
 		return false;
 
-	// 连跳
+	// 杩炶烦
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 	{
 		static bool lastJump = false;
@@ -1431,8 +1428,8 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << XorStr("Hooked_PaintTraverse trigged.") << std::endl;
-		Utils::log(XorStr("Hooked_PaintTraverse success"));
+		std::cout << "Hooked_PaintTraverse trigged." << std::endl;
+		Utils::log("Hooked_PaintTraverse success");
 	}
 	
 	static unsigned int MatSystemTopPanel = 0;
@@ -1444,12 +1441,12 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 		if (panelName[0] == 'M' && panelName[3] == 'S' && panelName[9] == 'T')
 		{
 			MatSystemTopPanel = panel;
-			Utils::log(XorStr("panel %s found %d"), panelName, MatSystemTopPanel);
+			Utils::log("panel %s found %d", panelName, MatSystemTopPanel);
 		}
 		else if (panelName[0] == 'F' && panelName[5] == 'O')
 		{
 			FocusOverlayPanel = panel;
-			Utils::log(XorStr("panel %s found %d"), panelName, FocusOverlayPanel);
+			Utils::log("panel %s found %d", panelName, FocusOverlayPanel);
 		}
 	}
 
@@ -1503,7 +1500,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				float height = fabs(head.y - foot.y);
 				float width = height * 0.65f;
 
-				// 显示血量和类型
+				// 鏄剧ず琛�閲忓拰绫诲瀷
 				Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 128, 0, font, ss.str().c_str());
 
 				ss.str(L"");
@@ -1512,15 +1509,15 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				float dist = local->GetAbsOrigin().DistTo(entity->GetAbsOrigin());
 				ss << dist;
 
-				// 显示距离
+				// 鏄剧ず璺濈
 				if (visible)
 				{
-					// 可以看见，使用蓝色
+					// 鍙互鐪嬭锛屼娇鐢ㄨ摑鑹
 					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 0, 255, 255, font, ss.str().c_str());
 				}
 				else
 				{
-					// 看不见，使用黄色
+					// 鐪嬩笉瑙侊紝浣跨敤榛勮壊
 					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 255, 255, 0, font, ss.str().c_str());
 				}
 
@@ -1537,17 +1534,17 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 						if (weapon->GetNetProp<int>("m_bInReload", "DT_BaseCombatWeapon") > 0)
 						ss << L" | reloading";
 
-						// 显示弹药和换子弹
+						// 鏄剧ず寮硅嵂鍜屾崲瀛愬脊
 						Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE * 2, 0, 255, 0, font, ss.str().c_str());
 					}
 				}
 				*/
 
-				// 绘制一个框
+				// 缁樺埗涓�涓
 				Interfaces.Surface->drawBox(foot.x - width / 2, foot.y, width, -height,
 					1, 255, 0, 0, 255);
 
-				// 顺便给 Aimbot 寻找目标
+				// 椤轰究缁?Aimbot 瀵绘壘鐩爣
 				if (bAimBot && (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) || !IsAliveTarget(pCurrentAiming)))
 				{
 					pCurrentAiming = nullptr;
@@ -1577,8 +1574,8 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << XorStr("Hooked_FrameStageNotify trigged.") << std::endl;
-		Utils::log(XorStr("Hooked_FrameStageNotify success"));
+		std::cout << "Hooked_FrameStageNotify trigged." << std::endl;
+		Utils::log("Hooked_FrameStageNotify success");
 	}
 	
 	QAngle punch;
@@ -1606,7 +1603,7 @@ void __stdcall Hooked_RunCommand(CBaseEntity* pEntity, CUserCmd* pCmd, CMoveHelp
 	oRunCommand(pEntity, pCmd, moveHelper);
 
 	if (Interfaces.MoveHelper == nullptr)
-		Utils::log(XorStr("MoveHelperPointer = 0x%X"), (DWORD)moveHelper);
+		Utils::log("MoveHelperPointer = 0x%X", (DWORD)moveHelper);
 
 	Interfaces.MoveHelper = moveHelper;
 }
@@ -1622,10 +1619,10 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << XorStr("Hooked_Reset trigged.") << std::endl;
+		std::cout << "Hooked_Reset trigged." << std::endl;
 
 		if((DWORD)dh::gDeviceInternal == (DWORD)device)
-			Utils::log(XorStr("Hooked_Reset success"));
+			Utils::log("Hooked_Reset success");
 	}
 
 	if (dh::gDeviceInternal == nullptr)
@@ -1655,10 +1652,10 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	{
 		showHint = false;
 		// printf("Hooked_EndScene trigged.");
-		std::cout << XorStr("Hooked_EndScene trigged.") << std::endl;
+		std::cout << "Hooked_EndScene trigged." << std::endl;
 
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
-			Utils::log(XorStr("Hooked_EndScene success"));
+			Utils::log("Hooked_EndScene success");
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1669,7 +1666,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 
 	if (!bImGuiInitialized)
 	{
-		// 初始化
+		// 鍒濆鍖
 		// ImGui_ImplDX9_Init(FindWindowA(NULL, "Left 4 Dead 2"), device);
 		drawRender = new DrawManager(device);
 		bImGuiInitialized = true;
@@ -1705,7 +1702,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 
 				if (i < 64)
 				{
-					// 玩家
+					// 鐜╁
 					if (!entity->IsAlive() || entity->GetHealth() <= 0)
 						continue;
 					
@@ -1715,29 +1712,29 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 					if (WorldToScreen(entity->GetEyePosition(), head) &&
 						WorldToScreen(entity->GetAbsOrigin(), foot))
 					{
-						// 显示类型
+						// 鏄剧ず绫诲瀷
 						drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
 							entity->GetHealth(), GetZombieClassName(entity).c_str());
 
 						static bool showHint = true;
 						if (showHint)
 						{
-							Utils::log(XorStr("zombieClass Draw: %s"), GetZombieClassName(entity).c_str());
+							Utils::log("zombieClass Draw: %s", GetZombieClassName(entity).c_str());
 							showHint = false;
 						}
 
 						float height = fabs(head.y - foot.y);
 						float width = height * 0.65f;
 
-						// 绘制一个框
+						// 缁樺埗涓�涓
 						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
 						// drawRender->DrawRect(foot.x - width / 2, foot.y, width, -height, color);
 					}
 				}
 				else
 				{
-					// 普感
-					// TODO: 如果这个实体是普感，就绘制出来
+					// 鏅劅
+					// TODO: 濡傛灉杩欎釜瀹炰綋鏄櫘鎰燂紝灏辩粯鍒跺嚭鏉
 				}
 			}
 		}
@@ -1758,9 +1755,9 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 	{
 		showHint = false;
 		// printf("Hooked_DrawIndexedPrimitive trigged.");
-		// std::cout << XorStr("Hooked_DrawIndexedPrimitive trigged.") << std::endl;
+		// std::cout << "Hooked_DrawIndexedPrimitive trigged." << std::endl;
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
-			Utils::log(XorStr("Hooked_DrawIndexedPrimitive success"));
+			Utils::log("Hooked_DrawIndexedPrimitive success");
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1800,9 +1797,9 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 	{
 		showHint = false;
 		// printf("Hooked_CreateQuery trigged.");
-		// std::cout << XorStr("Hooked_CreateQuery trigged.") << std::endl;
+		// std::cout << "Hooked_CreateQuery trigged." << std::endl;
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
-			Utils::log(XorStr("Hooked_CreateQuery success"));
+			Utils::log("Hooked_CreateQuery success");
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1826,9 +1823,9 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	{
 		showHint = false;
 		// printf("Hooked_Present trigged.");
-		// std::cout << XorStr("Hooked_Present trigged.") << std::endl;
+		// std::cout << "Hooked_Present trigged." << std::endl;
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
-			Utils::log(XorStr("Hooked_Present success"));
+			Utils::log("Hooked_Present success");
 	}
 	
 	if (dh::gDeviceInternal == nullptr)
@@ -1864,23 +1861,23 @@ void bunnyHop(void* client)
 			{
 				if (Utils::readMemory<int>((DWORD)client + m_iButtons) & IN_JUMP)
 				{
-					Interfaces.Engine->ClientCmd(XorStr("-jump"));
+					Interfaces.Engine->ClientCmd("-jump");
 					std::this_thread::sleep_for(std::chrono::microseconds(1));
 				}
 
-				Interfaces.Engine->ClientCmd(XorStr("+jump"));
+				Interfaces.Engine->ClientCmd("+jump");
 				repeat = true;
 			}
 			else if (flags == FL_CLIENT || flags == (FL_DUCKING | FL_CLIENT) || flags == (FL_INWATER | FL_CLIENT) ||
 				flags == (FL_DUCKING | FL_CLIENT | FL_INWATER))
 			{
-				Interfaces.Engine->ClientCmd(XorStr("-jump"));
+				Interfaces.Engine->ClientCmd("-jump");
 				if (repeat)
 				{
 					std::this_thread::sleep_for(std::chrono::milliseconds(16));
-					Interfaces.Engine->ClientCmd(XorStr("+jump"));
+					Interfaces.Engine->ClientCmd("+jump");
 					std::this_thread::sleep_for(std::chrono::microseconds(1));
-					Interfaces.Engine->ClientCmd(XorStr("-jump"));
+					Interfaces.Engine->ClientCmd("-jump");
 					repeat = false;
 				}
 			}
@@ -1912,21 +1909,21 @@ void autoPistol()
 				CBaseEntity* target = (aiming > 0 ? Interfaces.ClientEntList->GetClientEntity(aiming) : nullptr);
 				if (target == nullptr || target->GetTeam() != client->GetTeam() || IsNeedRescue(target))
 				{
-					// 检查当前武器是否需要连点才能持续开枪
-					// 因为这个连点开枪效率并不好，对于自动武器来说，会降低射击速度
-					// 连发霰弹枪连点可以加快射速
+					// 妫�鏌ュ綋鍓嶆鍣ㄦ槸鍚﹂渶瑕佽繛鐐规墠鑳芥寔缁紑鏋
+					// 鍥犱负杩欎釜杩炵偣寮�鏋晥鐜囧苟涓嶅ソ锛屽浜庤嚜鍔ㄦ鍣ㄦ潵璇达紝浼氶檷浣庡皠鍑婚�熷害
+					// 杩炲彂闇板脊鏋繛鐐瑰彲浠ュ姞蹇皠閫
 					if (IsWeaponSingle(weaponId))
 					{
-						Interfaces.Engine->ClientCmd(XorStr("+attack"));
+						Interfaces.Engine->ClientCmd("+attack");
 						std::this_thread::sleep_for(std::chrono::milliseconds(9));
-						Interfaces.Engine->ClientCmd(XorStr("-attack"));
+						Interfaces.Engine->ClientCmd("-attack");
 					}
 				}
 				else
 				{
-					// 当前瞄准的是队友，并且队友不需要帮助
-					// 在这里停止开枪，防止队友伤害
-					Interfaces.Engine->ClientCmd(XorStr("-attack"));
+					// 褰撳墠鐬勫噯鐨勬槸闃熷弸锛屽苟涓旈槦鍙嬩笉闇�瑕佸府鍔
+					// 鍦ㄨ繖閲屽仠姝㈠紑鏋紝闃叉闃熷弸浼ゅ
+					Interfaces.Engine->ClientCmd("-attack");
 
 					// printf("current weapon id = %d\n", weaponId);
 				}
@@ -1953,10 +1950,10 @@ void autoAim()
 
 			if (weapon && (GetAsyncKeyState(VK_XBUTTON2) & 0x8000))
 			{
-				// 当前位置
+				// 褰撳墠浣嶇疆
 				Vector myOrigin = client->GetEyePosition();
 
-				// 检查是否需要选择新的敌人
+				// 妫�鏌ユ槸鍚﹂渶瑕侀�夋嫨鏂扮殑鏁屼汉
 				if (pCurrentAiming == nullptr || pCurrentAiming->IsDormant() ||
 					!pCurrentAiming->IsAlive() || pCurrentAiming->GetHealth() <= 0)
 				{
@@ -1986,7 +1983,7 @@ void autoAim()
 						if (zombieClass < ZC_SMOKER || zombieClass > ZC_SURVIVORBOT || zombieClass == ZC_WITCH)
 							continue;
 
-						// 选择最近的敌人
+						// 閫夋嫨鏈�杩戠殑鏁屼汉
 						dist = target->GetEyePosition().DistTo(myOrigin);
 						fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, target->GetEyePosition()));
 						if (dist < distance && fov <= 30.f)
@@ -2007,21 +2004,21 @@ void autoAim()
 
 				if (pCurrentAiming != nullptr)
 				{
-					// 目标位置
+					// 鐩爣浣嶇疆
 					Vector position;
 					try
 					{
-						// 根据头部骨头来瞄准，这玩意很不稳定，时不时会 boom
-						// 好处是瞄得准，不会被其他因数影响
+						// 鏍规嵁澶撮儴楠ㄥご鏉ョ瀯鍑嗭紝杩欑帺鎰忓緢涓嶇ǔ瀹氾紝鏃朵笉鏃朵細 boom
+						// 濂藉鏄瀯寰楀噯锛屼笉浼氳鍏朵粬鍥犳暟褰卞搷
 						position = GetHeadPosition(pCurrentAiming);
 					}
 					catch(...)
 					{
-						// 获取骨骼位置失败
+						// 鑾峰彇楠ㄩ浣嶇疆澶辫触
 						position = pCurrentAiming->GetEyePosition();
-						Utils::log(XorStr("CBasePlayer::SetupBone error"));
+						Utils::log("CBasePlayer::SetupBone error");
 
-						// 根据不同的情况确定高度
+						// 鏍规嵁涓嶅悓鐨勬儏鍐电‘瀹氶珮搴
 						int zombieClass = pCurrentAiming->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 						if (zombieClass == ZC_JOCKEY)
 							position.z = pCurrentAiming->GetAbsOrigin().z + 30.0f;
@@ -2029,7 +2026,7 @@ void autoAim()
 							position.z -= 12.0f;
 					}
 
-					// 速度预测，会导致屏幕晃动，所以不需要
+					// 閫熷害棰勬祴锛屼細瀵艰嚧灞忓箷鏅冨姩锛屾墍浠ヤ笉闇�瑕
 					// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
 					Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
@@ -2038,7 +2035,7 @@ void autoAim()
 			else if (pCurrentAiming != nullptr)
 			{
 				pCurrentAiming = nullptr;
-				Interfaces.Engine->ClientCmd(XorStr("echo \"*** auto aim stopped ***\""));
+				Interfaces.Engine->ClientCmd("echo \"*** auto aim stopped ***\"");
 			}
 		}
 
@@ -2057,7 +2054,7 @@ void esp()
 			if (player == nullptr || player->IsDormant() || !player->IsAlive() || player->GetHealth() <= 0)
 				continue;
 
-			// 没有任何效果...
+			// 娌℃湁浠讳綍鏁堟灉...
 			player->SetNetProp("m_iGlowType", 3, "DT_TerrorPlayer");
 			// player->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
 			// player->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
@@ -2100,12 +2097,12 @@ void meleeAttack()
 		if (weapon && weapon->GetWeaponID() == Weapon_Melee && tookoutTime <= serverTime &&
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
-			Interfaces.Engine->ClientCmd(XorStr("+attack"));
+			Interfaces.Engine->ClientCmd("+attack");
 			std::this_thread::sleep_for(std::chrono::milliseconds(9));
-			Interfaces.Engine->ClientCmd(XorStr("-attack"));
-			Interfaces.Engine->ClientCmd(XorStr("slot1"));
+			Interfaces.Engine->ClientCmd("-attack");
+			Interfaces.Engine->ClientCmd("slot1");
 			std::this_thread::sleep_for(std::chrono::milliseconds(9));
-			Interfaces.Engine->ClientCmd(XorStr("slot2"));
+			Interfaces.Engine->ClientCmd("slot2");
 			tookoutTime = GetServerTime() + 0.5f;
 		}
 	}
@@ -2128,14 +2125,14 @@ void thirdPerson()
 		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
-			// 切换到第三人称
+			// 鍒囨崲鍒扮涓変汉绉
 			local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
 			local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
 			local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
 		}
 		else if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == 0)
 		{
-			// 切换到第一人称
+			// 鍒囨崲鍒扮涓�浜虹О
 			local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
 			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
 			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
@@ -2157,7 +2154,7 @@ void showSpectator()
 
 		CBaseEntity* player = nullptr, *target = nullptr;
 
-		Interfaces.Engine->ClientCmd(XorStr("echo \"========= player list =========\""));
+		Interfaces.Engine->ClientCmd("echo \"========= player list =========\"");
 
 		for (int i = 1; i < 64; ++i)
 		{
@@ -2174,7 +2171,7 @@ void showSpectator()
 
 			if (team == 1)
 			{
-				// 观察者
+				// 瑙傚療鑰
 				if (mode != 4 && mode != 5)
 					continue;
 				
@@ -2187,46 +2184,46 @@ void showSpectator()
 				
 				if ((DWORD)target == (DWORD)local)
 				{
-					// 正在观察本地玩家
+					// 姝ｅ湪瑙傚療鏈湴鐜╁
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[spectator] player %s %s you\""),
-						info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s you\"",
+						info.name, (mode == 4 ? "watching" : "following"));
 #else
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[spectator] player %d %s you\""),
-						player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s you\"",
+						player->GetIndex(), (mode == 4 ? "watching" : "following"));
 #endif
 				}
 				else
 				{
-					// 正在观察其他玩家
+					// 姝ｅ湪瑙傚療鍏朵粬鐜╁
 #ifdef USE_PLAYER_INFO
 					player_info_t other;
 					Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[spectator] player %s %s %s\""),
-						info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %s %s %s\"",
+						info.name, (mode == 4 ? "watching" : "following"), other.name);
 #else
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[spectator] player %d %s %d\""),
-						player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
+					Interfaces.Engine->ClientCmd("echo \"[spectator] player %d %s %d\"",
+						player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
 #endif
 				}
 			}
 			else if (team == 2)
 			{
-				// 生还者
+				// 鐢熻繕鑰
 				if (player->IsAlive())
 				{
-					// 活着
+					// 娲荤潃
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %s is alive (%d + %.0f)\""),
+					Interfaces.Engine->ClientCmd("echo \"[survivor] player %s is alive (%d + %.0f)\"",
 						info.name, player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
 #else
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %d is alive (%d + %.0f)\""),
+					Interfaces.Engine->ClientCmd("echo \"[survivor] player %d is alive (%d + %.0f)\"",
 						player->GetIndex(), player->GetHealth(), player->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer"));
 #endif
 				}
 				else
 				{
-					// 死亡
+					// 姝讳骸
 					if (mode != 4 && mode != 5)
 						continue;
 					
@@ -2239,57 +2236,57 @@ void showSpectator()
 
 					if ((DWORD)target == (DWORD)local)
 					{
-						// 正在观察本地玩家
+						// 姝ｅ湪瑙傚療鏈湴鐜╁
 #ifdef USE_PLAYER_INFO
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %s %s you\""),
-							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s you\"",
+							info.name, (mode == 4 ? "watching" : "following"));
 #else
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %d %s you\""),
-							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s you\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"));
 #endif
 					}
 					else
 					{
-						// 正在观察其他玩家
+						// 姝ｅ湪瑙傚療鍏朵粬鐜╁
 #ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %s %s %s\""),
-							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %s %s %s\"",
+							info.name, (mode == 4 ? "watching" : "following"), other.name);
 #else
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[survivor] player %d %s %d\""),
-							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
+						Interfaces.Engine->ClientCmd("echo \"[survivor] player %d %s %d\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
 #endif
 					}
 				}
 			}
 			else if (team == 3)
 			{
-				// 感染者
+				// 鎰熸煋鑰
 				int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
 				char zombieName[32];
 				switch (zombie)
 				{
 				case ZC_SMOKER:
-					strcpy_s(zombieName, XorStr("smoker"));
+					strcpy_s(zombieName, "smoker");
 					break;
 				case ZC_BOOMER:
-					strcpy_s(zombieName, XorStr("boomer"));
+					strcpy_s(zombieName, "boomer");
 					break;
 				case ZC_HUNTER:
-					strcpy_s(zombieName, XorStr("hunter"));
+					strcpy_s(zombieName, "hunter");
 					break;
 				case ZC_SPITTER:
-					strcpy_s(zombieName, XorStr("spitter"));
+					strcpy_s(zombieName, "spitter");
 					break;
 				case ZC_JOCKEY:
-					strcpy_s(zombieName, XorStr("jockey"));
+					strcpy_s(zombieName, "jockey");
 					break;
 				case ZC_CHARGER:
-					strcpy_s(zombieName, XorStr("charger"));
+					strcpy_s(zombieName, "charger");
 					break;
 				case ZC_TANK:
-					strcpy_s(zombieName, XorStr("tank"));
+					strcpy_s(zombieName, "tank");
 					break;
 				default:
 					ZeroMemory(zombieName, 32);
@@ -2297,29 +2294,29 @@ void showSpectator()
 
 				if (player->IsAlive())
 				{
-					// 活着
+					// 娲荤潃
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %s is %s (%d)\""),
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is %s (%d)\"",
 						info.name, zombieName, player->GetHealth());
 #else
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %d is %s (%d)\""),
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is %s (%d)\"",
 						player->GetIndex(), zombieName, player->GetHealth());
 #endif
 				}
 				else if (player->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"))
 				{
-					// 幽灵状态
+					// 骞界伒鐘舵�
 #ifdef USE_PLAYER_INFO
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %s is ghost %s (%d)\""),
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is ghost %s (%d)\"",
 						info.name, zombieName, player->GetHealth());
 #else
-					Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %d is ghost %s (%d)\""),
+					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is ghost %s (%d)\"",
 						player->GetIndex(), zombieName, player->GetHealth());
 #endif
 				}
 				else
 				{
-					// 死亡
+					// 姝讳骸
 					if (mode != 4 && mode != 5)
 						continue;
 
@@ -2332,33 +2329,33 @@ void showSpectator()
 
 					if ((DWORD)target == (DWORD)local)
 					{
-						// 正在观察本地玩家
+						// 姝ｅ湪瑙傚療鏈湴鐜╁
 #ifdef USE_PLAYER_INFO
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %s %s you\""),
-							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")));
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
+							info.name, (mode == 4 ? "watching" : "following"));
 #else
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %s %s you\""),
-							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")));
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s you\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"));
 #endif
 					}
 					else
 					{
-						// 正在观察其他玩家
+						// 姝ｅ湪瑙傚療鍏朵粬鐜╁
 #ifdef USE_PLAYER_INFO
 						player_info_t other;
 						Interfaces.Engine->GetPlayerInfo(target->GetIndex(), &other);
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %s %s %s\""),
-							info.name, (mode == 4 ? XorStr("watching") : XorStr("following")), other.name);
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %s %s %s\"",
+							info.name, (mode == 4 ? "watching" : "following"), other.name);
 #else
-						Interfaces.Engine->ClientCmd(XorStr("echo \"[infected] player %d %s %d\""),
-							player->GetIndex(), (mode == 4 ? XorStr("watching") : XorStr("following")), target->GetIndex());
+						Interfaces.Engine->ClientCmd("echo \"[infected] player %d %s %d\"",
+							player->GetIndex(), (mode == 4 ? "watching" : "following"), target->GetIndex());
 #endif
 					}
 				}
 			}
 		}
 
-		Interfaces.Engine->ClientCmd(XorStr("echo \"========= list end =========\""));
+		Interfaces.Engine->ClientCmd("echo \"========= list end =========\"");
 	}
 
 	std::this_thread::sleep_for(std::chrono::microseconds(1));
@@ -2366,72 +2363,72 @@ void showSpectator()
 
 void bindAlias(int wait)
 {
-	Interfaces.Engine->ClientCmd(XorStr("echo \"echo \"========= alias begin =========\"\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias +autofire \"alias autofire_launcher autofire_loop; autofire_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias -autofire \"alias autofire_launcher autofire_stop\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias autofire_launcher autofire_loop"));
-	Interfaces.Engine->ClientCmd(XorStr("alias autofire_loop \"+attack; wait 5; -attack; wait 5; autofire_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias autofire_stop \"-attack\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias +autojump \"alias autojump_launcher autojump_loop; autojump_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias -autojump \"alias autojump_launcher autojump_stop\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias autojump_launcher autojump_loop"));
-	Interfaces.Engine->ClientCmd(XorStr("alias autojump_loop \"+jump; wait 5; -jump; wait 5; autojump_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias autojump_stop \"-jump\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias +bigjump \"+jump; +duck\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias -bigjump \"-jump; -duck\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias +pistolspam \"alias pistolspam dopistolspam; dopistolspam\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias -pistolspam \"alias pistolspam -use\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias dopistolspam \"+use; wait 3; -use; wait 3; pistolspam\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias +fastmelee \"alias fastmelee_launcher fastmelee_loop; fastmelee_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_launcher fastmelee_loop"));
-	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait 45; fastmelee_launcher\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias fastmelee_stop \"-attack\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias -fastmelee \"alias fastmelee_launcher fastmelee_stop\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_toggle \"thirdperson_enable\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_enable \"alias thirdperson_toggle thirdperson_disable; thirdpersonshoulder\""));
-	Interfaces.Engine->ClientCmd(XorStr("alias thirdperson_disable \"alias thirdperson_toggle thirdperson_enable; thirdpersonshoulder; c_thirdpersonshoulder 0\""));
-	Interfaces.Engine->ClientCmd(XorStr("c_thirdpersonshoulderoffset 0"));
-	Interfaces.Engine->ClientCmd(XorStr("c_thirdpersonshoulderaimdist 720"));
-	Interfaces.Engine->ClientCmd(XorStr("cam_ideallag 0"));
-	Interfaces.Engine->ClientCmd(XorStr("cam_idealdist 40"));
-	Interfaces.Engine->ClientCmd(XorStr("bind leftarrow \"incrementvar cam_idealdist 30 130 10\""));
-	Interfaces.Engine->ClientCmd(XorStr("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\""));
-	Interfaces.Engine->ClientCmd(XorStr("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\""));
-	Interfaces.Engine->ClientCmd(XorStr("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\""));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_alpha 255"));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_blue 0"));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_green 50"));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_red 190"));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_dynamic 0"));
-	Interfaces.Engine->ClientCmd(XorStr("cl_crosshair_thickness 1.0"));
-	Interfaces.Engine->ClientCmd(XorStr("crosshair 1"));
-	Interfaces.Engine->ClientCmd(XorStr("con_enable 1"));
-	Interfaces.Engine->ClientCmd(XorStr("muzzleflash_light 1"));
-	Interfaces.Engine->ClientCmd(XorStr("sv_voiceenable 1"));
-	Interfaces.Engine->ClientCmd(XorStr("voice_enable 1"));
-	Interfaces.Engine->ClientCmd(XorStr("voice_forcemicrecord 1"));
-	Interfaces.Engine->ClientCmd(XorStr("mat_monitorgamma 1.6"));
-	Interfaces.Engine->ClientCmd(XorStr("mat_monitorgamma_tv_enabled 1"));
-	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_r 255"));
-	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_g 255"));
-	Interfaces.Engine->ClientCmd(XorStr("z_nightvision_b 255"));
-	Interfaces.Engine->ClientCmd(XorStr("bind space +jump"));
-	Interfaces.Engine->ClientCmd(XorStr("bind mouse1 +attack"));
-	Interfaces.Engine->ClientCmd(XorStr("bind mouse2 +attack2"));
-	Interfaces.Engine->ClientCmd(XorStr("bind mouse3 +zoom"));
-	Interfaces.Engine->ClientCmd(XorStr("bind ctrl +duck"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind ins"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind home"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind pgup"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind pgdn"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind end"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind del"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind f9"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind f10"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind f11"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind f12"));
-	Interfaces.Engine->ClientCmd(XorStr("unbind f8"));
-	Interfaces.Engine->ClientCmd(XorStr("echo \"echo \"========= alias end =========\"\""));
+	Interfaces.Engine->ClientCmd("echo \"echo \"========= alias begin =========\"\"");
+	Interfaces.Engine->ClientCmd("alias +autofire \"alias autofire_launcher autofire_loop; autofire_launcher\"");
+	Interfaces.Engine->ClientCmd("alias -autofire \"alias autofire_launcher autofire_stop\"");
+	Interfaces.Engine->ClientCmd("alias autofire_launcher autofire_loop");
+	Interfaces.Engine->ClientCmd("alias autofire_loop \"+attack; wait 5; -attack; wait 5; autofire_launcher\"");
+	Interfaces.Engine->ClientCmd("alias autofire_stop \"-attack\"");
+	Interfaces.Engine->ClientCmd("alias +autojump \"alias autojump_launcher autojump_loop; autojump_launcher\"");
+	Interfaces.Engine->ClientCmd("alias -autojump \"alias autojump_launcher autojump_stop\"");
+	Interfaces.Engine->ClientCmd("alias autojump_launcher autojump_loop");
+	Interfaces.Engine->ClientCmd("alias autojump_loop \"+jump; wait 5; -jump; wait 5; autojump_launcher\"");
+	Interfaces.Engine->ClientCmd("alias autojump_stop \"-jump\"");
+	Interfaces.Engine->ClientCmd("alias +bigjump \"+jump; +duck\"");
+	Interfaces.Engine->ClientCmd("alias -bigjump \"-jump; -duck\"");
+	Interfaces.Engine->ClientCmd("alias +pistolspam \"alias pistolspam dopistolspam; dopistolspam\"");
+	Interfaces.Engine->ClientCmd("alias -pistolspam \"alias pistolspam -use\"");
+	Interfaces.Engine->ClientCmd("alias dopistolspam \"+use; wait 3; -use; wait 3; pistolspam\"");
+	Interfaces.Engine->ClientCmd("alias +fastmelee \"alias fastmelee_launcher fastmelee_loop; fastmelee_launcher\"");
+	Interfaces.Engine->ClientCmd("alias fastmelee_launcher fastmelee_loop");
+	Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait 45; fastmelee_launcher\"");
+	Interfaces.Engine->ClientCmd("alias fastmelee_stop \"-attack\"");
+	Interfaces.Engine->ClientCmd("alias -fastmelee \"alias fastmelee_launcher fastmelee_stop\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_toggle \"thirdperson_enable\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_enable \"alias thirdperson_toggle thirdperson_disable; thirdpersonshoulder\"");
+	Interfaces.Engine->ClientCmd("alias thirdperson_disable \"alias thirdperson_toggle thirdperson_enable; thirdpersonshoulder; c_thirdpersonshoulder 0\"");
+	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderoffset 0");
+	Interfaces.Engine->ClientCmd("c_thirdpersonshoulderaimdist 720");
+	Interfaces.Engine->ClientCmd("cam_ideallag 0");
+	Interfaces.Engine->ClientCmd("cam_idealdist 40");
+	Interfaces.Engine->ClientCmd("bind leftarrow \"incrementvar cam_idealdist 30 130 10\"");
+	Interfaces.Engine->ClientCmd("bind rightarrow \"incrementvar cam_idealdist 30 130 -10\"");
+	Interfaces.Engine->ClientCmd("bind uparrow \"incrementvar c_thirdpersonshoulderheight 5 25 5\"");
+	Interfaces.Engine->ClientCmd("bind downarrow \"incrementvar c_thirdpersonshoulderheight 5 25 -5\"");
+	Interfaces.Engine->ClientCmd("cl_crosshair_alpha 255");
+	Interfaces.Engine->ClientCmd("cl_crosshair_blue 0");
+	Interfaces.Engine->ClientCmd("cl_crosshair_green 50");
+	Interfaces.Engine->ClientCmd("cl_crosshair_red 190");
+	Interfaces.Engine->ClientCmd("cl_crosshair_dynamic 0");
+	Interfaces.Engine->ClientCmd("cl_crosshair_thickness 1.0");
+	Interfaces.Engine->ClientCmd("crosshair 1");
+	Interfaces.Engine->ClientCmd("con_enable 1");
+	Interfaces.Engine->ClientCmd("muzzleflash_light 1");
+	Interfaces.Engine->ClientCmd("sv_voiceenable 1");
+	Interfaces.Engine->ClientCmd("voice_enable 1");
+	Interfaces.Engine->ClientCmd("voice_forcemicrecord 1");
+	Interfaces.Engine->ClientCmd("mat_monitorgamma 1.6");
+	Interfaces.Engine->ClientCmd("mat_monitorgamma_tv_enabled 1");
+	Interfaces.Engine->ClientCmd("z_nightvision_r 255");
+	Interfaces.Engine->ClientCmd("z_nightvision_g 255");
+	Interfaces.Engine->ClientCmd("z_nightvision_b 255");
+	Interfaces.Engine->ClientCmd("bind space +jump");
+	Interfaces.Engine->ClientCmd("bind mouse1 +attack");
+	Interfaces.Engine->ClientCmd("bind mouse2 +attack2");
+	Interfaces.Engine->ClientCmd("bind mouse3 +zoom");
+	Interfaces.Engine->ClientCmd("bind ctrl +duck");
+	Interfaces.Engine->ClientCmd("unbind ins");
+	Interfaces.Engine->ClientCmd("unbind home");
+	Interfaces.Engine->ClientCmd("unbind pgup");
+	Interfaces.Engine->ClientCmd("unbind pgdn");
+	Interfaces.Engine->ClientCmd("unbind end");
+	Interfaces.Engine->ClientCmd("unbind del");
+	Interfaces.Engine->ClientCmd("unbind f9");
+	Interfaces.Engine->ClientCmd("unbind f10");
+	Interfaces.Engine->ClientCmd("unbind f11");
+	Interfaces.Engine->ClientCmd("unbind f12");
+	Interfaces.Engine->ClientCmd("unbind f8");
+	Interfaces.Engine->ClientCmd("echo \"echo \"========= alias end =========\"\"");
 }
 
 void transparent()
@@ -2464,9 +2461,9 @@ void autoShot()
 
 			if (weapon != nullptr && pTriggerAiming != nullptr)
 			{
-				Interfaces.Engine->ClientCmd(XorStr("+attack"));
+				Interfaces.Engine->ClientCmd("+attack");
 				std::this_thread::sleep_for(std::chrono::milliseconds(9));
-				Interfaces.Engine->ClientCmd(XorStr("-attack"));
+				Interfaces.Engine->ClientCmd("-attack");
 			}
 		}
 

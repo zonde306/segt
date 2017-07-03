@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <TlHelp32.h>
 // #include "ntdll.h"
 
@@ -13,7 +13,7 @@ class Utils
 {
 public:
 
-	// GBK ×ª UTF-8
+	// GBK è½¬ UTF-8
 	static std::string g2u(const std::string& strGBK)
 	{
 		string strOutUTF8 = "";
@@ -32,7 +32,7 @@ public:
 		return strOutUTF8;
 	}
 
-	// UTF-8 ×ª GBK
+	// UTF-8 è½¬ GBK
 	static std::string u2g(const std::string& strUTF8)
 	{
 		int len = MultiByteToWideChar(CP_UTF8, 0, strUTF8.c_str(), -1, NULL, 0);
@@ -51,7 +51,7 @@ public:
 		return strTemp;
 	}
 
-	// UTF-8 ×ª GB2312
+	// UTF-8 è½¬ GB2312
 	static char* utg(const char* utf8)
 	{
 		int len = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
@@ -66,7 +66,7 @@ public:
 		return str;
 	}
 
-	// GB2312 ×ª UTF-8
+	// GB2312 è½¬ UTF-8
 	static char* gtu(const char* gb2312)
 	{
 		int len = MultiByteToWideChar(CP_ACP, 0, gb2312, -1, NULL, 0);
@@ -81,7 +81,7 @@ public:
 		return str;
 	}
 
-	// wchar ×ª char
+	// wchar è½¬ char
 	static std::string w2c(const std::wstring& ws)
 	{
 		size_t convertedChars = 0;
@@ -100,7 +100,7 @@ public:
 		return result;
 	}
 
-	// char ×ª wchar
+	// char è½¬ wchar
 	static std::wstring c2w(const std::string& s)
 	{
 		size_t convertedChars = 0;
@@ -119,8 +119,8 @@ public:
 		return result;
 	}
 
-	// ËÑË÷ÌØÕ÷Âë£¬ÀıÈç 8B 0D 74 8D 70 10 8B 01 8B 90 F8 01 00 00 FF D2 8B 04 85 4C 41 78 10 C3
-	// ²ÎÊı dwAddress Îª¿ªÊ¼µØÖ·£¬²ÎÊı dwLength ĞèÒªËÑË÷µÄ·¶Î§£¬²ÎÊı szPattern ÎªÌØÕ÷Âë
+	// æœç´¢ç‰¹å¾ç ï¼Œä¾‹å¦‚ 8B 0D 74 8D 70 10 8B 01 8B 90 F8 01 00 00 FF D2 8B 04 85 4C 41 78 10 C3
+	// å‚æ•° dwAddress ä¸ºå¼€å§‹åœ°å€ï¼Œå‚æ•° dwLength éœ€è¦æœç´¢çš„èŒƒå›´ï¼Œå‚æ•° szPattern ä¸ºç‰¹å¾ç 
 	static DWORD FindPattern(DWORD dwAddress, DWORD dwLength, std::string szPattern)
 	{
 		const char *pat = szPattern.c_str();
@@ -162,7 +162,7 @@ public:
 		return hmModuleHandle;
 	}
 
-	// »ñÈ¡ dll µØÖ·
+	// è·å– dll åœ°å€
 	static DWORD GetModuleBase(std::string ModuleName, DWORD ProcessID = 0)
 	{
 		if (ProcessID == 0)
@@ -214,7 +214,7 @@ public:
 		return NULL;
 	}
 
-	// ¸ù¾İ½ø³ÌÃû»ñÈ¡½ø³Ìid
+	// æ ¹æ®è¿›ç¨‹åè·å–è¿›ç¨‹id
 	static DWORD FindProccess(std::string proccessName)
 	{
 		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
@@ -247,7 +247,7 @@ public:
 		int len = GetArrayLength(offsetList);
 		if (len <= 0)
 		{
-			printf("ÇëÌá¹©ÖÁÉÙÒ»¸öµØÖ·£¡\n");
+			printf("è¯·æä¾›è‡³å°‘ä¸€ä¸ªåœ°å€ï¼\n");
 			return T();
 		}
 
@@ -261,7 +261,7 @@ public:
 					if (finalAddress != NULL)
 						return *(T*)finalAddress;
 
-					printf("ÕÒ²»µ½ÈÎºÎ¶«Î÷¡£\n");
+					printf("æ‰¾ä¸åˆ°ä»»ä½•ä¸œè¥¿ã€‚\n");
 					return T();
 				}
 				*/
@@ -269,7 +269,7 @@ public:
 				currentAddress += offsetList[i];
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), PAGE_EXECUTE_READWRITE, &oldProtect) == FALSE)
 				{
-					printf("´íÎó£ºĞŞ¸ÄµØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					printf("é”™è¯¯ï¼šä¿®æ”¹åœ°å€ 0x%X çš„ä¿æŠ¤å¤±è´¥ã€‚\n", currentAddress);
 					return T();
 				}
 
@@ -283,12 +283,12 @@ public:
 
 #ifdef DEBUG
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
-					printf("´íÎó£º»Ö¸´µØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					printf("é”™è¯¯ï¼šæ¢å¤åœ°å€ 0x%X çš„ä¿æŠ¤å¤±è´¥ã€‚\n", currentAddress);
 #else
 				VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, &oldProtect);
 #endif
 
-				// ½«µ±Ç°µØÖ·ÉèÖÃÎª×îºóµÄµØÖ·
+				// å°†å½“å‰åœ°å€è®¾ç½®ä¸ºæœ€åçš„åœ°å€
 				currentAddress = finalAddress;
 			}
 
@@ -297,7 +297,7 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("´íÎó£º¶ÁÈ¡µØÖ·Îª 0x%X µÄÄÚÈİÊ§°Ü¡£\n", currentAddress);
+			printf("é”™è¯¯ï¼šè¯»å–åœ°å€ä¸º 0x%X çš„å†…å®¹å¤±è´¥ã€‚\n", currentAddress);
 		}
 
 		return T();
@@ -311,7 +311,7 @@ public:
 		int len = GetArrayLength(offsetList);
 		if (len <= 0)
 		{
-			printf("ÇëÌá¹©ÖÁÉÙÒ»¸öµØÖ·£¡\n");
+			printf("è¯·æä¾›è‡³å°‘ä¸€ä¸ªåœ°å€ï¼\n");
 			return T();
 		}
 
@@ -325,7 +325,7 @@ public:
 					if (finalAddress != NULL)
 						return (*(T*)finalAddress = value);
 
-					printf("ÕÒ²»µ½ÈÎºÎ¶«Î÷¡£\n");
+					printf("æ‰¾ä¸åˆ°ä»»ä½•ä¸œè¥¿ã€‚\n");
 					return T();
 				}
 				*/
@@ -333,7 +333,7 @@ public:
 				currentAddress += offsetList[i];
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), PAGE_EXECUTE_READWRITE, &oldProtect) == FALSE)
 				{
-					printf("´íÎó£ºĞŞ¸ÄµØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					printf("é”™è¯¯ï¼šä¿®æ”¹åœ°å€ 0x%X çš„ä¿æŠ¤å¤±è´¥ã€‚\n", currentAddress);
 					return T();
 				}
 
@@ -347,12 +347,12 @@ public:
 
 #ifdef DEBUG
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, NULL) == FALSE)
-					printf("´íÎó£º»Ö¸´µØÖ· 0x%X µÄ±£»¤Ê§°Ü¡£\n", currentAddress);
+					printf("é”™è¯¯ï¼šæ¢å¤åœ°å€ 0x%X çš„ä¿æŠ¤å¤±è´¥ã€‚\n", currentAddress);
 #else
 				VirtualProtect((void*)currentAddress, sizeof(finalAddress), oldProtect, &oldProtect);
 #endif
 
-				// ½«µ±Ç°µØÖ·ÉèÖÃÎª×îºóµÄµØÖ·
+				// å°†å½“å‰åœ°å€è®¾ç½®ä¸ºæœ€åçš„åœ°å€
 				currentAddress = finalAddress;
 			}
 
@@ -361,7 +361,7 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("´íÎó£º¶ÁÈ¡µØÖ·Îª 0x%X µÄÄÚÈİÊ§°Ü¡£\n", currentAddress);
+			printf("é”™è¯¯ï¼šè¯»å–åœ°å€ä¸º 0x%X çš„å†…å®¹å¤±è´¥ã€‚\n", currentAddress);
 		}
 
 		return T();
@@ -420,28 +420,28 @@ public:
 		tm tmp;
 		localtime_s(&tmp, &t);
 
-		// ÎÄ¼ş´´½¨ÈÕÆÚ
+		// æ–‡ä»¶åˆ›å»ºæ—¥æœŸ
 		strftime(buffer, 1024, "\\segt_%Y%m%d.log", &tmp);
 
 		std::fstream file(path + buffer, std::ios::out|std::ios::app|std::ios::ate);
 
-		// ÈÕÖ¾Ğ´ÈëÊ±¼ä
+		// æ—¥å¿—å†™å…¥æ—¶é—´
 		strftime(buffer, 1024, "[%H:%M:%S] ", &tmp);
 		file << buffer;
 
-		// ¸ñÊ½»¯×Ö·û´®
+		// æ ¼å¼åŒ–å­—ç¬¦ä¸²
 		va_list ap;
 		va_start(ap, text);
 		vsprintf_s(buffer, text, ap);
 		va_end(ap);
 
-		// Êä³ö
+		// è¾“å‡º
 		file << buffer << "\r\n";
 
-		// Íê±Ï
+		// å®Œæ¯•
 		file.close();
 
-		// Êä³öµ½¿ØÖÆÌ¨
+		// è¾“å‡ºåˆ°æ§åˆ¶å°
 		Interfaces.Engine->ClientCmd("echo \"%s\"", buffer);
 		std::cout << buffer << std::endl;
 	}

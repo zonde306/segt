@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 
 #define COLORCODE(r, g, b, a) ((DWORD)((((r)&0xff) << 24) | (((g)&0xff) << 16) | (((b)&0xff) << 8) | ((a)&0xff)))
@@ -160,10 +160,10 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define MASK_NPCWORLDSTATIC		(CONTENTS_SOLID|CONTENTS_WINDOW|CONTENTS_MONSTERCLIP|CONTENTS_GRATE) 					/**< just the world, used for route rebuilding */
 #define MASK_SPLITAREAPORTAL	(CONTENTS_WATER|CONTENTS_SLIME) 									/**< These are things that can split areaportals */
 
-#define HITBOX_COMMON			15	// ÆÕ¸Ğ
-#define HITBOX_PLAYER			10	// Éú»¹Õß/ÌØ¸Ğ
-#define CLASSID_COMMON			263	// ÆÕ¸Ğ
-#define CLASSID_WORLD			260	// ÓÎÏ·µØÍ¼
+#define HITBOX_COMMON			15	// æ™®æ„Ÿ
+#define HITBOX_PLAYER			10	// ç”Ÿè¿˜è€…/ç‰¹æ„Ÿ
+#define CLASSID_COMMON			263	// æ™®æ„Ÿ
+#define CLASSID_WORLD			260	// æ¸¸æˆåœ°å›¾
 
 /**
 * @endsection
@@ -305,63 +305,63 @@ enum SolidFlags_t
 // other
 #define D3DDevice				0x173988		// shaderapidx9.dll
 
-// »ñÈ¡±¾µØÍæ¼Ò
+// è·å–æœ¬åœ°ç©å®¶
 #define GetLocalClient()			Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())
 
-// µ¹µØ
+// å€’åœ°
 #define IsFallDown(_e)				(_e->GetNetProp<int>("m_isIncapacitated", "DT_TerrorPlayer") > 0)
 
-// ¹Ò±ß
+// æŒ‚è¾¹
 #define IsHangingFromLedge(_e)		(_e->GetNetProp<int>("m_isHangingFromLedge", "DT_TerrorPlayer") > 0)
 
-// ±»ÉàÍ·À­
+// è¢«èˆŒå¤´æ‹‰
 #define IsVictimSmoker(_e)			(_e->GetNetProp<int>("m_tongueOwner", "DT_TerrorPlayer") > 0)
 
-// ±»ºïÆï
+// è¢«çŒ´éª‘
 #define IsVictimJockey(_e)			(_e->GetNetProp<int>("m_jockeyAttacker", "DT_TerrorPlayer") > 0)
 
-// ±»ÁÔÈËÆË
+// è¢«çŒäººæ‰‘
 #define IsVictimHunter(_e)			(_e->GetNetProp<int>("m_pounceAttacker", "DT_TerrorPlayer") > 0)
 
-// ±»Å£×¥×¡´¸µØ°å
+// è¢«ç‰›æŠ“ä½é”¤åœ°æ¿
 #define IsVictimCharger(_e)			(_e->GetNetProp<int>("m_pummelAttacker", "DT_TerrorPlayer") > 0)
 
-// ±»¿Ø
+// è¢«æ§
 #define IsControlled(_e)			(IsVictimSmoker(_e) || IsVictimJockey(_e) || IsVictimHunter(_e) || IsVictimCharger(_e))
 
-// ÎŞ·¨ÒÆ¶¯(µ¹µØ¹Ò±ß)
+// æ— æ³•ç§»åŠ¨(å€’åœ°æŒ‚è¾¹)
 #define IsIncapacitated(_e)			(IsFallDown(_e) || IsHangingFromLedge(_e))
 
-// ÊÇ·ñĞèÒª¶ÓÓÑ¾ÈÔ®
+// æ˜¯å¦éœ€è¦é˜Ÿå‹æ•‘æ´
 #define IsNeedRescue(_e)			(IsIncapacitated(_e) || IsControlled(_e))
 
-// »ñÈ¡µ±Ç°·şÎñÆ÷Ê±¼ä
+// è·å–å½“å‰æœåŠ¡å™¨æ—¶é—´
 #define GetServerTime()				(Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())->GetTickBase() * Interfaces.Globals->interval_per_tick)
 
-// Êä³öÆ«ÒÆµØÖ·
+// è¾“å‡ºåç§»åœ°å€
 #define printo(_s,_n)				std::cout << XorStr(_s) << XorStr(" = 0x") << std::setiosflags(std::ios::hex|std::ios::uppercase) << std::hex << (DWORD)_n << std::resetiosflags(std::ios::hex|std::ios::uppercase) << std::oct << std::endl
 #define printv(_n)					printo(#_n,_n)
 
-// Êä³öÈÕÖ¾
+// è¾“å‡ºæ—¥å¿—
 #define logerr(_x)					errlog << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_x) << "\r\n"
 #define logfile(_s)					std::fstream f("segt.log", std::ios::out|std::ios::app|std::ios::ate); f << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_s) << "\r\n"; f.close()
 
-// ¼ì²éÊÇ·ñĞèÒª×Ô¶¯Á¬µã
+// æ£€æŸ¥æ˜¯å¦éœ€è¦è‡ªåŠ¨è¿ç‚¹
 #define IsWeaponSingle(_id)		(_id == Weapon_Pistol || _id == Weapon_ShotgunPump || _id == Weapon_ShotgunAuto || _id == Weapon_SniperHunting || _id == Weapon_ShotgunChrome || _id == Weapon_SniperMilitary || _id == Weapon_ShotgunSpas || _id == Weapon_PistolMagnum || _id == Weapon_SniperAWP || _id == Weapon_SniperScout)
 
 enum WeaponID_t
 {
-	Weapon_Pistol = 1,				// Ğ¡ÊÖÇ¹(°üÀ¨Ë«³Ö) ÊÖÇ¹
-	Weapon_ShotgunPump = 3,			// Ä¾Åç °ë×Ô¶¯
-	Weapon_ShotgunAuto = 4,			// Á¬Åç Á¬µã¼Ó¿ìÉäËÙ
-	Weapon_SniperHunting = 6,		// ÁÔÇ¹ °ë×Ô¶¯
-	Weapon_ShotgunChrome = 8,		// ÌúÅç °ë×Ô¶¯
-	Weapon_SniperMilitary = 10,		// Á¬¾Ñ °ë×Ô¶¯
-	Weapon_ShotgunSpas = 11,		// ¸ß¼¶Á¬Åç Á¬µã¼Ó¿ìÉäËÙ
-	Weapon_Melee = 19,				// ½üÕ½ÎäÆ÷
-	Weapon_PistolMagnum = 32,		// Âí¸ñÄÏ ÊÖÇ¹
-	Weapon_SniperAWP = 35,			// ´óÄñ °ë×Ô¶¯
-	Weapon_SniperScout = 36			// Äñ¾Ñ °ë×Ô¶¯
+	Weapon_Pistol = 1,				// å°æ‰‹æª(åŒ…æ‹¬åŒæŒ) æ‰‹æª
+	Weapon_ShotgunPump = 3,			// æœ¨å–· åŠè‡ªåŠ¨
+	Weapon_ShotgunAuto = 4,			// è¿å–· è¿ç‚¹åŠ å¿«å°„é€Ÿ
+	Weapon_SniperHunting = 6,		// çŒæª åŠè‡ªåŠ¨
+	Weapon_ShotgunChrome = 8,		// é“å–· åŠè‡ªåŠ¨
+	Weapon_SniperMilitary = 10,		// è¿ç‹™ åŠè‡ªåŠ¨
+	Weapon_ShotgunSpas = 11,		// é«˜çº§è¿å–· è¿ç‚¹åŠ å¿«å°„é€Ÿ
+	Weapon_Melee = 19,				// è¿‘æˆ˜æ­¦å™¨
+	Weapon_PistolMagnum = 32,		// é©¬æ ¼å— æ‰‹æª
+	Weapon_SniperAWP = 35,			// å¤§é¸Ÿ åŠè‡ªåŠ¨
+	Weapon_SniperScout = 36			// é¸Ÿç‹™ åŠè‡ªåŠ¨
 };
 
 enum EntityType_t
