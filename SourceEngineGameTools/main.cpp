@@ -701,7 +701,9 @@ void StartCheat(HINSTANCE instance)
 			{
 				disconnected = false;
 				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
+				
 				Utils::log("*** disconnected ***");
+
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		}
@@ -992,6 +994,14 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		Interfaces.Engine->ClientCmd("echo \"invalid entity 0x%X\"", (DWORD)trace.m_pEnt);
 #endif
 		return nullptr;
+	}
+
+	if (hitbox <= 0 && bAimBot)
+	{
+		if (trace.m_pEnt->GetClientClass()->m_ClassID == ET_INFECTED)
+			hitbox = HITBOX_COMMON;
+		else
+			hitbox = HITBOX_PLAYER;
 	}
 
 	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位
@@ -1306,6 +1316,7 @@ end_aimbot:
 	if (bTriggerBot)
 	{
 		CBaseEntity* target = GetAimingTarget();
+		
 #ifdef _DEBUG
 		if (target != nullptr)
 		{
