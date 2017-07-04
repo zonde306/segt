@@ -244,4 +244,12 @@ public:
 
 		return Vector();
 	}
+
+#ifdef m_iCrosshairsId
+	int GetCrosshairsId()
+	{
+		return *(int*)(this + m_iCrosshairsId);
+	}
+#endif // m_iCrosshairsId
+
 };

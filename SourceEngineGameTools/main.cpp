@@ -865,32 +865,110 @@ std::string GetZombieClassName(CBaseEntity* player)
 		return "";
 	
 	if (player->GetClientClass()->m_ClassID == ET_INFECTED)
+	{
+		int zombie = player->GetNetProp<int>("m_Gender", "DT_Infected");
+		switch (zombie)
+		{
+		/*
+		case 1:
+			return "male";
+		case 2:
+			return "female";
+		*/
+		case 11:
+			// 防火 CEDA 人员
+			return "ceda";
+		case 12:
+			// 泥人
+			return "mud";
+		case 13:
+			// 修路工人
+			return "roadcrew";
+		case 14:
+			// 被感染的幸存者
+			return "fallen";
+		case 15:
+			// 防暴警察
+			return "riot";
+		case 16:
+			// 小丑
+			return "clown";
+		case 17:
+			// 赛车手吉米
+			return "jimmy";
+		}
+
+		// 常见感染者
 		return "infected";
+	}
 	if (player->GetClientClass()->m_ClassID == ET_WITCH)
+	{
+		// 新娘 Witch
+		if (player->GetNetProp<int>("m_Gender", "DT_Infected") == 19)
+			return "bride";
+		
+		// 普通 Witch
 		return "witch";
+	}
 
 	int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
+	int character = player->GetNetProp<int>("m_survivorCharacter", "DT_TerrorPlayer");
+
 	switch (zombie)
 	{
 	case ZC_SMOKER:
+		// 舌头
 		return "smoker";
 	case ZC_BOOMER:
+		// 胖子
 		return "boomer";
 	case ZC_HUNTER:
+		// 猎人
 		return "hunter";
 	case ZC_SPITTER:
+		// 口水
 		return "spitter";
 	case ZC_JOCKEY:
+		// 猴
 		return "jockey";
 	case ZC_CHARGER:
+		// 牛
 		return "charger";
 	case ZC_TANK:
+		// 克
 		return "tank";
 	case ZC_SURVIVORBOT:
-		return "survivor";
+		switch (character)
+		{
+		case 0:
+			// 西装
+			return "nick";
+		case 1:
+			// 黑妹
+			return "rochelle";
+		case 2:
+			// 黑胖
+			return "coach";
+		case 3:
+			// 帽子
+			return "ellis";
+		case 4:
+			// 老头
+			return "bill";
+		case 5:
+			// 女人
+			return "zoey";
+		case 6:
+			// 马甲
+			return "francis";
+		case 7:
+			// 光头
+			return "louis";
+		}
 	}
 
-	return "";
+	// 不知道
+	return "unknown";
 }
 
 Vector GetHeadPosition(CBaseEntity* player)
@@ -1162,7 +1240,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	float oldSidemove = pCmd->sidemove;
 	float oldForwardmove = pCmd->fowardmove;
 
-	// 杩炶烦
+	// 自动连跳
 	if (bBhop && (GetAsyncKeyState(VK_SPACE) & 0x8000))
 	{
 		static bool lastJump = false;
@@ -1203,7 +1281,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		}
 	}
 
-	// 鑷姩鐬勫噯
+	// 自动瞄准
 	if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 	{
 		Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
@@ -1312,7 +1390,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 end_aimbot:
 
-	// 鑷姩寮�鏋
+	// 自动开枪
 	if (bTriggerBot)
 	{
 		CBaseEntity* target = GetAimingTarget();
@@ -1348,9 +1426,26 @@ end_aimbot:
 			ignoreButton = true;
 		}
 		else
+		{
+			// 忽略一次阻止开枪
 			ignoreButton = false;
+		}
 	}
 
+	// 在开枪前检查，防止攻击队友
+	if (pCmd->buttons & IN_ATTACK)
+	{
+		int cid = client->GetCrosshairsId();
+		CBaseEntity* aiming = (cid > 0 ? Interfaces.ClientEntList->GetClientEntity(cid) : nullptr);
+		if (aiming != nullptr && !aiming->IsDormant() && aiming->IsAlive() &&
+			aiming->GetTeam() == client->GetTeam() && !IsNeedRescue(aiming))
+		{
+			// 取消开枪
+			pCmd->buttons &= ~IN_ATTACK;
+		}
+	}
+
+	// 没什么用
 	if(bSilentAim && weapon != nullptr)
 	{
 		if ((pCmd->buttons & IN_ATTACK) &&
@@ -1365,10 +1460,11 @@ end_aimbot:
 		}
 	}
 
-	// 闃叉鍥犱负瑙掑害涓嶆甯歌妫�娴
+	// 修复角度不正确
 	ClampAngles(pCmd->viewangles);
 	AngleNormalize(pCmd->viewangles);
 
+	// 发送到服务器
 	pVerifiedCmd->m_cmd = *pCmd;
 	pVerifiedCmd->m_crc = pCmd->GetChecksum();
 }
