@@ -817,7 +817,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 	if (id == ET_BOOMER || id == ET_HUNTER || id == ET_SMOKER || id == ET_SPITTER ||
 		id == ET_JOCKEY || id == ET_CHARGER || id == ET_TANK)
 	{
-		if (!entity->IsAlive() || entity->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer") > 0)
+		if (!entity->IsAlive() || entity->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer") != 0)
 		{
 #ifdef _DEBUG
 			Interfaces.Engine->ClientCmd("echo \"Special 0x%X healh = %d, ghost = %d\"", (DWORD)entity,
@@ -1594,64 +1594,129 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 					continue;
 
 				std::wstringstream ss;
+
+				// 去除 float 的小数位，因为没必要
+				ss << std::setprecision(0);
+
 				if (classId != ET_INFECTED && classId != ET_WITCH)
 				{
 					if (classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER)
-						ss << L"[" << entity->GetHealth() << L" + " <<
-						entity->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer") << "] ";
+					{
+						if (IsIncapacitated(entity))
+						{
+							// 倒地时只有普通血量
+							ss << L"[" << entity->GetHealth() << L" + incap] ";
+						}
+						else if (IsControlled(entity))
+						{
+							// 玩家被控了
+							ss << L"[" << entity->GetHealth() +
+								entity->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer") <<
+								L" + grabbed] ";
+						}
+						else
+						{
+							// 生还者显示血量，临时血量
+							ss << L"[" << entity->GetHealth() << L" + " <<
+								entity->GetNetProp<float>("m_healthBuffer", "DT_TerrorPlayer") << "] ";
+						}
+					}
 					else
-						ss << L"[" << entity->GetHealth() << L"] ";
+					{
+						if (entity->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer") != 0)
+						{
+							// 幽灵状态的特感
+							ss << L"[" << entity->GetHealth() << L" ghost] ";
+						}
+						else
+						{
+							// 非生还者只显示血量就好了
+							ss << L"[" << entity->GetHealth() << L"] ";
+						}
+					}
 				}
+
+				// 玩家类型
 				ss << Utils::c2w(GetZombieClassName(entity));
 
 				float height = fabs(head.y - foot.y);
 				float width = height * 0.65f;
 
-				// 鏄剧ず琛�閲忓拰绫诲瀷
-				Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 128, 0, font, ss.str().c_str());
+				// 根据情况决定颜色
+				if ((classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER) &&
+					entity->GetNetProp<byte>("m_bIsOnThirdStrike", "DT_TerrorPlayer") != 0)
+				{
+					// 生还者黑白时使用白色
+					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 255, 255, font, ss.str().c_str());
+				}
+				else if ((classId == ET_BOOMER || classId == ET_SMOKER || classId == ET_HUNTER ||
+					classId == ET_SPITTER || classId == ET_CHARGER || classId == ET_JOCKEY) &&
+					entity->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer") != 0)
+				{
+					// 幽灵状态的特感，紫色
+					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 128, 0, 128, font, ss.str().c_str());
+				}
+				else
+				{
+					// 其他情况，橙色
+					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 128, 0, font, ss.str().c_str());
+				}
 
 				ss.str(L"");
 
 				bool visible = IsTargetVisible(entity, headbox);
 				float dist = local->GetAbsOrigin().DistTo(entity->GetAbsOrigin());
+				
+				// 显示距离
 				ss << dist;
 
-				// 鏄剧ず璺濈
-				if (visible)
-				{
-					// 鍙互鐪嬭锛屼娇鐢ㄨ摑鑹
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 0, 255, 255, font, ss.str().c_str());
-				}
-				else
-				{
-					// 鐪嬩笉瑙侊紝浣跨敤榛勮壊
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 255, 255, 0, font, ss.str().c_str());
-				}
-
-				/*
-				ss.str(L"");
+				// 给生还者显示弹药
 				if (classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER)
 				{
 					CBaseEntity* weapon = (CBaseEntity*)entity->GetActiveWeapon();
 					if (weapon != nullptr)
 						weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
-					if (weapon != nullptr && !weapon->IsDormant())
+					if (weapon != nullptr)
 					{
-						ss << weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon");
-						if (weapon->GetNetProp<int>("m_bInReload", "DT_BaseCombatWeapon") > 0)
-						ss << L" | reloading";
+						int ammoType = weapon->GetNetProp<int>("m_iPrimaryAmmoType", "DT_BaseCombatWeapon");
+						int clip = weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon");
+						// int* ammo = entity->GetNetProp<int*>("m_iAmmo", "DT_TerrorPlayer");
+						byte reloading = weapon->GetNetProp<byte>("m_bInReload", "DT_BaseCombatWeapon");
 
-						// 鏄剧ず寮硅嵂鍜屾崲瀛愬脊
-						Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE * 2, 0, 255, 0, font, ss.str().c_str());
+						// 显示弹药和弹夹
+						if (ammoType > 0 && clip > -1)
+						{
+							if (reloading != 0)
+							{
+								// 正在换子弹
+								ss << " (reloading)";
+							}
+							else
+							{
+								// 没有换子弹
+								ss << " (" << clip << ")";
+							}
+						}
 					}
 				}
-				*/
 
-				// 缁樺埗涓�涓
+				// 检查是否可以看见
+				if (visible)
+				{
+					// 看得见，显示蓝色
+					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 0, 255, 255, font, ss.str().c_str());
+				}
+				else
+				{
+					// 看不见，显示黄色
+					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 255, 255, 0, font, ss.str().c_str());
+				}
+
+				// 绘制一个框（虽然这个框只有上下两条线）
 				Interfaces.Surface->drawBox(foot.x - width / 2, foot.y, width, -height,
 					1, 255, 0, 0, 255);
 
-				// 椤轰究缁?Aimbot 瀵绘壘鐩爣
+				// 给 Aimbot 寻找目标
 				if (bAimBot && (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) || !IsAliveTarget(pCurrentAiming)))
 				{
 					pCurrentAiming = nullptr;
@@ -2410,7 +2475,7 @@ void showSpectator()
 						player->GetIndex(), zombieName, player->GetHealth());
 #endif
 				}
-				else if (player->GetNetProp<int>("m_isGhost", "DT_TerrorPlayer"))
+				else if (player->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer"))
 				{
 					// 骞界伒鐘舵�
 #ifdef USE_PLAYER_INFO

@@ -309,10 +309,10 @@ enum SolidFlags_t
 #define GetLocalClient()			Interfaces.ClientEntList->GetClientEntity(Interfaces.Engine->GetLocalPlayer())
 
 // 倒地
-#define IsFallDown(_e)				(_e->GetNetProp<int>("m_isIncapacitated", "DT_TerrorPlayer") > 0)
+#define IsFallDown(_e)				(_e->GetNetProp<byte>("m_isIncapacitated", "DT_TerrorPlayer") != 0)
 
 // 挂边
-#define IsHangingFromLedge(_e)		(_e->GetNetProp<int>("m_isHangingFromLedge", "DT_TerrorPlayer") > 0)
+#define IsHangingFromLedge(_e)		(_e->GetNetProp<byte>("m_isHangingFromLedge", "DT_TerrorPlayer") != 0)
 
 // 被舌头拉
 #define IsVictimSmoker(_e)			(_e->GetNetProp<int>("m_tongueOwner", "DT_TerrorPlayer") > 0)
