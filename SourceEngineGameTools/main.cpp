@@ -1026,6 +1026,43 @@ Vector GetHeadPosition(CBaseEntity* player)
 	return position;
 }
 
+Vector GetHeadHitboxPosition(CBaseEntity* entity)
+{
+	Vector position;
+	
+	if (!IsAliveTarget(entity))
+		return position;
+
+	int classId = entity->GetClientClass()->m_ClassID;
+	switch (classId)
+	{
+	case ET_TANK:
+	case ET_WITCH:
+	case ET_SMOKER:
+	case ET_BOOMER:
+	case ET_HUNTER:
+	case ET_CTERRORPLAYER:
+	case ET_SURVIVORBOT:
+		position = entity->GetHitboxPosition(HITBOX_PLAYER);
+		break;
+	case ET_JOCKEY:
+	case ET_SPITTER:
+		position = entity->GetHitboxPosition(HITBOX_JOCKEY);
+		break;
+	case ET_CHARGER:
+		position = entity->GetHitboxPosition(HITBOX_CHARGER);
+		break;
+	case ET_INFECTED:
+		position = entity->GetHitboxPosition(HITBOX_COMMON);
+		break;
+	}
+
+	if (!position.IsValid())
+		position = GetHeadPosition(entity);
+
+	return position;
+}
+
 CBaseEntity* GetAimingTarget(int hitbox = 0)
 {
 	CBaseEntity* client = GetLocalClient();
@@ -1074,14 +1111,6 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		return nullptr;
 	}
 
-	if (hitbox <= 0 && bAimBot)
-	{
-		if (trace.m_pEnt->GetClientClass()->m_ClassID == ET_INFECTED)
-			hitbox = HITBOX_COMMON;
-		else
-			hitbox = HITBOX_PLAYER;
-	}
-
 	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位
 	if (trace.hitbox == 0 || (hitbox > 0 && trace.hitbox != hitbox))
 	{
@@ -1093,6 +1122,40 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		return nullptr;
 	}
 
+	if (bAimBot && hitbox <= 0)
+	{
+		int classId = trace.m_pEnt->GetClientClass()->m_ClassID;
+		switch (classId)
+		{
+		case ET_TANK:
+		case ET_WITCH:
+		case ET_SMOKER:
+		case ET_BOOMER:
+		case ET_HUNTER:
+		case ET_CTERRORPLAYER:
+		case ET_SURVIVORBOT:
+			if (trace.hitbox == HITBOX_PLAYER)
+				goto result_success;
+			break;
+		case ET_JOCKEY:
+		case ET_SPITTER:
+			if (trace.hitbox == HITBOX_JOCKEY)
+				goto result_success;
+			break;
+		case ET_CHARGER:
+			if (trace.hitbox == HITBOX_CHARGER)
+				goto result_success;
+			break;
+		case ET_INFECTED:
+			if (trace.hitbox >= HITBOX_COMMON_1 && trace.hitbox <= HITBOX_COMMON_4)
+				goto result_success;
+			break;
+		}
+
+		return nullptr;
+	}
+
+result_success:
 	return trace.m_pEnt;
 }
 
@@ -1358,10 +1421,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			Vector position;
 			try
 			{
-				if (pCurrentAiming->GetClientClass()->m_ClassID == ET_INFECTED)
-					position = pCurrentAiming->GetHitboxPosition(HITBOX_COMMON);
-				else
-					position = pCurrentAiming->GetHitboxPosition(HITBOX_PLAYER);
+				position = GetHeadHitboxPosition(pCurrentAiming);
 			}
 			catch (...)
 			{
@@ -1384,7 +1444,9 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
 			// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
-			pCmd->viewangles = CalculateAim(myOrigin, position);
+
+			if(position.IsValid())
+				pCmd->viewangles = CalculateAim(myOrigin, position);
 		}
 	}
 
@@ -1587,9 +1649,9 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 				Vector head, foot, headbox;
 				int classId = entity->GetClientClass()->m_ClassID;
-				headbox = entity->GetHitboxPosition((classId == ET_INFECTED ? HITBOX_COMMON : HITBOX_PLAYER));
+				headbox = GetHeadHitboxPosition(entity);
 
-				if (!WorldToScreen(headbox, head) ||
+				if (!headbox.IsValid() || !WorldToScreen(headbox, head) ||
 					!WorldToScreen(entity->GetAbsOrigin(), foot))
 					continue;
 

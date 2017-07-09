@@ -165,6 +165,15 @@ typedef void* (*CreateInterfaceFn)(const char *Name, int *ReturnCode);
 #define CLASSID_COMMON			263	// 普感
 #define CLASSID_WORLD			260	// 游戏地图
 
+#define HITBOX_COMMON_1			14
+#define HITBOX_COMMON_2			15
+#define HITBOX_COMMON_3			16
+#define HITBOX_COMMON_4			17
+#define HITBOX_JOCKEY			4
+#define HITBOX_SPITTER			4
+#define HITBOX_CHARGER			9
+#define HITBOX_WITCH			10
+
 /**
 * @endsection
 */
@@ -348,6 +357,32 @@ enum SolidFlags_t
 
 // 检查是否需要自动连点
 #define IsWeaponSingle(_id)		(_id == Weapon_Pistol || _id == Weapon_ShotgunPump || _id == Weapon_ShotgunAuto || _id == Weapon_SniperHunting || _id == Weapon_ShotgunChrome || _id == Weapon_SniperMilitary || _id == Weapon_ShotgunSpas || _id == Weapon_PistolMagnum || _id == Weapon_SniperAWP || _id == Weapon_SniperScout)
+
+// 该弹药类型是否为枪械
+#define IsGunWeapon(_at)			(_at == AT_Pistol || _at == AT_Magnum || _at == AT_Rifle || _at == AT_Smg || _at == AT_M60 || _at == AT_Shotgun || _at == AT_AutoShotgun || _at == AT_Hunting || _at == AT_Sniper || _at == AT_Grenade)
+
+enum AmmoType_t
+{
+	AT_Pistol = 1,
+	AT_Magnum,
+	AT_Rifle,
+	AT_Minigun,
+	AT_Smg,
+	AT_M60,
+	AT_Shotgun,
+	AT_AutoShotgun,
+	AT_Hunting,
+	AT_Sniper,
+	AT_Turret,
+	AT_PipeBomb,
+	AT_Molotov,
+	AT_Vomitjar,
+	AT_PainPills,
+	AT_FirstAidKit,
+	AT_Grenade,
+	AT_Adrenline,
+	AT_Chainsaw
+};
 
 enum WeaponID_t
 {
