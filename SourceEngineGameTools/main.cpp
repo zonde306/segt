@@ -267,17 +267,6 @@ void StartCheat(HINSTANCE instance)
 		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
 		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
 		
-		/*
-		printo("sv_cheats", cvar_sv_cheats);
-		printo("r_drawothermodels", cvar_r_drawothermodels);
-		printo("cl_drawshadowtexture", cvar_cl_drawshadowtexture);
-		printo("mat_fullbright", cvar_mat_fullbright);
-		printo("sv_pure", cvar_sv_pure);
-		printo("sv_consistency", cvar_sv_consistency);
-		printo("mp_gamemode", cvar_mp_gamemode);
-		printo("c_thirdpersonshoulder", cvar_c_thirdpersonshoulder);
-		*/
-
 		Utils::log("*** ConVar ***");
 		Utils::log("sv_cheats = 0x%X", (DWORD)cvar_sv_cheats);
 		Utils::log("r_drawothermodels = 0x%X", (DWORD)cvar_r_drawothermodels);
@@ -288,6 +277,17 @@ void StartCheat(HINSTANCE instance)
 		Utils::log("mp_gamemode = 0x%X", (DWORD)cvar_mp_gamemode);
 		Utils::log("c_thirdpersonshoulder = 0x%X", (DWORD)cvar_c_thirdpersonshoulder);
 		Utils::log("*** end ***");
+
+		/*
+		cvar_sv_cheats = nullptr;
+		cvar_r_drawothermodels = nullptr;
+		cvar_cl_drawshadowtexture = nullptr;
+		cvar_mat_fullbright = nullptr;
+		cvar_sv_pure = nullptr;
+		cvar_sv_consistency = nullptr;
+		cvar_mp_gamemode = nullptr;
+		cvar_c_thirdpersonshoulder = nullptr;
+		*/
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -614,6 +614,7 @@ void StartCheat(HINSTANCE instance)
 			{
 				Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
 
+				/*
 				cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
 				cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
 				cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
@@ -622,6 +623,7 @@ void StartCheat(HINSTANCE instance)
 				cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
 				cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
 				cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
+				*/
 
 				Utils::log("*** connected ***");
 			}
@@ -1453,7 +1455,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 end_aimbot:
 
 	// 自动开枪
-	if (bTriggerBot)
+	if (bTriggerBot && !(pCmd->buttons & IN_USE) && weapon != nullptr)
 	{
 		CBaseEntity* target = GetAimingTarget();
 		
@@ -1469,10 +1471,10 @@ end_aimbot:
 		}
 #endif
 
+		int weaponId = weapon->GetWeaponID();
 		if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
 			(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED) &&
-			weapon != nullptr && weapon->GetWeaponID() != Weapon_Melee &&
-			target->GetClientClass()->m_ClassID != ET_WITCH)
+			IsGunWeapon(weaponId) && target->GetClientClass()->m_ClassID != ET_WITCH)
 			pCmd->buttons |= IN_ATTACK;
 	}
 
@@ -1495,11 +1497,13 @@ end_aimbot:
 	}
 
 	// 在开枪前检查，防止攻击队友
-	if (pCmd->buttons & IN_ATTACK)
+	if ((pCmd->buttons & IN_ATTACK) && weapon != nullptr)
 	{
 		int cid = client->GetCrosshairsId();
 		CBaseEntity* aiming = (cid > 0 ? Interfaces.ClientEntList->GetClientEntity(cid) : nullptr);
-		if (aiming != nullptr && !aiming->IsDormant() && aiming->IsAlive() &&
+		int weaponId = weapon->GetWeaponID();
+
+		if (aiming != nullptr && !aiming->IsDormant() && aiming->IsAlive() && IsGunWeapon(weaponId) &&
 			aiming->GetTeam() == client->GetTeam() && !IsNeedRescue(aiming))
 		{
 			// 取消开枪
@@ -1521,6 +1525,20 @@ end_aimbot:
 			pCmd->fowardmove = oldForwardmove;
 		}
 	}
+
+	// 获取武器Id
+	/*
+	if ((pCmd->buttons & IN_RELOAD) && weapon != nullptr)
+	{
+		static int oldId = 0;
+		int weaponId = weapon->GetWeaponID();
+		if (oldId != weaponId)
+		{
+			Interfaces.Engine->ClientCmd("echo \"current weapon id = %d\"", weaponId);
+			oldId = weaponId;
+		}
+	}
+	*/
 
 	// 修复角度不正确
 	ClampAngles(pCmd->viewangles);

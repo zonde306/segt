@@ -356,32 +356,40 @@ enum SolidFlags_t
 #define logfile(_s)					std::fstream f("segt.log", std::ios::out|std::ios::app|std::ios::ate); f << XorStr(__FILE__) << "("<<__LINE__<<")" << XorStr(__FUNCTION__) << ": " << XorStr(_s) << "\r\n"; f.close()
 
 // 检查是否需要自动连点
-#define IsWeaponSingle(_id)		(_id == Weapon_Pistol || _id == Weapon_ShotgunPump || _id == Weapon_ShotgunAuto || _id == Weapon_SniperHunting || _id == Weapon_ShotgunChrome || _id == Weapon_SniperMilitary || _id == Weapon_ShotgunSpas || _id == Weapon_PistolMagnum || _id == Weapon_SniperAWP || _id == Weapon_SniperScout)
+#define IsWeaponSingle(_id)			(_id == Weapon_Pistol || _id == Weapon_ShotgunPump || _id == Weapon_ShotgunAuto || _id == Weapon_SniperHunting || _id == Weapon_ShotgunChrome || _id == Weapon_SniperMilitary || _id == Weapon_ShotgunSpas || _id == Weapon_PistolMagnum || _id == Weapon_SniperAWP || _id == Weapon_SniperScout)
 
 // 该弹药类型是否为枪械
-#define IsGunWeapon(_at)			(_at == AT_Pistol || _at == AT_Magnum || _at == AT_Rifle || _at == AT_Smg || _at == AT_M60 || _at == AT_Shotgun || _at == AT_AutoShotgun || _at == AT_Hunting || _at == AT_Sniper || _at == AT_Grenade)
+#define IsGunWeaponAmmotype(_at)	(_at == AT_Pistol || _at == AT_Magnum || _at == AT_Rifle || _at == AT_Smg || _at == AT_M60 || _at == AT_Shotgun || _at == AT_AutoShotgun || _at == AT_Hunting || _at == AT_Sniper || _at == AT_Grenade)
+
+// 检查是否是一把枪
+#define IsNotGunWeapon(_id)			(IsGrenadeWeapon(_id) || IsMedkitWeapon(_id) || IsPillsWeapon(_id) || IsCarryWeapon(_id) || _id == Weapon_Melee || _id == Weapon_Chainsaw)
+#define IsGunWeapon(_id)			(!IsGrenadeWeapon(_id) && !IsMedkitWeapon(_id) && !IsPillsWeapon(_id) && !IsCarryWeapon(_id) && _id != Weapon_Melee && _id != Weapon_Chainsaw)
+#define IsGrenadeWeapon(_id)		(_id == Weapon_Molotov || _id == Weapon_PipeBomb || _id == Weapon_Vomitjar)
+#define IsMedkitWeapon(_id)			(_id == Weapon_FirstAidKit || _id == Weapon_Defibrillator || _id == Weapon_FireAmmo || _id == Weapon_ExplodeAmmo)
+#define IsPillsWeapon(_id)			(_id == Weapon_PainPills || _id == Weapon_Adrenaline)
+#define IsCarryWeapon(_id)			(_id == Weapon_Gascan || _id == Weapon_Fireworkcrate || _id == Weapon_Propanetank || _id == Weapon_Oxygentank || _id == Weapon_Gnome || _id == Weapon_Cola)
 
 enum AmmoType_t
 {
-	AT_Pistol = 1,
-	AT_Magnum,
-	AT_Rifle,
-	AT_Minigun,
-	AT_Smg,
-	AT_M60,
-	AT_Shotgun,
-	AT_AutoShotgun,
-	AT_Hunting,
-	AT_Sniper,
-	AT_Turret,
-	AT_PipeBomb,
-	AT_Molotov,
-	AT_Vomitjar,
-	AT_PainPills,
-	AT_FirstAidKit,
-	AT_Grenade,
-	AT_Adrenline,
-	AT_Chainsaw
+	AT_Pistol = 1,					// 小手枪弹药
+	AT_Magnum,						// 马格南手枪弹药
+	AT_Rifle,						// 步枪弹药
+	AT_Minigun,						// 一代固定机枪（开枪有延迟那个）
+	AT_Smg,							// 冲锋枪弹药
+	AT_M60,							// 机枪弹药
+	AT_Shotgun,						// 单喷弹药
+	AT_AutoShotgun,					// 连喷弹药
+	AT_Hunting,						// 猎枪（15发子弹）
+	AT_Sniper,						// 狙击枪弹药
+	AT_Turret,						// 二代固定机枪（射速慢点但无延迟）
+	AT_PipeBomb,					// 土制炸弹
+	AT_Molotov,						// 燃烧瓶
+	AT_Vomitjar,					// 胆汁罐
+	AT_PainPills,					// 止痛药
+	AT_FirstAidKit,					// 医疗包
+	AT_Grenade,						// 榴弹发射器的榴弹
+	AT_Adrenline,					// 肾上腺素
+	AT_Chainsaw						// 电锯
 };
 
 enum WeaponID_t
@@ -393,10 +401,29 @@ enum WeaponID_t
 	Weapon_ShotgunChrome = 8,		// 铁喷 半自动
 	Weapon_SniperMilitary = 10,		// 连狙 半自动
 	Weapon_ShotgunSpas = 11,		// 高级连喷 连点加快射速
-	Weapon_Melee = 19,				// 近战武器
 	Weapon_PistolMagnum = 32,		// 马格南 手枪
 	Weapon_SniperAWP = 35,			// 大鸟 半自动
-	Weapon_SniperScout = 36			// 鸟狙 半自动
+	Weapon_SniperScout = 36,		// 鸟狙 半自动
+
+	Weapon_Melee = 19,				// 近战武器
+	Weapon_GrenadeLauncher = 21,	// 榴弹发射器
+	Weapon_Chainsaw = 20,			// 电锯
+
+	Weapon_FirstAidKit = 12,		// 医疗包
+	Weapon_PainPills = 15,			// 止痛药
+	Weapon_Defibrillator = 24,		// 电击器
+	Weapon_Adrenaline = 23,			// 肾上腺素
+	Weapon_Molotov = 13,			// 燃烧瓶
+	Weapon_PipeBomb = 14,			// 土制炸弹
+	Weapon_Vomitjar = 25,			// 胆汁罐
+	Weapon_FireAmmo = 30,			// 燃烧子弹盒
+	Weapon_ExplodeAmmo = 31,		// 爆炸子弹盒
+	Weapon_Gascan = 16,				// 油桶（红色和黄色）
+	Weapon_Fireworkcrate = 29,		// 烟花盒
+	Weapon_Propanetank = 17,		// 煤气罐
+	Weapon_Oxygentank = 18,			// 氧气瓶
+	Weapon_Gnome = 27,				// 侏儒
+	Weapon_Cola = 28				// 可乐
 };
 
 enum EntityType_t
