@@ -2,7 +2,7 @@
 #include <mutex>
 #include <sstream>
 
-// #define USE_PLAYER_INFO
+#define USE_PLAYER_INFO
 #define USE_CVAR_CHANGE
 
 extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -90,6 +90,8 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 			Interfaces.PanelHook->HookTable(false);
 		if (Interfaces.PredictionHook)
 			Interfaces.PredictionHook->HookTable(false);
+		if (Interfaces.GameEventHook)
+			Interfaces.GameEventHook->HookTable(false);
 	}
 
 	return TRUE;
@@ -125,6 +127,7 @@ static FnDrawModel oDrawModel;
 
 static DrawManager* drawRender;
 static CVMTHookManager gDirectXHook;
+static IGameEventListener2* gEventSpawn;
 static std::map<std::string, ConVar*> gConVar;
 static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static DWORD gModuleClient, gModuleEngine, gModuleMaterial;
@@ -144,6 +147,8 @@ void thirdPerson();
 void showSpectator();
 void transparent();
 void autoShot();
+
+std::string GetZombieClassName(CBaseEntity* player);
 
 void StartCheat(HINSTANCE instance)
 {
@@ -310,12 +315,54 @@ void StartCheat(HINSTANCE instance)
 		DetourUpdateThread(GetCurrentThread());
 #endif
 
-		Utils::log("oReset = 0x%X", (DWORD)oReset);
-		Utils::log("oPresent = 0x%X", (DWORD)oPresent);
-		Utils::log("oEndScene = 0x%X", (DWORD)oEndScene);
-		Utils::log("oDrawIndexedPrimitive = 0x%X", (DWORD)oDrawIndexedPrimitive);
-		Utils::log("oCreateQuery = 0x%X", (DWORD)oCreateQuery);
+		Utils::log("Trampoline oReset = 0x%X", (DWORD)oReset);
+		Utils::log("Trampoline oPresent = 0x%X", (DWORD)oPresent);
+		Utils::log("Trampoline oEndScene = 0x%X", (DWORD)oEndScene);
+		Utils::log("Trampoline oDrawIndexedPrimitive = 0x%X", (DWORD)oDrawIndexedPrimitive);
+		Utils::log("Trampoline oCreateQuery = 0x%X", (DWORD)oCreateQuery);
 	});
+
+	if (Interfaces.GameEvent)
+	{
+		class HookEventPlayerSpawn : public IGameEventListener2
+		{
+		public:
+			HookEventPlayerSpawn()
+			{
+				this->m_nDebugID = EVENT_DEBUG_ID_INIT;
+			}
+			
+			virtual void FireGameEvent(IGameEvent *event) override
+			{
+				static bool showHint = true;
+				if (showHint)
+				{
+					Utils::log("Event player_spawn Fire. 0x%X", (DWORD)event);
+					showHint = false;
+				}
+				
+				if (!Interfaces.Engine->IsInGame() || _strcmpi(event->GetName(), "player_spawn") != 0)
+					return;
+
+				int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+				if (client <= 0)
+					return;
+
+				CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(client);
+				if (player == nullptr)
+					return;
+
+				Interfaces.Engine->ClientCmd("echo \"--- %s spawned ---\"",
+					GetZombieClassName(player).c_str());
+			}
+		};
+
+		gEventSpawn = new HookEventPlayerSpawn();
+		if (!Interfaces.GameEvent->AddListener(gEventSpawn, "player_spawn", false))
+			Utils::log("Couldn't install listener");
+		else
+			Utils::log("listener player_spawn 0x%X", (DWORD)gEventSpawn);
+	}
 
 	gModuleClient = Utils::GetModuleBase("client.dll");
 	gModuleEngine = Utils::GetModuleBase("engine.dll");
@@ -1334,7 +1381,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 		pCurrentAiming = nullptr;
 		int maxEntity = Interfaces.Engine->GetMaxClients();
-		for (int i = 1; i < maxEntity; ++i)
+		for (int i = 1; i <= maxEntity; ++i)
 		{
 		CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
 
@@ -1630,7 +1677,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 			Vector myOrigin = local->GetEyePosition();
 			int maxEntity = Interfaces.Engine->GetMaxClients();
 
-			for (int i = 1; i < maxEntity; ++i)
+			for (int i = 1; i <= maxEntity; ++i)
 			{
 				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
 				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local ||

@@ -33,6 +33,7 @@ extern std::ofstream errlog;
 #include "../imgui/imgui.h"
 #include "../imgui/DX9/imgui_impl_dx9.h"
 
+#include "structs\keyvalues.h"
 #include "structs\vector.h"
 #include "structs\vmatrix.h"
 #include "structs\usercmd.h"

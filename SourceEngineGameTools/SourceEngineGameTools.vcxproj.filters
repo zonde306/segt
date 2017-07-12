@@ -117,6 +117,9 @@
     <ClInclude Include="structs\weapon.h">
       <Filter>structs</Filter>
     </ClInclude>
+    <ClInclude Include="structs\keyvalues.h">
+      <Filter>structs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="structs\checksum_md5.cpp">

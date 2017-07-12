@@ -95,4 +95,9 @@ public:
 		return ((Fn)VMT.GetFunction(this, indexes::IsTakingScreenShot))(this);
 	}
 
+	int GetPlayerForUserID(int userID)
+	{
+		typedef bool(__thiscall* Fn)(void*, int);
+		return ((Fn)VMT.GetFunction(this, indexes::GetPlayerForUserId))(this, userID);
+	}
 };

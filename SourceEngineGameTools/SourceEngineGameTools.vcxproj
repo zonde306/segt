@@ -171,6 +171,7 @@
     <ClInclude Include="structs\event.h" />
     <ClInclude Include="structs\globals.h" />
     <ClInclude Include="structs\input.h" />
+    <ClInclude Include="structs\keyvalues.h" />
     <ClInclude Include="structs\modelinfo.h" />
     <ClInclude Include="structs\panel.h" />
     <ClInclude Include="structs\playerinfo.h" />

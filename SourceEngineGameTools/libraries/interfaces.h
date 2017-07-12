@@ -5,7 +5,7 @@ class CClientEntityList;
 class CTrace;
 class ICvar;
 class CDebugOverlay;
-class CGameEvent;
+class IGameEventManager2;
 class CModelRender;
 class CRenderView;
 class CMoveHelper;
@@ -27,7 +27,7 @@ public:
 	CPrediction* Prediction;
 	CGameMovement* GameMovement;
 	CDebugOverlay* DebugOverlay;
-	CGameEvent* GameEvent;
+	IGameEventManager2* GameEvent;
 	CModelRender* ModelRender;
 	CRenderView* RenderView;
 	CMoveHelper* MoveHelper;
@@ -39,6 +39,7 @@ public:
 	CVMTHookManager* ClientHook;
 	CVMTHookManager* PredictionHook;
 	CVMTHookManager* ModelRenderHook;
+	CVMTHookManager* GameEventHook;
 
 	void GetInterfaces()
 	{
@@ -53,7 +54,7 @@ public:
 		Prediction = (CPrediction*)GetPointer("client.dll", "VClientPrediction");
 		GameMovement = (CGameMovement*)GetPointer("client.dll", "GameMovement");
 		DebugOverlay = (CDebugOverlay*)GetPointer("engine.dll", "VDebugOverlay");
-		GameEvent = (CGameEvent*)GetPointer("engine.dll", "GAMEEVENTSMANAGER");
+		GameEvent = (IGameEventManager2*)GetPointer("engine.dll", "GAMEEVENTSMANAGER002");
 		ModelRender = (CModelRender*)GetPointer("engine.dll", "VEngineModel");
 		RenderView = (CRenderView*)GetPointer("engine.dll", "VEngineRenderView");
 		Cvar = (ICvar*)GetPointer("vstdlib.dll", "VEngineCvar");
@@ -87,6 +88,7 @@ public:
 		ClientHook = new CVMTHookManager(Client);
 		PredictionHook = new CVMTHookManager(Prediction);
 		ModelRenderHook = new CVMTHookManager(ModelRender);
+		GameEventHook = new CVMTHookManager(GameEvent);
 	}
 
 	void* GetPointer(const char* Module, const char* InterfaceName)
@@ -95,6 +97,13 @@ public:
 		char PossibleInterfaceName[1024];
 
 		CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(GetModuleHandleA(Module), "CreateInterface");
+		Interface = (void*)CreateInterface(InterfaceName, NULL);
+		if (Interface != NULL)
+		{
+			printf("%s Found: 0x%X\n", InterfaceName, (DWORD)Interface);
+			return Interface;
+		}
+		
 		for (int i = 1; i < 100; i++)
 		{
 			sprintf_s(PossibleInterfaceName, "%s0%i", InterfaceName, i);
@@ -114,6 +123,12 @@ public:
 		}
 
 		return Interface;
+	}
+
+	template<typename Fn>
+	inline Fn* GetFactoryPointer(const std::string& module, const std::string& interfaces)
+	{
+		return (Fn*)GetPointer(module.c_str(), interfaces.c_str());
 	}
 };
 
