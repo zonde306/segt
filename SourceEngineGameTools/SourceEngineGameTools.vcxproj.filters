@@ -114,6 +114,9 @@
     <ClInclude Include="ntdll.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="structs\weapon.h">
+      <Filter>structs</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="structs\checksum_md5.cpp">

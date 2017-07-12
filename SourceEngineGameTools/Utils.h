@@ -247,7 +247,7 @@ public:
 		int len = GetArrayLength(offsetList);
 		if (len <= 0)
 		{
-			printf("请提供至少一个地址！\n");
+			Utils::log("请提供至少一个地址！");
 			return T();
 		}
 
@@ -297,7 +297,7 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("错误：读取地址为 0x%X 的内容失败。\n", currentAddress);
+			Utils::log("错误：读取地址为 0x%X 的内容失败。", currentAddress);
 		}
 
 		return T();
@@ -311,7 +311,7 @@ public:
 		int len = GetArrayLength(offsetList);
 		if (len <= 0)
 		{
-			printf("请提供至少一个地址！\n");
+			Utils::log("请提供至少一个地址！");
 			return T();
 		}
 
@@ -333,7 +333,7 @@ public:
 				currentAddress += offsetList[i];
 				if (VirtualProtect((void*)currentAddress, sizeof(finalAddress), PAGE_EXECUTE_READWRITE, &oldProtect) == FALSE)
 				{
-					printf("错误：修改地址 0x%X 的保护失败。\n", currentAddress);
+					Utils::log("错误：修改地址 0x%X 的保护失败。", currentAddress);
 					return T();
 				}
 
@@ -361,7 +361,7 @@ public:
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
-			printf("错误：读取地址为 0x%X 的内容失败。\n", currentAddress);
+			Utils::log("错误：读取地址为 0x%X 的内容失败。", currentAddress);
 		}
 
 		return T();
@@ -401,7 +401,7 @@ public:
 		return result;
 	}
 
-	static void log(const char* text, ...)
+	static std::string GetPath()
 	{
 		static std::string path;
 		if (path.empty())
@@ -411,7 +411,12 @@ public:
 			std::string tmp = buffer;
 			path = tmp.substr(0, tmp.rfind('\\'));
 		}
-		
+
+		return path;
+	}
+
+	static void log(const char* text, ...)
+	{
 		char buffer[1024];
 
 		time_t t;
@@ -423,7 +428,7 @@ public:
 		// 文件创建日期
 		strftime(buffer, 1024, "\\segt_%Y%m%d.log", &tmp);
 
-		std::fstream file(path + buffer, std::ios::out|std::ios::app|std::ios::ate);
+		std::fstream file(GetPath() + buffer, std::ios::out|std::ios::app|std::ios::ate);
 
 		// 日志写入时间
 		strftime(buffer, 1024, "[%H:%M:%S] ", &tmp);
@@ -436,7 +441,7 @@ public:
 		va_end(ap);
 
 		// 输出
-		file << buffer << "\r\n";
+		file << buffer << "\n";
 
 		// 完毕
 		file.close();
@@ -457,7 +462,7 @@ public:
 		ClientClass* clientClass = Interfaces.Client->GetAllClasses();
 		if (!clientClass)
 		{
-			printf("ERROR: ClientClass was not found\n");
+			Utils::log("ERROR: ClientClass was not found");
 			return;
 		}
 
@@ -476,7 +481,7 @@ public:
 		int offset = GetProp(tableName, propName);
 		if (!offset)
 		{
-			printf("ERROR: Failed to find offset for prop: %s from table: %s\n", propName, tableName);
+			Utils::log("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
 			return 0;
 		}
 
@@ -490,13 +495,13 @@ private:
 		RecvTable* recvTable = GetTable(tableName);
 		if (!recvTable)
 		{
-			printf("ERROR: Failed to find table: %s\n", tableName);
+			Utils::log("ERROR: Failed to find table: %s", tableName);
 			return 0;
 		}
 		int offset = GetProp(recvTable, propName, prop);
 		if (!offset)
 		{
-			printf("ERROR: Failed to find offset for prop: %s from table: %s\n", propName, tableName);
+			Utils::log("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
 			return 0;
 		}
 
@@ -535,7 +540,7 @@ private:
 	{
 		if (_tables.empty())
 		{
-			printf("ERROR: Failed to find table: %s (_tables is empty)\n", tableName);
+			Utils::log("ERROR: Failed to find table: %s (_tables is empty)", tableName);
 			return 0;
 		}
 

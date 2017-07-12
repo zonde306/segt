@@ -635,3 +635,47 @@ enum entityGender_t
 #define l4d2_special(_s,_n,_p)		(l4d2_tank(_s,_n,_p) || l4d2_smoker(_s,_n,_p) || l4d2_hunter(_s,_n,_p) || l4d2_boomer(_s,_n,_p) || l4d2_charger(_s,_n,_p) || l4d2_jockey(_s,_n,_p) || l4d2_witch(_s,_n,_p) || l4d2_spitter(_s,_n,_p))
 
 #define l4d2_zombies(_s,_n,_p)		(l4d2_common(_s,_n,_p) || l4d2_special(_s,_n,_p))
+
+#define CVAR_MAKE_FLAGS(_s)				if(gConVar[_s] != nullptr)\
+{\
+	if(gConVar[_s]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))\
+		gConVar[_s]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);\
+	if(!gConVar[_s]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))\
+		gConVar[_s]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);\
+}
+
+#define CVAR_MAKE_VALUE(_s,_v1,_v2)		if(gConVar[_s] != nullptr)\
+{\
+	if(gConVar[_s]->GetInt() == _v1)\
+		gConVar[_s]->SetValue(_v2);\
+	else\
+		gConVar[_s]->SetValue(_v1);\
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] %s set %d\"", _s, gConVar[_s]->GetInt());\
+}
+
+#define VMTHOOK_DESTORY(_v)		if(_v != nullptr)_v->HookTable(false)
+#define DETOURXS_DESTORY(_v)	if(_v != nullptr && _v->Created())_v->Destroy()
+
+#define NETPROP_GET_MAKE(_f,_t,_p,_r)	_r& _f()\
+{\
+	static int offset = netVars->GetOffset(_t, _p);\
+	return *(_r*)(this + offset);\
+}
+
+#define NETPROP_TGET_MAKE(_f,_t,_p)	template<typename T> T& _f()\
+{\
+	static int offset = netVars->GetOffset(_t, _p);\
+	return *(T*)(this + offset);\
+}
+
+#define NETPROP_SET_MAKE(_f,_t,_p,_r)	_r& _f(const _r& value)\
+{\
+	static int offset = netVars->GetOffset(_t, _p);\
+	return (*(_r*)(this + offset) = value);\
+}
+
+#define NETPROP_TSET_MAKE(_f,_t,_p,_r)	template<typename T> T& _f(const T& value)\
+{\
+	static int offset = netVars->GetOffset(_t, _p);\
+	return (*(T*)(this + offset) = value);\
+}

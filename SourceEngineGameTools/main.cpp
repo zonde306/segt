@@ -2,7 +2,7 @@
 #include <mutex>
 #include <sstream>
 
-#define USE_PLAYER_INFO
+// #define USE_PLAYER_INFO
 #define USE_CVAR_CHANGE
 
 extern LRESULT ImGui_ImplDX9_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -61,7 +61,7 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
-		errlog.open("segt.log", std::ofstream::out|std::ofstream::app);
+		errlog.open(Utils::GetPath() + "segt.log", std::ofstream::out | std::ofstream::app);
 		Utils::log("========= cheats start =========");
 
 		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)StartCheat, Instance, NULL, NULL);
@@ -124,12 +124,13 @@ void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x
 static FnDrawModel oDrawModel;
 
 static DrawManager* drawRender;
-static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static CVMTHookManager gDirectXHook;
-static ConVar *cvar_sv_cheats, *cvar_r_drawothermodels, *cvar_cl_drawshadowtexture, *cvar_mat_fullbright,
-	*cvar_sv_pure, *cvar_sv_consistency, *cvar_mp_gamemode, *cvar_c_thirdpersonshoulder;
+static std::map<std::string, ConVar*> gConVar;
+static CBaseEntity* pCurrentAiming, *pTriggerAiming;
+static DWORD gModuleClient, gModuleEngine, gModuleMaterial;
+
 static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
-	bRapidFire = true, bSilentAim = false, bAutoStrafe = false;
+bRapidFire = true, bSilentAim = false, bAutoStrafe = false;
 static std::timed_mutex mAimbot;
 
 void bunnyHop(void*);
@@ -190,7 +191,7 @@ void StartCheat(HINSTANCE instance)
 			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
 		}
 	}
-	
+
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
 	{
 		oPaintTraverse = (FnPaintTraverse)Interfaces.PanelHook->HookFunction(indexes::PaintTraverse, Hooked_PaintTraverse);
@@ -258,36 +259,36 @@ void StartCheat(HINSTANCE instance)
 
 	if (Interfaces.Cvar)
 	{
-		cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
-		cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
-		cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
-		cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
-		cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
-		cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
-		cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
-		cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
-		
-		Utils::log("*** ConVar ***");
-		Utils::log("sv_cheats = 0x%X", (DWORD)cvar_sv_cheats);
-		Utils::log("r_drawothermodels = 0x%X", (DWORD)cvar_r_drawothermodels);
-		Utils::log("cl_drawshadowtexture = 0x%X", (DWORD)cvar_cl_drawshadowtexture);
-		Utils::log("mat_fullbright = 0x%X", (DWORD)cvar_mat_fullbright);
-		Utils::log("sv_pure = 0x%X", (DWORD)cvar_sv_pure);
-		Utils::log("sv_consistency = 0x%X", (DWORD)cvar_sv_consistency);
-		Utils::log("mp_gamemode = 0x%X", (DWORD)cvar_mp_gamemode);
-		Utils::log("c_thirdpersonshoulder = 0x%X", (DWORD)cvar_c_thirdpersonshoulder);
-		Utils::log("*** end ***");
+#ifdef USE_CVAR_CHANGE
+		gConVar["sv_cheats"] = Interfaces.Cvar->FindVar("sv_cheats");
+		gConVar["r_drawothermodels"] = Interfaces.Cvar->FindVar("r_drawothermodels");
+		gConVar["cl_drawshadowtexture"] = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
+		gConVar["mat_fullbright"] = Interfaces.Cvar->FindVar("mat_fullbright");
+		gConVar["sv_pure"] = Interfaces.Cvar->FindVar("sv_pure");
+		gConVar["sv_consistency"] = Interfaces.Cvar->FindVar("sv_consistency");
+		gConVar["mp_gamemode"] = Interfaces.Cvar->FindVar("mp_gamemode");
+		gConVar["c_thirdpersonshoulder"] = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
+#else
+		gConVar["sv_cheats"] = nullptr;
+		gConVar["r_drawothermodels"] = nullptr;
+		gConVar["cl_drawshadowtexture"] = nullptr;
+		gConVar["mat_fullbright"] = nullptr;
+		gConVar["sv_pure"] = nullptr;
+		gConVar["sv_consistency"] = nullptr;
+		gConVar["mp_gamemode"] = nullptr;
+		gConVar["c_thirdpersonshoulder"] = nullptr;
+#endif
 
-		/*
-		cvar_sv_cheats = nullptr;
-		cvar_r_drawothermodels = nullptr;
-		cvar_cl_drawshadowtexture = nullptr;
-		cvar_mat_fullbright = nullptr;
-		cvar_sv_pure = nullptr;
-		cvar_sv_consistency = nullptr;
-		cvar_mp_gamemode = nullptr;
-		cvar_c_thirdpersonshoulder = nullptr;
-		*/
+		Utils::log("*** ConVar ***");
+		Utils::log("sv_cheats = 0x%X", (DWORD)gConVar["sv_cheats"]);
+		Utils::log("r_drawothermodels = 0x%X", (DWORD)gConVar["r_drawothermodels"]);
+		Utils::log("cl_drawshadowtexture = 0x%X", (DWORD)gConVar["cl_drawshadowtexture"]);
+		Utils::log("mat_fullbright = 0x%X", (DWORD)gConVar["mat_fullbright"]);
+		Utils::log("sv_pure = 0x%X", (DWORD)gConVar["sv_pure"]);
+		Utils::log("sv_consistency = 0x%X", (DWORD)gConVar["sv_consistency"]);
+		Utils::log("mp_gamemode = 0x%X", (DWORD)gConVar["mp_gamemode"]);
+		Utils::log("c_thirdpersonshoulder = 0x%X", (DWORD)gConVar["c_thirdpersonshoulder"]);
+		Utils::log("*** end ***");
 	}
 
 	dh::StartDeviceHook([&](IDirect3D9*& pD3D, IDirect3DDevice9*& pDevice, DWORD*& pVMT) -> void
@@ -308,13 +309,6 @@ void StartCheat(HINSTANCE instance)
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 #endif
-		/*
-		printo("oReset", oReset);
-		printo("oEndScene", oEndScene);
-		printo("oDrawIndexedPrimitive", oDrawIndexedPrimitive);
-		printo("oCreateQuery", oCreateQuery);
-		printo("oPresent", oPresent);
-		*/
 
 		Utils::log("oReset = 0x%X", (DWORD)oReset);
 		Utils::log("oPresent = 0x%X", (DWORD)oPresent);
@@ -323,22 +317,14 @@ void StartCheat(HINSTANCE instance)
 		Utils::log("oCreateQuery = 0x%X", (DWORD)oCreateQuery);
 	});
 
-	DWORD client, engine, material, fmWait;
-	client = Utils::GetModuleBase("client.dll");
-	engine = Utils::GetModuleBase("engine.dll");
-	material = Utils::GetModuleBase("materialsystem.dll");
+	gModuleClient = Utils::GetModuleBase("client.dll");
+	gModuleEngine = Utils::GetModuleBase("engine.dll");
+	gModuleMaterial = Utils::GetModuleBase("materialsystem.dll");
 
-	Utils::log("client.dll = 0x%X", client);
-	Utils::log("engine.dll = 0x%X", engine);
-	Utils::log("materialsystem.dll = 0x%X", material);
+	Utils::log("client.dll = 0x%X", gModuleClient);
+	Utils::log("engine.dll = 0x%X", gModuleEngine);
+	Utils::log("materialsystem.dll = 0x%X", gModuleMaterial);
 	Utils::log("localPlayer = 0x%X", (DWORD)GetLocalClient());
-
-	/*
-	printo("client.dll", client);
-	printo("engine.dll", engine);
-	printo("materialsystem.dll", material);
-	printo("localPlayer", (DWORD)GetLocalClient());
-	*/
 
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoShot, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)pure, (void*)engine, NULL, NULL);
@@ -346,57 +332,55 @@ void StartCheat(HINSTANCE instance)
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoPistol, NULL, NULL, NULL);
 	// CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)autoAim, NULL, NULL, NULL);
 
-	fmWait = 45;
-	bindAlias(fmWait);
+	bindAlias(45);
 	FreeConsole();
 	Interfaces.Engine->ClientCmd("clear");
 
+	/*
 	for (;;)
 	{
-		static bool connected = false;
-
 		if (Interfaces.Engine->IsConnected())
 		{
 			if (GetAsyncKeyState(VK_INSERT) & 0x01)
 			{
 #ifdef USE_CVAR_CHANGE
-				if (cvar_r_drawothermodels != nullptr)
+				if (gConVar["r_drawothermodels"] != nullptr)
 				{
-					if (cvar_r_drawothermodels->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						cvar_r_drawothermodels->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+					if (gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						gConVar["r_drawothermodels"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!cvar_r_drawothermodels->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						cvar_r_drawothermodels->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					if (!gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						gConVar["r_drawothermodels"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
 
-				if (cvar_cl_drawshadowtexture != nullptr)
+				if (gConVar["cl_drawshadowtexture"] != nullptr)
 				{
-					if (cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						cvar_cl_drawshadowtexture->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+					if (gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						gConVar["cl_drawshadowtexture"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!cvar_cl_drawshadowtexture->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						cvar_cl_drawshadowtexture->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					if (!gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						gConVar["cl_drawshadowtexture"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
 #endif
-				
+
 #ifdef USE_CVAR_CHANGE
-				if (cvar_r_drawothermodels != nullptr && cvar_cl_drawshadowtexture != nullptr)
+				if (gConVar["r_drawothermodels"] != nullptr && gConVar["cl_drawshadowtexture"] != nullptr)
 				{
-					if (cvar_r_drawothermodels->GetInt() == 2)
+					if (gConVar["r_drawothermodels"]->GetInt() == 2)
 					{
-						cvar_r_drawothermodels->SetValue(1);
-						cvar_cl_drawshadowtexture->SetValue(0);
+						gConVar["r_drawothermodels"]->SetValue(1);
+						gConVar["cl_drawshadowtexture"]->SetValue(0);
 					}
 					else
 					{
-						cvar_r_drawothermodels->SetValue(2);
-						cvar_cl_drawshadowtexture->SetValue(1);
+						gConVar["r_drawothermodels"]->SetValue(2);
+						gConVar["cl_drawshadowtexture"]->SetValue(1);
 					}
 
 					Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
-						cvar_r_drawothermodels->GetInt());
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] cvar_cl_drawshadowtexture set %d\"",
-						cvar_cl_drawshadowtexture->GetInt());
+						gConVar["r_drawothermodels"]->GetInt());
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] cl_drawshadowtexture set %d\"",
+						gConVar["cl_drawshadowtexture"]->GetInt());
 				}
 				else
 				{
@@ -426,26 +410,26 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_HOME) & 0x01)
 			{
 #ifdef USE_CVAR_CHANGE
-				if (cvar_mat_fullbright != nullptr)
+				if (gConVar["mat_fullbright"] != nullptr)
 				{
-					if (cvar_mat_fullbright->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						cvar_mat_fullbright->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+					if (gConVar["mat_fullbright"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						gConVar["mat_fullbright"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!cvar_mat_fullbright->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						cvar_mat_fullbright->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					if (!gConVar["mat_fullbright"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						gConVar["mat_fullbright"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
 #endif
-				
+
 #ifdef USE_CVAR_CHANGE
-				if (cvar_mat_fullbright != nullptr)
+				if (gConVar["mat_fullbright"] != nullptr)
 				{
-					if (cvar_mat_fullbright->GetInt() == 1)
-						cvar_mat_fullbright->SetValue(0);
+					if (gConVar["mat_fullbright"]->GetInt() == 1)
+						gConVar["mat_fullbright"]->SetValue(0);
 					else
-						cvar_mat_fullbright->SetValue(1);
+						gConVar["mat_fullbright"]->SetValue(1);
 
 					Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
-						cvar_mat_fullbright->GetInt());
+						gConVar["mat_fullbright"]->GetInt());
 				}
 				else
 				{
@@ -467,33 +451,33 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
 			{
 #ifdef USE_CVAR_CHANGE
-				if (cvar_mp_gamemode != nullptr)
+				if (gConVar["mp_gamemode"] != nullptr)
 				{
-					if (cvar_mp_gamemode->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						cvar_mp_gamemode->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+					if (gConVar["mp_gamemode"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						gConVar["mp_gamemode"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!cvar_mp_gamemode->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						cvar_mp_gamemode->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					if (!gConVar["mp_gamemode"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						gConVar["mp_gamemode"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
 #endif
-				
+
 #ifdef USE_CVAR_CHANGE
-				if (cvar_mp_gamemode != nullptr)
+				if (gConVar["mp_gamemode"] != nullptr)
 				{
-					const char* mode = cvar_mp_gamemode->GetString();
+					const char* mode = gConVar["mp_gamemode"]->GetString();
 					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
 					{
-						cvar_mp_gamemode->SetValue("coop");
-						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "coop");
+						gConVar["mp_gamemode"]->SetValue("coop");
+						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "coop");
 					}
 					else
 					{
-						cvar_mp_gamemode->SetValue("versus");
-						strcpy_s(cvar_mp_gamemode->m_pszString, cvar_mp_gamemode->m_StringLength, "versus");
+						gConVar["mp_gamemode"]->SetValue("versus");
+						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "versus");
 					}
 
 					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
-						cvar_mp_gamemode->GetString());
+						gConVar["mp_gamemode"]->GetString());
 				}
 				else
 				{
@@ -526,26 +510,26 @@ void StartCheat(HINSTANCE instance)
 			if (GetAsyncKeyState(VK_APPS) & 0x01)
 			{
 #ifdef USE_CVAR_CHANGE
-				if (cvar_sv_cheats != nullptr)
+				if (gConVar["sv_cheats"] != nullptr)
 				{
 					// 瑙ｉ櫎淇敼闄愬埗
-					if (cvar_sv_cheats->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						cvar_sv_cheats->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+					if (gConVar["sv_cheats"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+						gConVar["sv_cheats"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
 					// 闃叉琚彂鐜
-					if (!cvar_sv_cheats->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						cvar_sv_cheats->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+					if (!gConVar["sv_cheats"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+						gConVar["sv_cheats"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 				}
 #endif
 
 #ifdef USE_CVAR_CHANGE
-				if (cvar_sv_cheats != nullptr)
+				if (gConVar["sv_cheats"] != nullptr)
 				{
-					cvar_sv_cheats->SetValue(1);
-					cvar_sv_cheats->m_fValue = 1.0f;
-					cvar_sv_cheats->m_nValue = 1;
+					gConVar["sv_cheats"]->SetValue(1);
+					gConVar["sv_cheats"]->m_fValue = 1.0f;
+					gConVar["sv_cheats"]->m_nValue = 1;
 					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
-						cvar_sv_cheats->GetInt());
+						gConVar["sv_cheats"]->GetInt());
 				}
 #endif
 
@@ -614,17 +598,6 @@ void StartCheat(HINSTANCE instance)
 			{
 				Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
 
-				/*
-				cvar_sv_cheats = Interfaces.Cvar->FindVar("sv_cheats");
-				cvar_r_drawothermodels = Interfaces.Cvar->FindVar("r_drawothermodels");
-				cvar_cl_drawshadowtexture = Interfaces.Cvar->FindVar("cl_drawshadowtexture");
-				cvar_mat_fullbright = Interfaces.Cvar->FindVar("mat_fullbright");
-				cvar_sv_pure = Interfaces.Cvar->FindVar("sv_pure");
-				cvar_sv_consistency = Interfaces.Cvar->FindVar("sv_consistency");
-				cvar_mp_gamemode = Interfaces.Cvar->FindVar("mp_gamemode");
-				cvar_c_thirdpersonshoulder = Interfaces.Cvar->FindVar("c_thirdpersonshoulder");
-				*/
-
 				Utils::log("*** connected ***");
 			}
 
@@ -634,13 +607,13 @@ void StartCheat(HINSTANCE instance)
 		{
 			static bool disconnected = false;
 			disconnected = true;
-			
+
 #ifdef USE_CVAR_CHANGE
-			if (cvar_r_drawothermodels != nullptr)
+			if (gConVar["r_drawothermodels"] != nullptr)
 			{
-				if (cvar_r_drawothermodels->GetInt() != 1)
+				if (gConVar["r_drawothermodels"]->GetInt() != 1)
 				{
-					cvar_r_drawothermodels->SetValue(1);
+					gConVar["r_drawothermodels"]->SetValue(1);
 					disconnected = true;
 				}
 			}
@@ -657,11 +630,11 @@ void StartCheat(HINSTANCE instance)
 #endif
 
 #ifdef USE_CVAR_CHANGE
-			if (cvar_cl_drawshadowtexture != nullptr)
+			if (gConVar["cl_drawshadowtexture"] != nullptr)
 			{
-				if (cvar_cl_drawshadowtexture->GetInt() != 0)
+				if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
 				{
-					cvar_cl_drawshadowtexture->SetValue(0);
+					gConVar["cl_drawshadowtexture"]->SetValue(0);
 					disconnected = true;
 				}
 			}
@@ -678,11 +651,11 @@ void StartCheat(HINSTANCE instance)
 #endif
 
 #ifdef USE_CVAR_CHANGE
-			if (cvar_mat_fullbright != nullptr)
+			if (gConVar["mat_fullbright"] != nullptr)
 			{
-				if (cvar_mat_fullbright->GetInt() != 0)
+				if (gConVar["mat_fullbright"]->GetInt() != 0)
 				{
-					cvar_mat_fullbright->SetValue(0);
+					gConVar["mat_fullbright"]->SetValue(0);
 					disconnected = true;
 				}
 			}
@@ -703,7 +676,7 @@ void StartCheat(HINSTANCE instance)
 			{
 				disconnected = false;
 				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
-				
+
 				Utils::log("*** disconnected ***");
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -727,44 +700,44 @@ void StartCheat(HINSTANCE instance)
 		if (Interfaces.Engine->IsConnected())
 		{
 #ifdef USE_CVAR_CHANGE
-			if (cvar_sv_pure != nullptr)
+			if (gConVar["sv_pure"] != nullptr)
 			{
-				if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+				if (gConVar["sv_pure"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					gConVar["sv_pure"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				if (!cvar_sv_pure->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					cvar_sv_pure->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				if (!gConVar["sv_pure"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					gConVar["sv_pure"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
 #endif
 
 #ifdef USE_CVAR_CHANGE
-			if (cvar_sv_consistency != nullptr)
+			if (gConVar["sv_consistency"] != nullptr)
 			{
-				if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+				if (gConVar["sv_consistency"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					gConVar["sv_consistency"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				if (!cvar_sv_consistency->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					cvar_sv_consistency->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				if (!gConVar["sv_consistency"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					gConVar["sv_consistency"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
 #endif
 
 #ifdef USE_CVAR_CHANGE
-			if (cvar_c_thirdpersonshoulder != nullptr)
+			if (gConVar["c_thirdpersonshoulder"] != nullptr)
 			{
-				if (cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					cvar_c_thirdpersonshoulder->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+				if (gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+					gConVar["c_thirdpersonshoulder"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
 				// 闃叉琚煇浜涙彃浠舵煡璇㈠埌
-				if (!cvar_c_thirdpersonshoulder->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					cvar_c_thirdpersonshoulder->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+				if (!gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+					gConVar["c_thirdpersonshoulder"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
 			}
 #endif
 
 #ifdef USE_CVAR_CHANGE
-			if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
-				cvar_sv_pure->SetValue(0);
-			if (cvar_sv_consistency != nullptr && cvar_sv_consistency->GetInt() != 0)
-				cvar_sv_consistency->SetValue(0);
+			if (gConVar["sv_pure"] != nullptr && gConVar["sv_pure"]->GetInt() != 0)
+				gConVar["sv_pure"]->SetValue(0);
+			if (gConVar["sv_consistency"] != nullptr && gConVar["sv_consistency"]->GetInt() != 0)
+				gConVar["sv_consistency"]->SetValue(0);
 #endif
 
 			if (Utils::readMemory<int>(engine + sv_pure) != 0 ||
@@ -791,13 +764,14 @@ void StartCheat(HINSTANCE instance)
 
 		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
+	*/
 }
 
 bool IsAliveTarget(CBaseEntity* entity)
 {
 	int id = 0, solid = 0, sequence = 0;
 	ClientClass* cc = nullptr;
-	
+
 	try
 	{
 		if (entity == nullptr || entity->IsDormant())
@@ -811,7 +785,7 @@ bool IsAliveTarget(CBaseEntity* entity)
 		solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_BaseCombatCharacter");
 		sequence = entity->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter");
 	}
-	catch(...)
+	catch (...)
 	{
 		return false;
 	}
@@ -865,18 +839,18 @@ std::string GetZombieClassName(CBaseEntity* player)
 {
 	if (player == nullptr || player->IsDormant())
 		return "";
-	
+
 	if (player->GetClientClass()->m_ClassID == ET_INFECTED)
 	{
 		int zombie = player->GetNetProp<int>("m_Gender", "DT_Infected");
 		switch (zombie)
 		{
-		/*
-		case 1:
+			/*
+			case 1:
 			return "male";
-		case 2:
+			case 2:
 			return "female";
-		*/
+			*/
 		case 11:
 			// 防火 CEDA 人员
 			return "ceda";
@@ -908,7 +882,7 @@ std::string GetZombieClassName(CBaseEntity* player)
 		// 新娘 Witch
 		if (player->GetNetProp<int>("m_Gender", "DT_Infected") == 19)
 			return "bride";
-		
+
 		// 普通 Witch
 		return "witch";
 	}
@@ -1031,7 +1005,7 @@ Vector GetHeadPosition(CBaseEntity* player)
 Vector GetHeadHitboxPosition(CBaseEntity* entity)
 {
 	Vector position;
-	
+
 	if (!IsAliveTarget(entity))
 		return position;
 
@@ -1173,9 +1147,9 @@ bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
 	CTraceFilter filter;
 	filter.pSkip1 = client;
 
-	if(end.IsValid())
+	if (end.IsValid())
 		ray.Init(client->GetEyePosition(), end);
-	else if(entity->GetClientClass()->m_ClassID == ET_INFECTED)
+	else if (entity->GetClientClass()->m_ClassID == ET_INFECTED)
 		ray.Init(client->GetEyePosition(), entity->GetHitboxPosition(HITBOX_COMMON));
 	else
 		ray.Init(client->GetEyePosition(), entity->GetHitboxPosition(HITBOX_PLAYER));
@@ -1231,24 +1205,22 @@ void pure(void* engine)
 {
 	for (;;)
 	{
-		/*
-		if (cvar_sv_pure != nullptr)
+		if (gConVar["sv_pure"] != nullptr)
 		{
-			if (cvar_sv_pure->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-				cvar_sv_pure->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+			if (gConVar["sv_pure"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+				gConVar["sv_pure"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 		}
 
-		if (cvar_sv_consistency != nullptr)
+		if (gConVar["sv_consistency"] != nullptr)
 		{
-			if (cvar_sv_consistency->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-				cvar_sv_consistency->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+			if (gConVar["sv_consistency"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+				gConVar["sv_consistency"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 		}
-		*/
-		
-		if (cvar_sv_pure != nullptr && cvar_sv_pure->GetInt() != 0)
-			cvar_sv_pure->SetValue(0);
-		if (cvar_sv_consistency != nullptr && cvar_sv_consistency->GetInt() != 0)
-			cvar_sv_consistency->SetValue(0);
+
+		if (gConVar["sv_pure"] != nullptr && gConVar["sv_pure"]->GetInt() != 0)
+			gConVar["sv_pure"]->SetValue(0);
+		if (gConVar["sv_consistency"] != nullptr && gConVar["sv_consistency"]->GetInt() != 0)
+			gConVar["sv_consistency"]->SetValue(0);
 
 		if (Utils::readMemory<int>((DWORD)engine + sv_pure) != 0 ||
 			Utils::readMemory<int>((DWORD)engine + sv_consistency) != 0)
@@ -1273,7 +1245,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		std::cout << "Hooked_CreateMove trigged." << std::endl;
 		Utils::log("Hooked_CreateMove success");
 	}
-	
+
 	oCreateMove(sequence_number, input_sample_frametime, active);
 
 	DWORD dwEBP = NULL;
@@ -1288,7 +1260,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		Utils::log("pVerifiedCmd = 0x%X", (DWORD)pVerifiedCmd);
 		Utils::log("pCmd = 0x%X", (DWORD)pCmd);
 	}
-	
+
 	CBaseEntity* client = GetLocalClient();
 	if (client == nullptr || pCmd == nullptr || pVerifiedCmd == nullptr || !client->IsAlive() ||
 		Interfaces.Engine->IsConsoleVisible())
@@ -1355,64 +1327,64 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		/*
 		if (!IsAliveTarget(pCurrentAiming))
 		{
-			int team = client->GetTeam();
-			float distance = 32767.0f, dist, fov;
-			// bool visible = false;
-			Vector headPos;
+		int team = client->GetTeam();
+		float distance = 32767.0f, dist, fov;
+		// bool visible = false;
+		Vector headPos;
 
-			pCurrentAiming = nullptr;
-			int maxEntity = Interfaces.Engine->GetMaxClients();
-			for (int i = 1; i < maxEntity; ++i)
-			{
-				CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
+		pCurrentAiming = nullptr;
+		int maxEntity = Interfaces.Engine->GetMaxClients();
+		for (int i = 1; i < maxEntity; ++i)
+		{
+		CBaseEntity* target = Interfaces.ClientEntList->GetClientEntity(i);
 
-				// 妫�鏌ユ槸鍚︿负涓�涓湁鏁堢殑骞朵笖娲荤潃鐨勬晫浜
-				if (!IsAliveTarget(target) || target->GetTeam() == team)
-				{
-					// Interfaces.Engine->ClientCmd("echo \"Invalid Entity 0x%X\"", (DWORD)target);
-					continue;
-				}
+		// 妫�鏌ユ槸鍚︿负涓�涓湁鏁堢殑骞朵笖娲荤潃鐨勬晫浜
+		if (!IsAliveTarget(target) || target->GetTeam() == team)
+		{
+		// Interfaces.Engine->ClientCmd("echo \"Invalid Entity 0x%X\"", (DWORD)target);
+		continue;
+		}
 
-				// 浼樺厛閫夋嫨鐗规劅
-				if (i > 64 && pCurrentAiming != nullptr)
-					break;
+		// 浼樺厛閫夋嫨鐗规劅
+		if (i > 64 && pCurrentAiming != nullptr)
+		break;
 
-				int classId = target->GetClientClass()->m_ClassID;
+		int classId = target->GetClientClass()->m_ClassID;
 
-				if (classId == ET_INFECTED)
-				{
-					// 鐗规劅鏄笉闇�瑕佺瀯鍑嗘櫘鎰熺殑
-					if (team == 3)
-						continue;
+		if (classId == ET_INFECTED)
+		{
+		// 鐗规劅鏄笉闇�瑕佺瀯鍑嗘櫘鎰熺殑
+		if (team == 3)
+		continue;
 
-					// 鏅劅鐨勫ご閮ㄧ殑 hitbox 鎴栬 16 涔熷彲浠
-					headPos = target->GetHitboxPosition(HITBOX_COMMON);
-				}
-				else if (classId == ET_TANKROCK)
-				{
-					// Tank 鎶曟幏鐨勭煶澶达紝鍙互琚墦鐖
-					headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
-				}
-				else
-				{
-					// 鐢熻繕鑰?鐗规劅
-					headPos = target->GetHitboxPosition(HITBOX_PLAYER);
-				}
+		// 鏅劅鐨勫ご閮ㄧ殑 hitbox 鎴栬 16 涔熷彲浠
+		headPos = target->GetHitboxPosition(HITBOX_COMMON);
+		}
+		else if (classId == ET_TANKROCK)
+		{
+		// Tank 鎶曟幏鐨勭煶澶达紝鍙互琚墦鐖
+		headPos = target->GetNetProp<Vector>("m_vecOrigin", "DT_BaseEntity");
+		}
+		else
+		{
+		// 鐢熻繕鑰?鐗规劅
+		headPos = target->GetHitboxPosition(HITBOX_PLAYER);
+		}
 
-				dist = headPos.DistTo(myOrigin);
-				fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
+		dist = headPos.DistTo(myOrigin);
+		fov = GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headPos));
 
-				// 閫夋嫨鏈�杩戠殑锛岄潬杩戝噯鏄燂紝骞朵笖鍙互鐪嬭鐨勭洰鏍
-				if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
-				{
-					pCurrentAiming = target;
-					distance = dist;
-				}
-			}
-			
-			if (pCurrentAiming != nullptr)
-				Interfaces.Engine->ClientCmd("echo \"target selected 0x%X | classId = %d | health = %d\"",
-					pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
+		// 閫夋嫨鏈�杩戠殑锛岄潬杩戝噯鏄燂紝骞朵笖鍙互鐪嬭鐨勭洰鏍
+		if (IsTargetVisible(target, headPos) && dist < distance && fov <= 30.f)
+		{
+		pCurrentAiming = target;
+		distance = dist;
+		}
+		}
+
+		if (pCurrentAiming != nullptr)
+		Interfaces.Engine->ClientCmd("echo \"target selected 0x%X | classId = %d | health = %d\"",
+		pCurrentAiming, pCurrentAiming->GetClientClass()->m_ClassID, pCurrentAiming->GetHealth());
 		}
 		*/
 
@@ -1447,7 +1419,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 
 			// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
 
-			if(position.IsValid())
+			if (position.IsValid())
 				pCmd->viewangles = CalculateAim(myOrigin, position);
 		}
 	}
@@ -1458,7 +1430,7 @@ end_aimbot:
 	if (bTriggerBot && !(pCmd->buttons & IN_USE) && weapon != nullptr)
 	{
 		CBaseEntity* target = GetAimingTarget();
-		
+
 #ifdef _DEBUG
 		if (target != nullptr)
 		{
@@ -1512,7 +1484,7 @@ end_aimbot:
 	}
 
 	// 没什么用
-	if(bSilentAim && weapon != nullptr)
+	if (bSilentAim && weapon != nullptr)
 	{
 		if ((pCmd->buttons & IN_ATTACK) &&
 			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
@@ -1530,13 +1502,13 @@ end_aimbot:
 	/*
 	if ((pCmd->buttons & IN_RELOAD) && weapon != nullptr)
 	{
-		static int oldId = 0;
-		int weaponId = weapon->GetWeaponID();
-		if (oldId != weaponId)
-		{
-			Interfaces.Engine->ClientCmd("echo \"current weapon id = %d\"", weaponId);
-			oldId = weaponId;
-		}
+	static int oldId = 0;
+	int weaponId = weapon->GetWeaponID();
+	if (oldId != weaponId)
+	{
+	Interfaces.Engine->ClientCmd("echo \"current weapon id = %d\"", weaponId);
+	oldId = weaponId;
+	}
 	}
 	*/
 
@@ -1558,7 +1530,7 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 		std::cout << "Hooked_CreateMoveShared trigged." << std::endl;
 		Utils::log("Hooked_CreateMoveShared success");
 	}
-	
+
 	CBaseEntity* client = GetLocalClient();
 
 	if (!client || !cmd)
@@ -1618,7 +1590,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 		std::cout << "Hooked_PaintTraverse trigged." << std::endl;
 		Utils::log("Hooked_PaintTraverse success");
 	}
-	
+
 	static unsigned int MatSystemTopPanel = 0;
 	static unsigned int FocusOverlayPanel = 0;
 
@@ -1646,7 +1618,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 	if (FocusOverlayPanel > 0 && panel == FocusOverlayPanel)
 	{
-		
+
 	}
 
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
@@ -1746,7 +1718,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 
 				bool visible = IsTargetVisible(entity, headbox);
 				float dist = local->GetAbsOrigin().DistTo(entity->GetAbsOrigin());
-				
+
 				// 显示距离
 				ss << dist;
 
@@ -1829,7 +1801,7 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 		std::cout << "Hooked_FrameStageNotify trigged." << std::endl;
 		Utils::log("Hooked_FrameStageNotify success");
 	}
-	
+
 	QAngle punch;
 	CBaseEntity* client = GetLocalClient();
 
@@ -1843,6 +1815,350 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 
 	if (client != nullptr && client->IsAlive() && punch.IsValid())
 		client->SetNetProp<Vector>("m_vecPunchAngle", punch, "DT_BasePlayer");
+
+	static time_t nextUpdate = 0;
+	time_t currentTime = time(NULL);
+	if (nextUpdate <= currentTime)
+	{
+		nextUpdate = currentTime + 1;
+		static DWORD fmWait = 45;
+		static bool connected = false;
+
+		if (Interfaces.Engine->IsConnected())
+		{
+			// 修改 r_drawothermodels 实现简单的 esp
+			if (GetAsyncKeyState(VK_INSERT) & 0x01)
+			{
+#ifdef USE_CVAR_CHANGE
+				CVAR_MAKE_FLAGS("r_drawothermodels");
+				CVAR_MAKE_FLAGS("cl_drawshadowtexture");
+#endif
+
+#ifdef USE_CVAR_CHANGE
+				if (gConVar["r_drawothermodels"] != nullptr && gConVar["cl_drawshadowtexture"] != nullptr)
+				{
+					CVAR_MAKE_VALUE("r_drawothermodels", 2, 1);
+					CVAR_MAKE_VALUE("cl_drawshadowtexture", 1, 0);
+				}
+				else
+				{
+#endif
+					if (Utils::readMemory<int>(gModuleClient + r_drawothermodels) == 2)
+					{
+						Utils::writeMemory(1, gModuleClient + r_drawothermodels);
+						Utils::writeMemory(0, gModuleClient + cl_drawshadowtexture);
+					}
+					else
+					{
+						Utils::writeMemory(2, gModuleClient + r_drawothermodels);
+						Utils::writeMemory(1, gModuleClient + cl_drawshadowtexture);
+					}
+
+					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+						Utils::readMemory<int>(gModuleClient + r_drawothermodels));
+					Interfaces.Engine->ClientCmd("echo \"cl_drawshadowtexture set %d\"",
+						Utils::readMemory<int>(gModuleClient + cl_drawshadowtexture));
+#ifdef USE_CVAR_CHANGE
+				}
+#endif
+				bBoxEsp = !bBoxEsp;
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 修改 mat_fullbright 实现全图高亮
+			if (GetAsyncKeyState(VK_HOME) & 0x01)
+			{
+#ifdef USE_CVAR_CHANGE
+				CVAR_MAKE_FLAGS("mat_fullbright");
+#endif
+
+#ifdef USE_CVAR_CHANGE
+				if (gConVar["mat_fullbright"] != nullptr)
+				{
+					CVAR_MAKE_VALUE("mat_fullbright", 1, 0);
+				}
+				else
+				{
+#endif
+					if (Utils::readMemory<int>(gModuleMaterial + mat_fullbright) == 1)
+						Utils::writeMemory(0, gModuleMaterial + mat_fullbright);
+					else
+						Utils::writeMemory(1, gModuleMaterial + mat_fullbright);
+
+					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+						Utils::readMemory<int>(gModuleMaterial + mat_fullbright));
+#ifdef USE_CVAR_CHANGE
+				}
+#endif
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 修改 mp_gamemode 在对抗模式开启第三人称
+			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
+			{
+#ifdef USE_CVAR_CHANGE
+				CVAR_MAKE_FLAGS("mp_gamemode");
+#endif
+
+#ifdef USE_CVAR_CHANGE
+				if (gConVar["mp_gamemode"] != nullptr)
+				{
+					const char* mode = gConVar["mp_gamemode"]->GetString();
+					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+					{
+						gConVar["mp_gamemode"]->SetValue("coop");
+						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "coop");
+					}
+					else
+					{
+						gConVar["mp_gamemode"]->SetValue("versus");
+						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "versus");
+					}
+
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
+						gConVar["mp_gamemode"]->GetString());
+				}
+				else
+				{
+#endif
+					char* mode = Utils::readMemory<char*>(gModuleClient + mp_gamemode);
+					if (mode != nullptr)
+					{
+						DWORD oldProtect = NULL;
+
+						if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
+						{
+							if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+								strcpy_s(mode, 16, "coop");
+							else
+								strcpy_s(mode, 16, "versus");
+							VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
+						}
+						else
+							printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
+
+						Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+					}
+#ifdef USE_CVAR_CHANGE
+				}
+#endif
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 修改 sv_cheats 解除更改 cvar 限制
+			if (GetAsyncKeyState(VK_APPS) & 0x01)
+			{
+#ifdef USE_CVAR_CHANGE
+				CVAR_MAKE_FLAGS("sv_cheats");
+#endif
+
+#ifdef USE_CVAR_CHANGE
+				if (gConVar["sv_cheats"] != nullptr)
+				{
+					gConVar["sv_cheats"]->SetValue(1);
+					gConVar["sv_cheats"]->m_fValue = 1.0f;
+					gConVar["sv_cheats"]->m_nValue = 1;
+					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
+						gConVar["sv_cheats"]->GetInt());
+				}
+#endif
+
+				if (Utils::readMemory<int>(gModuleEngine + sv_cheats) != 1)
+				{
+					Utils::writeMemory(1, gModuleEngine + sv_cheats);
+					Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
+						Utils::readMemory<int>(gModuleEngine + sv_cheats));
+				}
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 切换第三人称
+			if (GetAsyncKeyState(VK_NEXT) & 0x01)
+				thirdPerson();
+
+			// 显示全部玩家
+			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
+				showSpectator();
+
+			// 打开/关闭 自动连跳的自动保持速度
+			if (GetAsyncKeyState(VK_F8) & 0x01)
+			{
+				bAutoStrafe = !bAutoStrafe;
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto strafe set %s\"",
+					(bAutoStrafe ? "enable" : "disabled"));
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 打开/关闭 自动开枪
+			if (GetAsyncKeyState(VK_F9) & 0x01)
+			{
+				bTriggerBot = !bTriggerBot;
+				Interfaces.Engine->ClientCmd("echo \"[segt] trigger bot set %s\"",
+					(bTriggerBot ? "enable" : "disabled"));
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 打开/关闭 自动瞄准
+			if (GetAsyncKeyState(VK_F10) & 0x01)
+			{
+				bAimBot = !bAimBot;
+				Interfaces.Engine->ClientCmd("echo \"[segt] aim bot set %s\"",
+					(bAimBot ? "enable" : "disabled"));
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 打开/关闭 空格自动连跳
+			if (GetAsyncKeyState(VK_F11) & 0x01)
+			{
+				bBhop = !bBhop;
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto bunnyHop set %s\"",
+					(bBhop ? "enable" : "disabled"));
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 打开/关闭 手枪连射
+			if (GetAsyncKeyState(VK_F12) & 0x01)
+			{
+				bRapidFire = !bRapidFire;
+				Interfaces.Engine->ClientCmd("echo \"[segt] auto pistol fire %s\"",
+					(bRapidFire ? "enable" : "disabled"));
+
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			// 去除 CRC 验证
+			// if (Interfaces.Engine->IsConnected())
+			{
+#ifdef USE_CVAR_CHANGE
+				CVAR_MAKE_FLAGS("sv_pure");
+				CVAR_MAKE_FLAGS("sv_consistency");
+				CVAR_MAKE_FLAGS("c_thirdpersonshoulder");
+#endif
+
+#ifdef USE_CVAR_CHANGE
+				if (gConVar["sv_pure"] != nullptr && gConVar["sv_pure"]->GetInt() != 0)
+					gConVar["sv_pure"]->SetValue(0);
+				if (gConVar["sv_consistency"] != nullptr && gConVar["sv_consistency"]->GetInt() != 0)
+					gConVar["sv_consistency"]->SetValue(0);
+#endif
+
+				if (Utils::readMemory<int>(gModuleEngine + sv_pure) != 0 ||
+					Utils::readMemory<int>(gModuleEngine + sv_consistency) != 0)
+				{
+					Utils::writeMemory(0, gModuleEngine + sv_pure);
+					Utils::writeMemory(0, gModuleEngine + sv_consistency);
+
+					Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+						Utils::readMemory<int>(gModuleEngine + sv_pure));
+
+					// std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+			}
+
+			if (!connected)
+			{
+				Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
+
+				Utils::log("*** connected ***");
+			}
+
+			connected = true;
+		}
+		else if (connected && !Interfaces.Engine->IsInGame())
+		{
+			/*
+#ifdef USE_CVAR_CHANGE
+			if (gConVar["r_drawothermodels"] != nullptr)
+			{
+				if (gConVar["r_drawothermodels"]->GetInt() != 1)
+				{
+					gConVar["r_drawothermodels"]->SetValue(1);
+				}
+			}
+			else
+			{
+#endif
+				if (Utils::readMemory<int>(gModuleClient + r_drawothermodels) != 1)
+				{
+					Utils::writeMemory<int>(1, gModuleClient + r_drawothermodels);
+				}
+#ifdef USE_CVAR_CHANGE
+			}
+#endif
+
+#ifdef USE_CVAR_CHANGE
+			if (gConVar["cl_drawshadowtexture"] != nullptr)
+			{
+				if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
+				{
+					gConVar["cl_drawshadowtexture"]->SetValue(0);
+				}
+			}
+			else
+			{
+#endif
+				if (Utils::readMemory<int>(gModuleClient + cl_drawshadowtexture) != 0)
+				{
+					Utils::writeMemory(0, gModuleClient + cl_drawshadowtexture);
+				}
+#ifdef USE_CVAR_CHANGE
+			}
+#endif
+
+#ifdef USE_CVAR_CHANGE
+			if (gConVar["mat_fullbright"] != nullptr)
+			{
+				if (gConVar["mat_fullbright"]->GetInt() != 0)
+				{
+					gConVar["mat_fullbright"]->SetValue(0);
+				}
+			}
+			else
+			{
+#endif
+				if (Utils::readMemory<int>(gModuleMaterial + mat_fullbright) != 0)
+				{
+					Utils::writeMemory(0, gModuleMaterial + mat_fullbright);
+				}
+#ifdef USE_CVAR_CHANGE
+			}
+#endif
+			*/
+
+			connected = false;
+			Utils::log("*** disconnected ***");
+		}
+
+		if (GetAsyncKeyState(VK_ADD) & 0x01)
+		{
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			// std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+
+		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
+		{
+			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
+			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+			// std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+
+		if (GetAsyncKeyState(VK_END) & 0x01)
+		{
+			errlog.close();
+			ExitProcess(0);
+		}
+
+		if (GetAsyncKeyState(VK_DELETE) & 0x01)
+			Interfaces.Engine->ClientCmd("disconnect");
+	}
 }
 
 int __stdcall Hooked_InKeyEvent(int eventcode, ButtonCode_t keynum, const char *pszCurrentBinding)
@@ -1873,7 +2189,7 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 		showHint = false;
 		std::cout << "Hooked_Reset trigged." << std::endl;
 
-		if((DWORD)dh::gDeviceInternal == (DWORD)device)
+		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_Reset success");
 	}
 
@@ -1883,17 +2199,17 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 		showHint = true;
 	}
 
-	if(!bImGuiInitialized)
+	if (!bImGuiInitialized)
 		return oReset(device, pp);
 
 	// ImGui_ImplDX9_InvalidateDeviceObjects();
 	drawRender->OnLostDevice();
-	
+
 	HRESULT result = oReset(device, pp);
 
 	drawRender->OnResetDevice();
 	// ImGui_ImplDX9_CreateDeviceObjects();
-	
+
 	return result;
 }
 
@@ -1909,7 +2225,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_EndScene success");
 	}
-	
+
 	if (dh::gDeviceInternal == nullptr)
 	{
 		ResetDeviceHook(device);
@@ -1926,7 +2242,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 	else
 	{
 		// ImGui::GetIO().MouseDrawCursor = !Interfaces.Engine->IsInGame();
-		
+
 		// ImGui_ImplDX9_NewFrame();
 		// drawRender->BeginRendering();
 
@@ -1934,61 +2250,61 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 		/*
 		if(bBoxEsp)
 		{
-			static auto getPlayerColor = [](CBaseEntity* local, CBaseEntity* other) -> D3DCOLOR
-			{
-				static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255),
-					team = D3DCOLOR_RGBA(0, 0, 255, 255);
-				
-				if (local->GetTeam() == other->GetTeam())
-					return team;
+		static auto getPlayerColor = [](CBaseEntity* local, CBaseEntity* other) -> D3DCOLOR
+		{
+		static D3DCOLOR enemy = D3DCOLOR_RGBA(255, 0, 0, 255),
+		team = D3DCOLOR_RGBA(0, 0, 255, 255);
 
-				return enemy;
-			};
-			
-			// int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
-			for (int i = 1; i < 64; ++i)
-			{
-				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
-				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local)
-					continue;
+		if (local->GetTeam() == other->GetTeam())
+		return team;
 
-				if (i < 64)
-				{
-					// 鐜╁
-					if (!entity->IsAlive() || entity->GetHealth() <= 0)
-						continue;
-					
-					Vector head, foot;
-					D3DCOLOR color = getPlayerColor(local, entity);
+		return enemy;
+		};
 
-					if (WorldToScreen(entity->GetEyePosition(), head) &&
-						WorldToScreen(entity->GetAbsOrigin(), foot))
-					{
-						// 鏄剧ず绫诲瀷
-						drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
-							entity->GetHealth(), GetZombieClassName(entity).c_str());
+		// int maxEntity = Interfaces.ClientEntList->GetHighestEntityIndex();
+		for (int i = 1; i < 64; ++i)
+		{
+		CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
+		if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local)
+		continue;
 
-						static bool showHint = true;
-						if (showHint)
-						{
-							Utils::log("zombieClass Draw: %s", GetZombieClassName(entity).c_str());
-							showHint = false;
-						}
+		if (i < 64)
+		{
+		// 鐜╁
+		if (!entity->IsAlive() || entity->GetHealth() <= 0)
+		continue;
 
-						float height = fabs(head.y - foot.y);
-						float width = height * 0.65f;
+		Vector head, foot;
+		D3DCOLOR color = getPlayerColor(local, entity);
 
-						// 缁樺埗涓�涓
-						drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
-						// drawRender->DrawRect(foot.x - width / 2, foot.y, width, -height, color);
-					}
-				}
-				else
-				{
-					// 鏅劅
-					// TODO: 濡傛灉杩欎釜瀹炰綋鏄櫘鎰燂紝灏辩粯鍒跺嚭鏉
-				}
-			}
+		if (WorldToScreen(entity->GetEyePosition(), head) &&
+		WorldToScreen(entity->GetAbsOrigin(), foot))
+		{
+		// 鏄剧ず绫诲瀷
+		drawRender->RenderText(color, head.x, head.y, true, "[%d] %s",
+		entity->GetHealth(), GetZombieClassName(entity).c_str());
+
+		static bool showHint = true;
+		if (showHint)
+		{
+		Utils::log("zombieClass Draw: %s", GetZombieClassName(entity).c_str());
+		showHint = false;
+		}
+
+		float height = fabs(head.y - foot.y);
+		float width = height * 0.65f;
+
+		// 缁樺埗涓�涓
+		drawRender->RenderRect(color, foot.x - width / 2, foot.y, width, -height);
+		// drawRender->DrawRect(foot.x - width / 2, foot.y, width, -height, color);
+		}
+		}
+		else
+		{
+		// 鏅劅
+		// TODO: 濡傛灉杩欎釜瀹炰綋鏄櫘鎰燂紝灏辩粯鍒跺嚭鏉
+		}
+		}
 		}
 		*/
 
@@ -2011,7 +2327,7 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_DrawIndexedPrimitive success");
 	}
-	
+
 	if (dh::gDeviceInternal == nullptr)
 	{
 		ResetDeviceHook(device);
@@ -2053,7 +2369,7 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_CreateQuery success");
 	}
-	
+
 	if (dh::gDeviceInternal == nullptr)
 	{
 		ResetDeviceHook(device);
@@ -2062,7 +2378,7 @@ HRESULT WINAPI Hooked_CreateQuery(IDirect3DDevice9* device, D3DQUERYTYPE type, I
 
 	/*
 	if (type == D3DQUERYTYPE_OCCLUSION)
-		type = D3DQUERYTYPE_TIMESTAMP;
+	type = D3DQUERYTYPE_TIMESTAMP;
 	*/
 
 	return oCreateQuery(device, type, query);
@@ -2079,7 +2395,7 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_Present success");
 	}
-	
+
 	if (dh::gDeviceInternal == nullptr)
 	{
 		ResetDeviceHook(device);
@@ -2092,7 +2408,7 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 void bunnyHop(void* client)
 {
 	CBaseEntity* local = nullptr;
-	
+
 	for (;;)
 	{
 		local = GetLocalClient();
@@ -2101,9 +2417,9 @@ void bunnyHop(void* client)
 		{
 			/*
 			if (client->GetFlags() & FL_ONGROUND)
-				Interfaces.Engine->ClientCmd("+jump");
+			Interfaces.Engine->ClientCmd("+jump");
 			else
-				Interfaces.Engine->ClientCmd("-jump");
+			Interfaces.Engine->ClientCmd("-jump");
 			*/
 
 			static bool repeat = false;
@@ -2142,7 +2458,7 @@ void bunnyHop(void* client)
 void autoPistol()
 {
 	CBaseEntity* client = nullptr;
-	
+
 	for (;;)
 	{
 		client = GetLocalClient();
@@ -2191,7 +2507,7 @@ void autoAim()
 	for (;;)
 	{
 		mAimbot.lock();
-		
+
 		CBaseEntity* client = GetLocalClient();
 		if (client != nullptr && Interfaces.Engine->IsInGame() && client->IsAlive() &&
 			!Interfaces.Engine->IsConsoleVisible())
@@ -2226,9 +2542,9 @@ void autoAim()
 						/*
 						int classId = (int)target->GetClientClass();
 						if (classId != ET_BOOMER && classId != ET_JOCKEY && classId != ET_SPITTER &&
-							classId != ET_CHARGER && classId != ET_HUNTER && classId != ET_SMOKER &&
-							classId != ET_TANK && classId != ET_INFECTED)
-							continue;
+						classId != ET_CHARGER && classId != ET_HUNTER && classId != ET_SMOKER &&
+						classId != ET_TANK && classId != ET_INFECTED)
+						continue;
 						*/
 
 						int zombieClass = target->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
@@ -2264,7 +2580,7 @@ void autoAim()
 						// 濂藉鏄瀯寰楀噯锛屼笉浼氳鍏朵粬鍥犳暟褰卞搷
 						position = GetHeadPosition(pCurrentAiming);
 					}
-					catch(...)
+					catch (...)
 					{
 						// 鑾峰彇楠ㄩ浣嶇疆澶辫触
 						position = pCurrentAiming->GetEyePosition();
@@ -2316,17 +2632,17 @@ void esp()
 			/*
 			CBaseEntity* glow = player->GetNetProp<CBaseEntity*>("m_Glow", "DT_BaseEntity");
 			if (glow)
-				glow = Interfaces.ClientEntList->GetClientEntityFromHandle(glow);
+			glow = Interfaces.ClientEntList->GetClientEntityFromHandle(glow);
 			if (glow)
 			{
-				glow->SetNetProp("m_iGlowType", 3, "DT_GlowProperty");
-				// glow->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
-				// glow->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
-				glow->SetNetProp("m_glowColorOverride", 16777215, "DT_GlowProperty");
+			glow->SetNetProp("m_iGlowType", 3, "DT_GlowProperty");
+			// glow->SetNetProp("m_nGlowRange", 0, "DT_GlowProperty");
+			// glow->SetNetProp("m_nGlowRangeMin", 0, "DT_GlowProperty");
+			glow->SetNetProp("m_glowColorOverride", 16777215, "DT_GlowProperty");
 			}
 			*/
 		}
-		
+
 		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 
@@ -2360,7 +2676,7 @@ void meleeAttack()
 	}
 	else
 		tookoutTime = 0.0f;
-	
+
 	std::this_thread::sleep_for(std::chrono::microseconds(1));
 }
 
@@ -2373,21 +2689,21 @@ void thirdPerson()
 			local->SetNetProp<float>("m_TimeForceExternalView", 99999.3f, "DT_TerrorPlayer");
 		else
 			local->SetNetProp<float>("m_TimeForceExternalView", 0.0f, "DT_TerrorPlayer");
-		
+
 		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
-			// 鍒囨崲鍒扮涓変汉绉
-			local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
-			local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
-			local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
+		// 鍒囨崲鍒扮涓変汉绉
+		local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
+		local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
+		local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
 		}
 		else if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == 0)
 		{
-			// 鍒囨崲鍒扮涓�浜虹О
-			local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
-			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
-			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
+		// 鍒囨崲鍒扮涓�浜虹О
+		local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
+		local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
+		local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
 		}
 		*/
 	}
@@ -2426,14 +2742,14 @@ void showSpectator()
 				// 瑙傚療鑰
 				if (mode != 4 && mode != 5)
 					continue;
-				
+
 				target = (CBaseEntity*)player->GetNetProp<void*>("m_iObserverMode", "DT_BasePlayer");
 				if (target && (int)target != -1)
 					target = Interfaces.ClientEntList->GetClientEntityFromHandle(target);
-				
+
 				if (target == nullptr || (int)target == -1)
 					continue;
-				
+
 				if ((DWORD)target == (DWORD)local)
 				{
 					// 姝ｅ湪瑙傚療鏈湴鐜╁
@@ -2478,7 +2794,7 @@ void showSpectator()
 					// 姝讳骸
 					if (mode != 4 && mode != 5)
 						continue;
-					
+
 					target = (CBaseEntity*)player->GetNetProp<void*>("m_iObserverMode", "DT_BasePlayer");
 					if (target && (int)target != -1)
 						target = Interfaces.ClientEntList->GetClientEntityFromHandle(target);

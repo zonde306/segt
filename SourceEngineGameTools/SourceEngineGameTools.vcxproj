@@ -181,6 +181,7 @@
     <ClInclude Include="structs\usercmd.h" />
     <ClInclude Include="structs\vector.h" />
     <ClInclude Include="structs\vmatrix.h" />
+    <ClInclude Include="structs\weapon.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
