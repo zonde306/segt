@@ -33,7 +33,7 @@ public:
 	CMoveHelper* MoveHelper;
 	ICvar* Cvar;
 
-	void* ClientMode;
+	ClientModeShared* ClientMode;
 	CVMTHookManager* ClientModeHook;
 	CVMTHookManager* PanelHook;
 	CVMTHookManager* ClientHook;

@@ -171,24 +171,24 @@ void StartCheat(HINSTANCE instance)
 	Utils::log("GlobalsVariable 0x%X", (DWORD)Interfaces.Globals);
 	Utils::log("Input 0x%X", (DWORD)Interfaces.Input);
 
-	typedef void*(__stdcall* FnGetClientMode)();
+	typedef ClientModeShared*(*FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
-	DWORD size, address;
-	address = Utils::GetModuleBase("client.dll", &size);
-
-	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern(address, size, "B8 ? ? ? ? C3")) != nullptr)
+	if ((GetClientModeNormal = (FnGetClientMode)Utils::FindPattern("client.dll",
+		XorStr("8B 0D ? ? ? ? 8B 01 8B 90 ? ? ? ? FF D2 8B 04 85 ? ? ? ? C3"))) != nullptr &&
+		(Interfaces.ClientMode = GetClientModeNormal()) != nullptr)
 	{
-		Interfaces.ClientMode = GetClientModeNormal();
-		if (Interfaces.ClientMode)
-		{
-			Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
-			// printo("ClientModePtr", Interfaces.ClientMode);
-			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
-		}
+		Interfaces.ClientModeHook = new CVMTHookManager(Interfaces.ClientMode);
+		// printo("ClientModePtr", Interfaces.ClientMode);
+		Utils::log("ClientModeShared = 0x%X", (DWORD)Interfaces.ClientMode);
+		Utils::log("m_pChatElement = 0x%X", (DWORD)Interfaces.ClientMode->GetHudChat());
 	}
 	else
+		Utils::log("ClientModeShared not found");
+
+	/*
+	else
 	{
-		Interfaces.ClientMode = *(void**)(address + IClientModePointer);
+		Interfaces.ClientMode = *(ClientModeShared**)(address + IClientModePointer);
 		if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
 		{
 			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
@@ -196,6 +196,7 @@ void StartCheat(HINSTANCE instance)
 			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
 		}
 	}
+	*/
 
 	if (Interfaces.PanelHook && indexes::PaintTraverse > -1)
 	{
@@ -208,7 +209,7 @@ void StartCheat(HINSTANCE instance)
 	if (Interfaces.ClientModeHook && indexes::SharedCreateMove > -1)
 	{
 		oCreateMoveShared = (FnCreateMoveShared)Interfaces.ClientModeHook->HookFunction(indexes::SharedCreateMove, Hooked_CreateMoveShared);
-		Interfaces.ClientModeHook->HookTable(true);
+		// Interfaces.ClientModeHook->HookTable(true);
 		// printo("oCreateMoveShared", oCreateMoveShared);
 		Utils::log("oCreateMoveShared = 0x%X", (DWORD)oCreateMoveShared);
 	}
@@ -324,10 +325,10 @@ void StartCheat(HINSTANCE instance)
 
 	if (Interfaces.GameEvent)
 	{
-		class HookEventPlayerSpawn : public IGameEventListener2
+		class HookEvent : public IGameEventListener2
 		{
 		public:
-			HookEventPlayerSpawn()
+			HookEvent()
 			{
 				this->m_nDebugID = EVENT_DEBUG_ID_INIT;
 			}
@@ -337,31 +338,170 @@ void StartCheat(HINSTANCE instance)
 				static bool showHint = true;
 				if (showHint)
 				{
-					Utils::log("Event player_spawn Fire. 0x%X", (DWORD)event);
+					Utils::log("HookEvent FireGameEvent Fire. 0x%X", (DWORD)event);
 					showHint = false;
 				}
 				
-				if (!Interfaces.Engine->IsInGame() || _strcmpi(event->GetName(), "player_spawn") != 0)
+				if (!Interfaces.Engine->IsInGame())
 					return;
 
-				int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
-				if (client <= 0)
-					return;
+				// 事件名
+				const char* eventName = event->GetName();
 
-				CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(client);
-				if (player == nullptr)
-					return;
+				// 玩家复活了
+				if (_strcmpi(eventName, "player_spawn") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0)
+						goto end_player_spawn;
 
-				Interfaces.Engine->ClientCmd("echo \"--- %s spawned ---\"",
-					GetZombieClassName(player).c_str());
+					CBaseEntity* player = Interfaces.ClientEntList->GetClientEntity(client);
+					if (player == nullptr)
+						goto end_player_spawn;
+
+					player_info_t info;
+					Utils::log("- player %s spawned [%d] %s", GetZombieClassName(player).c_str(),
+						client, (Interfaces.Engine->GetPlayerInfo(client, &info) ? info.name : ""));
+				}
+
+			end_player_spawn:
+
+				// 玩家连接到服务器
+				if (_strcmpi(eventName, "player_connect") == 0)
+				{
+					int client = event->GetInt("index", 0) + 1;					// 玩家实体索引
+					if (client <= 0)
+						goto end_player_connect;
+
+					const char* name = event->GetString("name", "");			// 玩家名
+					const char* steamId = event->GetString("networkid", "");	// 玩家 SteamID
+					const char* ip = event->GetString("address", "");			// 玩家 ip 地址
+					int bots = event->GetInt("bot", 0);							// 是否为机器人
+
+					Utils::log("- player connect [%d] %s (%s) from %s", client, name,
+						(bots ? "BOT" : steamId), ip);
+				}
+
+			end_player_connect:
+
+				// 玩家断开了连接
+				if (_strcmpi(eventName, "player_disconnect") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0)
+						goto end_player_disconnect;
+
+					const char* name = event->GetString("name", "");			// 玩家名
+					const char* steamId = event->GetString("networkid", "");	// 玩家 SteamID
+					const char* reason = event->GetString("reason", "");		// 离开游戏的原因
+					int bots = event->GetInt("bot", 0);							// 是否为机器人
+
+					Utils::log("- player disconnect [%d] %s (%s) with <%s>", client, name,
+						(bots ? "BOT" : steamId), reason);
+				}
+
+			end_player_disconnect:
+
+				// 玩家加入了游戏(连接完毕可以开玩)
+				if (_strcmpi(eventName, "player_activate") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0)
+						goto end_player_activate;
+
+					player_info_t info;
+					if (!Interfaces.Engine->GetPlayerInfo(client, &info))
+						goto end_player_activate;
+
+					Utils::log("- player join game [%d] %s", client, info.name);
+				}
+
+			end_player_activate:
+
+				// 玩家说话(在聊天框输入内容并发送)
+				if (_strcmpi(eventName, "player_say") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0)
+						goto end_player_say;
+
+					const char* text = event->GetString("text", "");
+					if (text[0] == '\0')
+						goto end_player_say;
+
+					player_info_t info;
+					if (!Interfaces.Engine->GetPlayerInfo(client, &info))
+						goto end_player_say;
+
+					Utils::log("- player say [%d] %s : %s", client, info.name, text);
+				}
+
+			end_player_say:
+
+				// 控制台变量被修改
+				if (_strcmpi(eventName, "server_cvar") == 0)
+				{
+					const char* cvarName = event->GetString("cvarname", "");
+					const char* cvarValue = event->GetString("cvarvalue", "");
+					if (cvarName[0] == '\0' || cvarValue[0] == '\0')
+						goto end_server_cvar;
+
+					Utils::log("- server convar change %s set %s", cvarName, cvarValue);
+				}
+
+			end_server_cvar:
+
+				// 玩家被服务器关小黑屋了(使用 addban 命令)
+				if (_strcmpi(eventName, "server_addban") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0)
+						goto end_server_addban;
+
+					const char* name = event->GetString("name", "");			// 玩家名
+					const char* steamId = event->GetString("networkid", "");	// 玩家 SteamID
+					const char* ip = event->GetString("ip", "");				// 玩家 ip 地址
+					const char* reason = event->GetString("by", "");			// 被封禁的原因
+					const char* duration = event->GetString("duration", "");	// 封禁多长时间
+					bool kicked = event->GetBool("kicked", false);				// 是否顺便请出去了
+
+					Utils::log("- player banned %s[%d] %s (%s) from %s with %s time %s",
+						(kicked ? "+kick " : ""), client, name, steamId, ip, reason, duration);
+				}
+
+			end_server_addban:
+
+				// 玩家改名字了
+				if (_strcmpi(eventName, "player_info") == 0)
+				{
+					int client = event->GetInt("index", 0) + 1;					// 玩家实体索引
+					if (client <= 0)
+						goto end_player_info;
+
+					const char* name = event->GetString("name", "");			// 玩家名
+					const char* steamId = event->GetString("networkid", "");	// 玩家 SteamID
+					bool bots = event->GetBool("bot", true);					// 是否为机器人
+
+					Utils::log("- player change name [%d] %s (%s)", client, name,
+						(bots ? "BOT" : steamId));
+				}
+
+			end_player_info:
+
+				return;
 			}
 		};
 
-		gEventSpawn = new HookEventPlayerSpawn();
-		if (!Interfaces.GameEvent->AddListener(gEventSpawn, "player_spawn", false))
-			Utils::log("Couldn't install listener");
-		else
-			Utils::log("listener player_spawn 0x%X", (DWORD)gEventSpawn);
+		gEventSpawn = new HookEvent();
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_spawn", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_connect", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_disconnect", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_activate", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_say", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "server_cvar", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "server_addban", false);
+		Interfaces.GameEvent->AddListener(gEventSpawn, "player_info", false);
+		Utils::log("event lisntner added 0x%X", (DWORD)gEventSpawn);
 	}
 
 	gModuleClient = Utils::GetModuleBase("client.dll");
@@ -1296,7 +1436,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	oCreateMove(sequence_number, input_sample_frametime, active);
 
 	DWORD dwEBP = NULL;
-	__asm mov dwEBP, ebp
+	__asm mov dwEBP, ebp;
 	bool* bSendPacket = (bool*)(*(char**)dwEBP - 0x21);
 
 	CVerifiedUserCmd *pVerifiedCmd = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
@@ -1578,53 +1718,19 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 		Utils::log("Hooked_CreateMoveShared success");
 	}
 
-	CBaseEntity* client = GetLocalClient();
+	bool result = oCreateMoveShared(flInputSampleTime, cmd);
+	if (cmd == nullptr || cmd->command_number == 0)
+		return result;
 
-	if (!client || !cmd)
-		return false;
+	uintptr_t* dwEBP = NULL;
+	__asm mov dwEBP, ebp;
+	bool* bSendPacket = (bool*)(*dwEBP - 0x21);
 
-	// 杩炶烦
-	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-	{
-		static bool lastJump = false;
-		static bool shouldFake = false;
+	// 修复角度不正确
+	ClampAngles(cmd->viewangles);
+	AngleNormalize(cmd->viewangles);
 
-		if (!lastJump && shouldFake)
-		{
-			shouldFake = false;
-			cmd->buttons |= IN_JUMP;
-		}
-		else if (cmd->buttons & IN_JUMP)
-		{
-			if (client->GetFlags() & FL_ONGROUND)
-			{
-				lastJump = true;
-				shouldFake = true;
-			}
-			else
-			{
-				cmd->buttons &= ~IN_JUMP;
-				lastJump = false;
-			}
-		}
-		else
-		{
-			lastJump = false;
-			shouldFake = false;
-		}
-
-		// strafe
-		if (!(client->GetFlags() & FL_ONGROUND))
-		{
-			if (cmd->mousedx < 0)
-				cmd->sidemove = -400.f;
-
-			if (cmd->mousedx > 0)
-				cmd->sidemove = 400.f;
-		}
-	}
-
-	return oCreateMoveShared(flInputSampleTime, cmd);
+	return result;
 }
 
 #define FONT_SIZE 16
@@ -1856,6 +1962,8 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	{
 		if (client != nullptr && client->IsAlive())
 			punch = client->GetNetProp<Vector>("m_vecPunchAngle", "DT_BasePlayer");
+
+		// 在这里可以使用 DebugOverlay 来绘制
 	}
 
 	oFrameStageNotify(stage);

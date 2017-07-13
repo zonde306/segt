@@ -162,6 +162,14 @@ public:
 		return hmModuleHandle;
 	}
 
+	static DWORD FindPattern(const std::string& modules, const std::string& chPattern)
+	{
+		static HMODULE hmModule = GetModuleHandleSafe(modules);
+		static PIMAGE_DOS_HEADER pDOSHeader = (PIMAGE_DOS_HEADER)hmModule;
+		static PIMAGE_NT_HEADERS pNTHeaders = (PIMAGE_NT_HEADERS)(((DWORD)hmModule) + pDOSHeader->e_lfanew);
+		return FindPattern(((DWORD)hmModule) + pNTHeaders->OptionalHeader.BaseOfCode, ((DWORD)hmModule) + pNTHeaders->OptionalHeader.SizeOfCode, chPattern);
+	}
+
 	// 获取 dll 地址
 	static DWORD GetModuleBase(std::string ModuleName, DWORD ProcessID = 0)
 	{

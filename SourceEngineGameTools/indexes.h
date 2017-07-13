@@ -7,6 +7,7 @@ namespace indexes
 	const int CreateMove = 20;
 	const int FrameStageNotify = 34;
 	const int InKeyEvent = -1;
+	const int HudUpdate = 9;
 
 	// Engine
 	const int GetScreenSize = 5;
@@ -86,4 +87,9 @@ namespace indexes
 
 	// ClientModeShared
 	const int SharedCreateMove = 27;
+	const int GetMessagePanel = 24;
+
+	// CBaseHudChat
+	const int Printf = 22;
+	const int ChatPrintf = 23;
 }

@@ -18,7 +18,7 @@ class Vector
 {
 public:
 	float x, y, z;
-	inline void Init(float ix, float iy, float iz)
+	inline void Init(float ix = 0.0f, float iy = 0.0f, float iz = 0.0f)
 	{
 		x = ix; y = iy; z = iz;
 	}
