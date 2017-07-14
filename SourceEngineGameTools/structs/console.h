@@ -1,4 +1,6 @@
 #pragma once
+#include "../libraries/utl_string.h"
+#include "../libraries/utl_vector.h"
 
 class ConVar;
 class IConVar;
@@ -9,6 +11,19 @@ class ConCommandBase;
 // Called when a ConVar changes value
 // NOTE: For FCVAR_NEVER_AS_STRING ConVars, pOldValue == NULL
 typedef void(*FnChangeCallback_t)(IConVar *var, const char *pOldValue, float flOldValue);
+
+//-----------------------------------------------------------------------------
+// Called when a ConCommand needs to execute
+//-----------------------------------------------------------------------------
+typedef void(*FnCommandCallbackVoid_t)(void);
+typedef void(*FnCommandCallback_t)(const CCommand &command);
+#define COMMAND_COMPLETION_MAXITEMS		64
+#define COMMAND_COMPLETION_ITEM_LENGTH	64
+
+//-----------------------------------------------------------------------------
+// Returns 0 to COMMAND_COMPLETION_MAXITEMS worth of completion strings
+//-----------------------------------------------------------------------------
+typedef int(*FnCommandCompletionCallback)(const char *partial, char commands[COMMAND_COMPLETION_MAXITEMS][COMMAND_COMPLETION_ITEM_LENGTH]);
 
 enum InitReturnVal_t
 {
@@ -208,6 +223,21 @@ public:
 
 void ConVar_Register(int nCVarFlag, IConCommandBaseAccessor *pAccessor = NULL);
 
+//-----------------------------------------------------------------------------
+// Interface version
+//-----------------------------------------------------------------------------
+class ICommandCallback
+{
+public:
+	virtual void CommandCallback(const CCommand &command) = 0;
+};
+
+class ICommandCompletionCallback
+{
+public:
+	virtual int  CommandCompletionCallback(const char *pPartial, CUtlVector< CUtlString > &commands) = 0;
+};
+
 class ConCommandBase
 {
 public:
@@ -249,6 +279,62 @@ public:
 public:
 	static ConCommandBase*			s_pConCommandBases;
 	static IConCommandBaseAccessor*	s_pAccessor;
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: The console invoked command
+//-----------------------------------------------------------------------------
+class ConCommand : public ConCommandBase
+{
+	friend class CCvar;
+
+public:
+	typedef ConCommandBase BaseClass;
+
+	ConCommand(const char *pName, FnCommandCallbackVoid_t callback,
+		const char *pHelpString = 0, int flags = 0, FnCommandCompletionCallback completionFunc = 0);
+	ConCommand(const char *pName, FnCommandCallback_t callback,
+		const char *pHelpString = 0, int flags = 0, FnCommandCompletionCallback completionFunc = 0);
+	ConCommand(const char *pName, ICommandCallback *pCallback,
+		const char *pHelpString = 0, int flags = 0, ICommandCompletionCallback *pCommandCompletionCallback = 0);
+
+	virtual ~ConCommand(void);
+
+	virtual	bool IsCommand(void) const;
+
+	virtual int AutoCompleteSuggest(const char *partial, CUtlVector< CUtlString > &commands);
+
+	virtual bool CanAutoComplete(void);
+
+	// Invoke the function
+	virtual void Dispatch(const CCommand &command);
+
+private:
+	// NOTE: To maintain backward compat, we have to be very careful:
+	// All public virtual methods must appear in the same order always
+	// since engine code will be calling into this code, which *does not match*
+	// in the mod code; it's using slightly different, but compatible versions
+	// of this class. Also: Be very careful about adding new fields to this class.
+	// Those fields will not exist in the version of this class that is instanced
+	// in mod code.
+
+	// Call this function when executing the command
+	union
+	{
+		FnCommandCallbackVoid_t m_fnCommandCallbackV1;
+		FnCommandCallback_t m_fnCommandCallback;
+		ICommandCallback *m_pCommandCallback;
+	};
+
+	union
+	{
+		FnCommandCompletionCallback	m_fnCompletionCallback;
+		ICommandCompletionCallback *m_pCommandCompletionCallback;
+	};
+
+	bool m_bHasCompletionCallback : 1;
+	bool m_bUsingNewCommandCallback : 1;
+	bool m_bUsingCommandCallbackInterface : 1;
 };
 
 class ConVar : public ConCommandBase, public IConVar
@@ -796,4 +882,145 @@ inline bool ICvar::Iterator::IsValid(void)
 inline ConCommandBase * ICvar::Iterator::Get(void)
 {
 	return m_pIter->Get();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Constructs a console command
+//-----------------------------------------------------------------------------
+//ConCommand::ConCommand()
+//{
+//	m_bIsNewConCommand = true;
+//}
+
+//-----------------------------------------------------------------------------
+// Default console command autocompletion function 
+//-----------------------------------------------------------------------------
+int DefaultCompletionFunc(const char *partial, char commands[COMMAND_COMPLETION_MAXITEMS][COMMAND_COMPLETION_ITEM_LENGTH])
+{
+	return 0;
+}
+
+ConCommand::ConCommand(const char *pName, FnCommandCallbackVoid_t callback, const char *pHelpString /*= 0*/, int flags /*= 0*/, FnCommandCompletionCallback completionFunc /*= 0*/)
+{
+	// Set the callback
+	m_fnCommandCallbackV1 = callback;
+	m_bUsingNewCommandCallback = false;
+	m_bUsingCommandCallbackInterface = false;
+	m_fnCompletionCallback = completionFunc ? completionFunc : DefaultCompletionFunc;
+	m_bHasCompletionCallback = completionFunc != 0 ? true : false;
+
+	// Setup the rest
+	BaseClass::Create(pName, pHelpString, flags);
+}
+
+ConCommand::ConCommand(const char *pName, FnCommandCallback_t callback, const char *pHelpString /*= 0*/, int flags /*= 0*/, FnCommandCompletionCallback completionFunc /*= 0*/)
+{
+	// Set the callback
+	m_fnCommandCallback = callback;
+	m_bUsingNewCommandCallback = true;
+	m_fnCompletionCallback = completionFunc ? completionFunc : DefaultCompletionFunc;
+	m_bHasCompletionCallback = completionFunc != 0 ? true : false;
+	m_bUsingCommandCallbackInterface = false;
+
+	// Setup the rest
+	BaseClass::Create(pName, pHelpString, flags);
+}
+
+ConCommand::ConCommand(const char *pName, ICommandCallback *pCallback, const char *pHelpString /*= 0*/, int flags /*= 0*/, ICommandCompletionCallback *pCompletionCallback /*= 0*/)
+{
+	// Set the callback
+	m_pCommandCallback = pCallback;
+	m_bUsingNewCommandCallback = false;
+	m_pCommandCompletionCallback = pCompletionCallback;
+	m_bHasCompletionCallback = (pCompletionCallback != 0);
+	m_bUsingCommandCallbackInterface = true;
+
+	// Setup the rest
+	BaseClass::Create(pName, pHelpString, flags);
+}
+
+//-----------------------------------------------------------------------------
+// Destructor
+//-----------------------------------------------------------------------------
+ConCommand::~ConCommand(void)
+{
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: Returns true if this is a command 
+//-----------------------------------------------------------------------------
+bool ConCommand::IsCommand(void) const
+{
+	return true;
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: Invoke the function if there is one
+//-----------------------------------------------------------------------------
+void ConCommand::Dispatch(const CCommand &command)
+{
+	if (m_bUsingNewCommandCallback)
+	{
+		if (m_fnCommandCallback)
+		{
+			(*m_fnCommandCallback)(command);
+			return;
+		}
+	}
+	else if (m_bUsingCommandCallbackInterface)
+	{
+		if (m_pCommandCallback)
+		{
+			m_pCommandCallback->CommandCallback(command);
+			return;
+		}
+	}
+	else
+	{
+		if (m_fnCommandCallbackV1)
+		{
+			(*m_fnCommandCallbackV1)();
+			return;
+		}
+	}
+
+	// Command without callback!!!
+	// AssertMsg(0, "Encountered ConCommand '%s' without a callback!\n", GetName());
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: Calls the autocompletion method to get autocompletion suggestions
+//-----------------------------------------------------------------------------
+int	ConCommand::AutoCompleteSuggest(const char *partial, CUtlVector< CUtlString > &commands)
+{
+	if (m_bUsingCommandCallbackInterface)
+	{
+		if (!m_pCommandCompletionCallback)
+			return 0;
+		return m_pCommandCompletionCallback->CommandCompletionCallback(partial, commands);
+	}
+
+	Assert(m_fnCompletionCallback);
+	if (!m_fnCompletionCallback)
+		return 0;
+
+	char rgpchCommands[COMMAND_COMPLETION_MAXITEMS][COMMAND_COMPLETION_ITEM_LENGTH];
+	int iret = (m_fnCompletionCallback)(partial, rgpchCommands);
+	for (int i = 0; i < iret; ++i)
+	{
+		CUtlString str = rgpchCommands[i];
+		commands.AddToTail(str);
+	}
+	return iret;
+}
+
+//-----------------------------------------------------------------------------
+// Returns true if the console command can autocomplete 
+//-----------------------------------------------------------------------------
+bool ConCommand::CanAutoComplete(void)
+{
+	return m_bHasCompletionCallback;
 }

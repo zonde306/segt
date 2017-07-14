@@ -120,6 +120,18 @@
     <ClInclude Include="structs\keyvalues.h">
       <Filter>structs</Filter>
     </ClInclude>
+    <ClInclude Include="libraries\utl_string.h">
+      <Filter>libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="libraries\utl_vector.h">
+      <Filter>libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="libraries\utl_memory.h">
+      <Filter>libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="libraries\utl_blockmemory.h">
+      <Filter>libraries</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="structs\checksum_md5.cpp">

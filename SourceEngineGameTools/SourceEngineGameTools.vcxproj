@@ -155,6 +155,10 @@
     <ClInclude Include="indexes.h" />
     <ClInclude Include="libraries\interfaces.h" />
     <ClInclude Include="libraries\math.h" />
+    <ClInclude Include="libraries\utl_blockmemory.h" />
+    <ClInclude Include="libraries\utl_memory.h" />
+    <ClInclude Include="libraries\utl_string.h" />
+    <ClInclude Include="libraries\utl_vector.h" />
     <ClInclude Include="libraries\vmt.h" />
     <ClInclude Include="libraries\xorstr.h" />
     <ClInclude Include="main.h" />

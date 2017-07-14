@@ -188,13 +188,13 @@ void StartCheat(HINSTANCE instance)
 	/*
 	else
 	{
-		Interfaces.ClientMode = *(ClientModeShared**)(address + IClientModePointer);
-		if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
-		{
-			Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
-			// printo("ClientModePtr", Interfaces.ClientMode);
-			Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
-		}
+	Interfaces.ClientMode = *(ClientModeShared**)(address + IClientModePointer);
+	if (Interfaces.ClientMode && (DWORD)Interfaces.ClientMode > address)
+	{
+	Interfaces.ClientModeHook = new CVMTHookManager((void*)(*(DWORD*)Interfaces.ClientMode));
+	// printo("ClientModePtr", Interfaces.ClientMode);
+	Utils::log("ClientModePointer = 0x%X", (DWORD)Interfaces.ClientMode);
+	}
 	}
 	*/
 
@@ -332,7 +332,7 @@ void StartCheat(HINSTANCE instance)
 			{
 				this->m_nDebugID = EVENT_DEBUG_ID_INIT;
 			}
-			
+
 			virtual void FireGameEvent(IGameEvent *event) override
 			{
 				static bool showHint = true;
@@ -341,7 +341,7 @@ void StartCheat(HINSTANCE instance)
 					Utils::log("HookEvent FireGameEvent Fire. 0x%X", (DWORD)event);
 					showHint = false;
 				}
-				
+
 				if (!Interfaces.Engine->IsInGame())
 					return;
 
@@ -526,430 +526,430 @@ void StartCheat(HINSTANCE instance)
 	/*
 	for (;;)
 	{
-		if (Interfaces.Engine->IsConnected())
-		{
-			if (GetAsyncKeyState(VK_INSERT) & 0x01)
-			{
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["r_drawothermodels"] != nullptr)
-				{
-					if (gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						gConVar["r_drawothermodels"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (Interfaces.Engine->IsConnected())
+	{
+	if (GetAsyncKeyState(VK_INSERT) & 0x01)
+	{
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["r_drawothermodels"] != nullptr)
+	{
+	if (gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["r_drawothermodels"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						gConVar["r_drawothermodels"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				}
+	if (!gConVar["r_drawothermodels"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["r_drawothermodels"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
 
-				if (gConVar["cl_drawshadowtexture"] != nullptr)
-				{
-					if (gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						gConVar["cl_drawshadowtexture"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (gConVar["cl_drawshadowtexture"] != nullptr)
+	{
+	if (gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["cl_drawshadowtexture"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						gConVar["cl_drawshadowtexture"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				}
-#endif
+	if (!gConVar["cl_drawshadowtexture"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["cl_drawshadowtexture"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["r_drawothermodels"] != nullptr && gConVar["cl_drawshadowtexture"] != nullptr)
-				{
-					if (gConVar["r_drawothermodels"]->GetInt() == 2)
-					{
-						gConVar["r_drawothermodels"]->SetValue(1);
-						gConVar["cl_drawshadowtexture"]->SetValue(0);
-					}
-					else
-					{
-						gConVar["r_drawothermodels"]->SetValue(2);
-						gConVar["cl_drawshadowtexture"]->SetValue(1);
-					}
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["r_drawothermodels"] != nullptr && gConVar["cl_drawshadowtexture"] != nullptr)
+	{
+	if (gConVar["r_drawothermodels"]->GetInt() == 2)
+	{
+	gConVar["r_drawothermodels"]->SetValue(1);
+	gConVar["cl_drawshadowtexture"]->SetValue(0);
+	}
+	else
+	{
+	gConVar["r_drawothermodels"]->SetValue(2);
+	gConVar["cl_drawshadowtexture"]->SetValue(1);
+	}
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
-						gConVar["r_drawothermodels"]->GetInt());
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] cl_drawshadowtexture set %d\"",
-						gConVar["cl_drawshadowtexture"]->GetInt());
-				}
-				else
-				{
-#endif
-					if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
-					{
-						Utils::writeMemory(1, client + r_drawothermodels);
-						Utils::writeMemory(0, client + cl_drawshadowtexture);
-					}
-					else
-					{
-						Utils::writeMemory(2, client + r_drawothermodels);
-						Utils::writeMemory(1, client + cl_drawshadowtexture);
-					}
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] r_drawothermodels set %d\"",
+	gConVar["r_drawothermodels"]->GetInt());
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] cl_drawshadowtexture set %d\"",
+	gConVar["cl_drawshadowtexture"]->GetInt());
+	}
+	else
+	{
+	#endif
+	if (Utils::readMemory<int>(client + r_drawothermodels) == 2)
+	{
+	Utils::writeMemory(1, client + r_drawothermodels);
+	Utils::writeMemory(0, client + cl_drawshadowtexture);
+	}
+	else
+	{
+	Utils::writeMemory(2, client + r_drawothermodels);
+	Utils::writeMemory(1, client + cl_drawshadowtexture);
+	}
 
-					Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
-						Utils::readMemory<int>(client + r_drawothermodels));
-					Interfaces.Engine->ClientCmd("echo \"cl_drawshadowtexture set %d\"",
-						Utils::readMemory<int>(client + cl_drawshadowtexture));
-#ifdef USE_CVAR_CHANGE
-				}
-#endif
-				bBoxEsp = !bBoxEsp;
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	Interfaces.Engine->ClientCmd("echo \"r_drawothermodels set %d\"",
+	Utils::readMemory<int>(client + r_drawothermodels));
+	Interfaces.Engine->ClientCmd("echo \"cl_drawshadowtexture set %d\"",
+	Utils::readMemory<int>(client + cl_drawshadowtexture));
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
+	bBoxEsp = !bBoxEsp;
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_HOME) & 0x01)
-			{
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["mat_fullbright"] != nullptr)
-				{
-					if (gConVar["mat_fullbright"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						gConVar["mat_fullbright"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (GetAsyncKeyState(VK_HOME) & 0x01)
+	{
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["mat_fullbright"] != nullptr)
+	{
+	if (gConVar["mat_fullbright"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["mat_fullbright"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!gConVar["mat_fullbright"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						gConVar["mat_fullbright"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				}
-#endif
+	if (!gConVar["mat_fullbright"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["mat_fullbright"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["mat_fullbright"] != nullptr)
-				{
-					if (gConVar["mat_fullbright"]->GetInt() == 1)
-						gConVar["mat_fullbright"]->SetValue(0);
-					else
-						gConVar["mat_fullbright"]->SetValue(1);
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["mat_fullbright"] != nullptr)
+	{
+	if (gConVar["mat_fullbright"]->GetInt() == 1)
+	gConVar["mat_fullbright"]->SetValue(0);
+	else
+	gConVar["mat_fullbright"]->SetValue(1);
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
-						gConVar["mat_fullbright"]->GetInt());
-				}
-				else
-				{
-#endif
-					if (Utils::readMemory<int>(material + mat_fullbright) == 1)
-						Utils::writeMemory(0, material + mat_fullbright);
-					else
-						Utils::writeMemory(1, material + mat_fullbright);
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] mat_fullbright set %d\"",
+	gConVar["mat_fullbright"]->GetInt());
+	}
+	else
+	{
+	#endif
+	if (Utils::readMemory<int>(material + mat_fullbright) == 1)
+	Utils::writeMemory(0, material + mat_fullbright);
+	else
+	Utils::writeMemory(1, material + mat_fullbright);
 
-					Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
-						Utils::readMemory<int>(material + mat_fullbright));
-#ifdef USE_CVAR_CHANGE
-				}
-#endif
+	Interfaces.Engine->ClientCmd("echo \"mat_fullbright set %d\"",
+	Utils::readMemory<int>(material + mat_fullbright));
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_PRIOR) & 0x01)
-			{
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["mp_gamemode"] != nullptr)
-				{
-					if (gConVar["mp_gamemode"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						gConVar["mp_gamemode"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (GetAsyncKeyState(VK_PRIOR) & 0x01)
+	{
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["mp_gamemode"] != nullptr)
+	{
+	if (gConVar["mp_gamemode"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["mp_gamemode"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					if (!gConVar["mp_gamemode"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						gConVar["mp_gamemode"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				}
-#endif
+	if (!gConVar["mp_gamemode"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["mp_gamemode"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["mp_gamemode"] != nullptr)
-				{
-					const char* mode = gConVar["mp_gamemode"]->GetString();
-					if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
-					{
-						gConVar["mp_gamemode"]->SetValue("coop");
-						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "coop");
-					}
-					else
-					{
-						gConVar["mp_gamemode"]->SetValue("versus");
-						strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "versus");
-					}
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["mp_gamemode"] != nullptr)
+	{
+	const char* mode = gConVar["mp_gamemode"]->GetString();
+	if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+	{
+	gConVar["mp_gamemode"]->SetValue("coop");
+	strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "coop");
+	}
+	else
+	{
+	gConVar["mp_gamemode"]->SetValue("versus");
+	strcpy_s(gConVar["mp_gamemode"]->m_pszString, gConVar["mp_gamemode"]->m_StringLength, "versus");
+	}
 
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
-						gConVar["mp_gamemode"]->GetString());
-				}
-				else
-				{
-#endif
-					char* mode = Utils::readMemory<char*>(client + mp_gamemode);
-					if (mode != nullptr)
-					{
-						DWORD oldProtect = NULL;
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] mp_gamemode set %s\"",
+	gConVar["mp_gamemode"]->GetString());
+	}
+	else
+	{
+	#endif
+	char* mode = Utils::readMemory<char*>(client + mp_gamemode);
+	if (mode != nullptr)
+	{
+	DWORD oldProtect = NULL;
 
-						if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
-						{
-							if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
-								strcpy_s(mode, 16, "coop");
-							else
-								strcpy_s(mode, 16, "versus");
-							VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
-						}
-						else
-							printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
+	if (VirtualProtect(mode, sizeof(char) * 16, PAGE_EXECUTE_READWRITE, &oldProtect) == TRUE)
+	{
+	if (_strcmpi(mode, "versus") == 0 || _strcmpi(mode, "realismversus") == 0)
+	strcpy_s(mode, 16, "coop");
+	else
+	strcpy_s(mode, 16, "versus");
+	VirtualProtect(mode, sizeof(char) * 16, oldProtect, &oldProtect);
+	}
+	else
+	printf("VirtualProtect 0x%X Fail!\n", (DWORD)mode);
 
-						Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
-					}
-#ifdef USE_CVAR_CHANGE
-				}
-#endif
+	Interfaces.Engine->ClientCmd("echo \"mp_gamemode set %s\"", mode);
+	}
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_APPS) & 0x01)
-			{
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["sv_cheats"] != nullptr)
-				{
-					// 解除修改限制
-					if (gConVar["sv_cheats"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-						gConVar["sv_cheats"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (GetAsyncKeyState(VK_APPS) & 0x01)
+	{
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["sv_cheats"] != nullptr)
+	{
+	// 解除修改限制
+	if (gConVar["sv_cheats"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["sv_cheats"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-					// 防止被发�
-					if (!gConVar["sv_cheats"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-						gConVar["sv_cheats"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-				}
-#endif
+	// 防止被发�
+	if (!gConVar["sv_cheats"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["sv_cheats"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-				if (gConVar["sv_cheats"] != nullptr)
-				{
-					gConVar["sv_cheats"]->SetValue(1);
-					gConVar["sv_cheats"]->m_fValue = 1.0f;
-					gConVar["sv_cheats"]->m_nValue = 1;
-					Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
-						gConVar["sv_cheats"]->GetInt());
-				}
-#endif
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["sv_cheats"] != nullptr)
+	{
+	gConVar["sv_cheats"]->SetValue(1);
+	gConVar["sv_cheats"]->m_fValue = 1.0f;
+	gConVar["sv_cheats"]->m_nValue = 1;
+	Interfaces.Engine->ClientCmd("echo \"[ConVar] sv_cheats set %d\"",
+	gConVar["sv_cheats"]->GetInt());
+	}
+	#endif
 
-				if (Utils::readMemory<int>(engine + sv_cheats) != 1)
-				{
-					Utils::writeMemory(1, engine + sv_cheats);
-					Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
-						Utils::readMemory<int>(engine + sv_cheats));
-				}
+	if (Utils::readMemory<int>(engine + sv_cheats) != 1)
+	{
+	Utils::writeMemory(1, engine + sv_cheats);
+	Interfaces.Engine->ClientCmd("echo \"sv_cheats set %d\"",
+	Utils::readMemory<int>(engine + sv_cheats));
+	}
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_NEXT) & 0x01)
-				thirdPerson();
+	if (GetAsyncKeyState(VK_NEXT) & 0x01)
+	thirdPerson();
 
-			if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
-				showSpectator();
+	if (GetAsyncKeyState(VK_CAPITAL) & 0x01)
+	showSpectator();
 
-			if (GetAsyncKeyState(VK_F8) & 0x01)
-			{
-				bAutoStrafe = !bAutoStrafe;
-				Interfaces.Engine->ClientCmd("echo \"[segt] auto strafe set %s\"",
-					(bAutoStrafe ? "enable" : "disabled"));
+	if (GetAsyncKeyState(VK_F8) & 0x01)
+	{
+	bAutoStrafe = !bAutoStrafe;
+	Interfaces.Engine->ClientCmd("echo \"[segt] auto strafe set %s\"",
+	(bAutoStrafe ? "enable" : "disabled"));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_F9) & 0x01)
-			{
-				bTriggerBot = !bTriggerBot;
-				Interfaces.Engine->ClientCmd("echo \"[segt] trigger bot set %s\"",
-					(bTriggerBot ? "enable" : "disabled"));
+	if (GetAsyncKeyState(VK_F9) & 0x01)
+	{
+	bTriggerBot = !bTriggerBot;
+	Interfaces.Engine->ClientCmd("echo \"[segt] trigger bot set %s\"",
+	(bTriggerBot ? "enable" : "disabled"));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_F10) & 0x01)
-			{
-				bAimBot = !bAimBot;
-				Interfaces.Engine->ClientCmd("echo \"[segt] aim bot set %s\"",
-					(bAimBot ? "enable" : "disabled"));
+	if (GetAsyncKeyState(VK_F10) & 0x01)
+	{
+	bAimBot = !bAimBot;
+	Interfaces.Engine->ClientCmd("echo \"[segt] aim bot set %s\"",
+	(bAimBot ? "enable" : "disabled"));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_F11) & 0x01)
-			{
-				bBhop = !bBhop;
-				Interfaces.Engine->ClientCmd("echo \"[segt] auto bunnyHop set %s\"",
-					(bBhop ? "enable" : "disabled"));
+	if (GetAsyncKeyState(VK_F11) & 0x01)
+	{
+	bBhop = !bBhop;
+	Interfaces.Engine->ClientCmd("echo \"[segt] auto bunnyHop set %s\"",
+	(bBhop ? "enable" : "disabled"));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (GetAsyncKeyState(VK_F12) & 0x01)
-			{
-				bRapidFire = !bRapidFire;
-				Interfaces.Engine->ClientCmd("echo \"[segt] auto pistol fire %s\"",
-					(bRapidFire ? "enable" : "disabled"));
+	if (GetAsyncKeyState(VK_F12) & 0x01)
+	{
+	bRapidFire = !bRapidFire;
+	Interfaces.Engine->ClientCmd("echo \"[segt] auto pistol fire %s\"",
+	(bRapidFire ? "enable" : "disabled"));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-			if (!connected)
-			{
-				Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
+	if (!connected)
+	{
+	Interfaces.Engine->ClientCmd("echo \"********* connected *********\"");
 
-				Utils::log("*** connected ***");
-			}
+	Utils::log("*** connected ***");
+	}
 
-			connected = true;
-		}
-		else if (connected && !Interfaces.Engine->IsInGame())
-		{
-			static bool disconnected = false;
-			disconnected = true;
+	connected = true;
+	}
+	else if (connected && !Interfaces.Engine->IsInGame())
+	{
+	static bool disconnected = false;
+	disconnected = true;
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["r_drawothermodels"] != nullptr)
-			{
-				if (gConVar["r_drawothermodels"]->GetInt() != 1)
-				{
-					gConVar["r_drawothermodels"]->SetValue(1);
-					disconnected = true;
-				}
-			}
-			else
-			{
-#endif
-				if (Utils::readMemory<int>(client + r_drawothermodels) != 1)
-				{
-					Utils::writeMemory<int>(1, client + r_drawothermodels);
-					disconnected = true;
-				}
-#ifdef USE_CVAR_CHANGE
-			}
-#endif
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["r_drawothermodels"] != nullptr)
+	{
+	if (gConVar["r_drawothermodels"]->GetInt() != 1)
+	{
+	gConVar["r_drawothermodels"]->SetValue(1);
+	disconnected = true;
+	}
+	}
+	else
+	{
+	#endif
+	if (Utils::readMemory<int>(client + r_drawothermodels) != 1)
+	{
+	Utils::writeMemory<int>(1, client + r_drawothermodels);
+	disconnected = true;
+	}
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["cl_drawshadowtexture"] != nullptr)
-			{
-				if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
-				{
-					gConVar["cl_drawshadowtexture"]->SetValue(0);
-					disconnected = true;
-				}
-			}
-			else
-			{
-#endif
-				if (Utils::readMemory<int>(client + cl_drawshadowtexture) != 0)
-				{
-					Utils::writeMemory(0, client + cl_drawshadowtexture);
-					disconnected = true;
-				}
-#ifdef USE_CVAR_CHANGE
-			}
-#endif
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["cl_drawshadowtexture"] != nullptr)
+	{
+	if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
+	{
+	gConVar["cl_drawshadowtexture"]->SetValue(0);
+	disconnected = true;
+	}
+	}
+	else
+	{
+	#endif
+	if (Utils::readMemory<int>(client + cl_drawshadowtexture) != 0)
+	{
+	Utils::writeMemory(0, client + cl_drawshadowtexture);
+	disconnected = true;
+	}
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["mat_fullbright"] != nullptr)
-			{
-				if (gConVar["mat_fullbright"]->GetInt() != 0)
-				{
-					gConVar["mat_fullbright"]->SetValue(0);
-					disconnected = true;
-				}
-			}
-			else
-			{
-#endif
-				if (Utils::readMemory<int>(material + mat_fullbright) != 0)
-				{
-					Utils::writeMemory(0, material + mat_fullbright);
-					disconnected = true;
-				}
-#ifdef USE_CVAR_CHANGE
-			}
-#endif
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["mat_fullbright"] != nullptr)
+	{
+	if (gConVar["mat_fullbright"]->GetInt() != 0)
+	{
+	gConVar["mat_fullbright"]->SetValue(0);
+	disconnected = true;
+	}
+	}
+	else
+	{
+	#endif
+	if (Utils::readMemory<int>(material + mat_fullbright) != 0)
+	{
+	Utils::writeMemory(0, material + mat_fullbright);
+	disconnected = true;
+	}
+	#ifdef USE_CVAR_CHANGE
+	}
+	#endif
 
-			connected = false;
-			if (disconnected)
-			{
-				disconnected = false;
-				Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
+	connected = false;
+	if (disconnected)
+	{
+	disconnected = false;
+	Interfaces.Engine->ClientCmd("echo \"********* disconnected *********\"");
 
-				Utils::log("*** disconnected ***");
+	Utils::log("*** disconnected ***");
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
-		}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	}
 
-		if (GetAsyncKeyState(VK_ADD) & 0x01)
-		{
-			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
-			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		}
+	if (GetAsyncKeyState(VK_ADD) & 0x01)
+	{
+	Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", ++fmWait);
+	Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-		if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
-		{
-			Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
-			Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		}
+	if (GetAsyncKeyState(VK_SUBTRACT) & 0x01)
+	{
+	Interfaces.Engine->ClientCmd("alias fastmelee_loop \"+attack; slot1; wait 1; -attack; slot2; wait %d; fastmelee_launcher\"", --fmWait);
+	Interfaces.Engine->ClientCmd("echo \"fastmelee wait set %d\"", fmWait);
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
-		if (Interfaces.Engine->IsConnected())
-		{
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["sv_pure"] != nullptr)
-			{
-				if (gConVar["sv_pure"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					gConVar["sv_pure"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	if (Interfaces.Engine->IsConnected())
+	{
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["sv_pure"] != nullptr)
+	{
+	if (gConVar["sv_pure"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["sv_pure"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				if (!gConVar["sv_pure"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					gConVar["sv_pure"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-			}
-#endif
+	if (!gConVar["sv_pure"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["sv_pure"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["sv_consistency"] != nullptr)
-			{
-				if (gConVar["sv_consistency"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					gConVar["sv_consistency"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["sv_consistency"] != nullptr)
+	{
+	if (gConVar["sv_consistency"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["sv_consistency"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				if (!gConVar["sv_consistency"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					gConVar["sv_consistency"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-			}
-#endif
+	if (!gConVar["sv_consistency"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["sv_consistency"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["c_thirdpersonshoulder"] != nullptr)
-			{
-				if (gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
-					gConVar["c_thirdpersonshoulder"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["c_thirdpersonshoulder"] != nullptr)
+	{
+	if (gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE))
+	gConVar["c_thirdpersonshoulder"]->RemoveFlags(FCVAR_CHEAT | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOT_CONNECTED | FCVAR_SERVER_CAN_EXECUTE);
 
-				// 防止被某些插件查询到
-				if (!gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
-					gConVar["c_thirdpersonshoulder"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
-			}
-#endif
+	// 防止被某些插件查询到
+	if (!gConVar["c_thirdpersonshoulder"]->IsFlagSet(FCVAR_SERVER_CANNOT_QUERY))
+	gConVar["c_thirdpersonshoulder"]->AddFlags(FCVAR_SERVER_CANNOT_QUERY);
+	}
+	#endif
 
-#ifdef USE_CVAR_CHANGE
-			if (gConVar["sv_pure"] != nullptr && gConVar["sv_pure"]->GetInt() != 0)
-				gConVar["sv_pure"]->SetValue(0);
-			if (gConVar["sv_consistency"] != nullptr && gConVar["sv_consistency"]->GetInt() != 0)
-				gConVar["sv_consistency"]->SetValue(0);
-#endif
+	#ifdef USE_CVAR_CHANGE
+	if (gConVar["sv_pure"] != nullptr && gConVar["sv_pure"]->GetInt() != 0)
+	gConVar["sv_pure"]->SetValue(0);
+	if (gConVar["sv_consistency"] != nullptr && gConVar["sv_consistency"]->GetInt() != 0)
+	gConVar["sv_consistency"]->SetValue(0);
+	#endif
 
-			if (Utils::readMemory<int>(engine + sv_pure) != 0 ||
-				Utils::readMemory<int>(engine + sv_consistency) != 0)
-			{
-				Utils::writeMemory(0, engine + sv_pure);
-				Utils::writeMemory(0, engine + sv_consistency);
+	if (Utils::readMemory<int>(engine + sv_pure) != 0 ||
+	Utils::readMemory<int>(engine + sv_consistency) != 0)
+	{
+	Utils::writeMemory(0, engine + sv_pure);
+	Utils::writeMemory(0, engine + sv_consistency);
 
-				Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
-					Utils::readMemory<int>(engine + sv_pure));
+	Interfaces.Engine->ClientCmd("echo \"sv_pure and sv_consistency set %d\"",
+	Utils::readMemory<int>(engine + sv_pure));
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
-		}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	}
 
-		if (GetAsyncKeyState(VK_END) & 0x01)
-		{
-			errlog.close();
-			ExitProcess(0);
-		}
+	if (GetAsyncKeyState(VK_END) & 0x01)
+	{
+	errlog.close();
+	ExitProcess(0);
+	}
 
-		if (GetAsyncKeyState(VK_DELETE) & 0x01)
-			Interfaces.Engine->ClientCmd("disconnect");
+	if (GetAsyncKeyState(VK_DELETE) & 0x01)
+	Interfaces.Engine->ClientCmd("disconnect");
 
-		std::this_thread::sleep_for(std::chrono::microseconds(1));
+	std::this_thread::sleep_for(std::chrono::microseconds(1));
 	}
 	*/
 }
@@ -2229,62 +2229,62 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 		else if (connected && !Interfaces.Engine->IsInGame())
 		{
 			/*
-#ifdef USE_CVAR_CHANGE
+			#ifdef USE_CVAR_CHANGE
 			if (gConVar["r_drawothermodels"] != nullptr)
 			{
-				if (gConVar["r_drawothermodels"]->GetInt() != 1)
-				{
-					gConVar["r_drawothermodels"]->SetValue(1);
-				}
+			if (gConVar["r_drawothermodels"]->GetInt() != 1)
+			{
+			gConVar["r_drawothermodels"]->SetValue(1);
+			}
 			}
 			else
 			{
-#endif
-				if (Utils::readMemory<int>(gModuleClient + r_drawothermodels) != 1)
-				{
-					Utils::writeMemory<int>(1, gModuleClient + r_drawothermodels);
-				}
-#ifdef USE_CVAR_CHANGE
+			#endif
+			if (Utils::readMemory<int>(gModuleClient + r_drawothermodels) != 1)
+			{
+			Utils::writeMemory<int>(1, gModuleClient + r_drawothermodels);
 			}
-#endif
+			#ifdef USE_CVAR_CHANGE
+			}
+			#endif
 
-#ifdef USE_CVAR_CHANGE
+			#ifdef USE_CVAR_CHANGE
 			if (gConVar["cl_drawshadowtexture"] != nullptr)
 			{
-				if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
-				{
-					gConVar["cl_drawshadowtexture"]->SetValue(0);
-				}
+			if (gConVar["cl_drawshadowtexture"]->GetInt() != 0)
+			{
+			gConVar["cl_drawshadowtexture"]->SetValue(0);
+			}
 			}
 			else
 			{
-#endif
-				if (Utils::readMemory<int>(gModuleClient + cl_drawshadowtexture) != 0)
-				{
-					Utils::writeMemory(0, gModuleClient + cl_drawshadowtexture);
-				}
-#ifdef USE_CVAR_CHANGE
+			#endif
+			if (Utils::readMemory<int>(gModuleClient + cl_drawshadowtexture) != 0)
+			{
+			Utils::writeMemory(0, gModuleClient + cl_drawshadowtexture);
 			}
-#endif
+			#ifdef USE_CVAR_CHANGE
+			}
+			#endif
 
-#ifdef USE_CVAR_CHANGE
+			#ifdef USE_CVAR_CHANGE
 			if (gConVar["mat_fullbright"] != nullptr)
 			{
-				if (gConVar["mat_fullbright"]->GetInt() != 0)
-				{
-					gConVar["mat_fullbright"]->SetValue(0);
-				}
+			if (gConVar["mat_fullbright"]->GetInt() != 0)
+			{
+			gConVar["mat_fullbright"]->SetValue(0);
+			}
 			}
 			else
 			{
-#endif
-				if (Utils::readMemory<int>(gModuleMaterial + mat_fullbright) != 0)
-				{
-					Utils::writeMemory(0, gModuleMaterial + mat_fullbright);
-				}
-#ifdef USE_CVAR_CHANGE
+			#endif
+			if (Utils::readMemory<int>(gModuleMaterial + mat_fullbright) != 0)
+			{
+			Utils::writeMemory(0, gModuleMaterial + mat_fullbright);
 			}
-#endif
+			#ifdef USE_CVAR_CHANGE
+			}
+			#endif
 			*/
 
 			connected = false;
