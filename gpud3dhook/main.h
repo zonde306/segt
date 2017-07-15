@@ -112,6 +112,18 @@ bool ReleaseFakeDirectXDevice();
 */
 void StartDeviceHook(std::function<void(IDirect3D9*&, IDirect3DDevice9*&, DWORD*&)> func);
 
+/*
+* 开始一个 IDirect3DDevice9 挂钩
+* 这个不是立即触发的，需要等待一会
+* 如果成功，则会调用 func 作为 Hook 函数
+* 完成后 dh::gDeviceInternal 将会是游戏内的 Device 指针
+*
+* @param callback	挂钩用的函数，其中 IDirect3D9* 是游戏内的指针，直接对它进行 VMT Hook 就行了
+*
+* @return			如果 Hook 成功返回 true, 否则 false
+*/
+bool SetupHookCreateFont(std::function<void(IDirect3DDevice9*)> callback);
+
 // 尝试搜索 D3D Device 指针，但是非常慢
 IDirect3DDevice9* FindDirexcXDevice();
 
@@ -132,21 +144,22 @@ NAMESPACE_END
 *
 * @param src		原函数
 * @param dst		你要修改到哪个函数
-* @param len		函数大小
+* @param len		需要的内存大小，在 32 位下指针大小为 4 字节，一个 jmp 指令需要一个字节
+*						如果不知道的话，32位填 5，64位填 9
 *
-* @return			原函数的地址
+* @return			调用原函数的地址，你可以直接调用，不需要还原
 */
 template<typename Fn>
-Fn* DetourFunction(Fn* src, Fn* dst, int len);
+Fn DetourFunction(Fn src, Fn dst, int len = 5);
 
 /*
 * 重新挂钩函数
 *
 * @param src		原函数
 * @param dst		你要修改到哪个函数
-* @param len		函数大小
+* @param len		你使用 DetourFunction 申请的内存大小（第三个参数）
 *
 * @return			原函数的地址
 */
 template<typename Fn>
-Fn* RetourFunction(Fn* src, Fn* dst, int len);
+Fn RetourFunction(Fn src, Fn dst, int len = 5);

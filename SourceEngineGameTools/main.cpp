@@ -135,9 +135,10 @@ static std::map<std::string, ConVar*> gConVar;
 static CBaseEntity* pCurrentAiming, *pTriggerAiming;
 static DWORD gModuleClient, gModuleEngine, gModuleMaterial;
 
+static int iCurrentButtons = 0;
+static float fAimbotFieldOfView = 30.0f;
 static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
-bRapidFire = true, bSilentAim = false, bAutoStrafe = false, bShowMenu = false;
-static std::timed_mutex mAimbot;
+	bRapidFire = true, bSilentAim = false, bAutoStrafe = false, bShowMenu = false, bDrawCrosshairs = true;
 
 void bindAlias(int);
 void meleeAttack();
@@ -148,7 +149,6 @@ std::string GetZombieClassName(CBaseEntity* player);
 
 void StartCheat(HINSTANCE instance)
 {
-	// GetClientModeNormal B8 ? ? ? ? C3
 	Utils::log("VEngineClient 0x%X", (DWORD)Interfaces.Engine);
 	Utils::log("EngineTraceClient 0x%X", (DWORD)Interfaces.Trace);
 	Utils::log("VClient 0x%X", (DWORD)Interfaces.Client);
@@ -816,9 +816,11 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		return nullptr;
 	}
 
+	/*
 	if (bAimBot && hitbox <= 0)
 	{
 		int classId = trace.m_pEnt->GetClientClass()->m_ClassID;
+
 		switch (classId)
 		{
 		case ET_TANK:
@@ -848,8 +850,14 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 
 		return nullptr;
 	}
+	*/
 
-result_success:
+	if (bAimBot && hitbox == 0 && trace.m_pEnt->GetClientClass()->m_ClassID == ET_INFECTED)
+	{
+		if (trace.hitbox < HITBOX_COMMON_1 || trace.hitbox > HITBOX_COMMON_4)
+			return nullptr;
+	}
+
 	return trace.m_pEnt;
 }
 
@@ -924,9 +932,7 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	static bool showHint = true;
 	if (showHint)
 	{
-		// showHint = false;
-		std::cout << "Hooked_CreateMove trigged." << std::endl;
-		Utils::log("Hooked_CreateMove success");
+		Utils::log("Hooked_CreateMove trigged.");
 	}
 
 	oCreateMove(sequence_number, input_sample_frametime, active);
@@ -1062,7 +1068,7 @@ end_aimbot:
 #endif
 
 		int weaponId = weapon->GetWeaponID();
-		if (target != nullptr && IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
+		if (IsAliveTarget(target) && target->GetTeam() != client->GetTeam() &&
 			(client->GetTeam() == 2 || target->GetClientClass()->m_ClassID != ET_INFECTED) &&
 			IsGunWeapon(weaponId) && target->GetClientClass()->m_ClassID != ET_WITCH)
 			pCmd->buttons |= IN_ATTACK;
@@ -1123,6 +1129,9 @@ end_aimbot:
 	// 发送到服务器
 	pVerifiedCmd->m_cmd = *pCmd;
 	pVerifiedCmd->m_crc = pCmd->GetChecksum();
+
+	// 将当前按钮保存到全局变量，用于检查一些东西
+	iCurrentButtons = pCmd->buttons;
 }
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
@@ -1131,8 +1140,7 @@ bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << "Hooked_CreateMoveShared trigged." << std::endl;
-		Utils::log("Hooked_CreateMoveShared success");
+		Utils::log("Hooked_CreateMoveShared trigged");
 	}
 
 	bool result = oCreateMoveShared(flInputSampleTime, cmd);
@@ -1157,8 +1165,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << "Hooked_PaintTraverse trigged." << std::endl;
-		Utils::log("Hooked_PaintTraverse success");
+		Utils::log("Hooked_PaintTraverse trigged.");
 	}
 
 	static unsigned int MatSystemTopPanel = 0;
@@ -1194,34 +1201,64 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 	if (MatSystemTopPanel > 0 && panel == MatSystemTopPanel)
 	{
 		CBaseEntity* local = GetLocalClient();
-		if (bBoxEsp && local != nullptr && Interfaces.Engine->IsInGame())
+		if (local == nullptr || !Interfaces.Engine->IsInGame())
+			goto finish_draw;
+
+		// 目前最小距离
+		float distmin = 65535.0f;
+
+		// 当前队伍
+		int team = local->GetTeam();
+
+		// 当前是否有自动瞄准的目标
+		bool targetSelected = IsAliveTarget(pCurrentAiming);
+
+		Vector myViewAngles;
+		Interfaces.Engine->GetViewAngles(myViewAngles);
+
+		Vector myEyeOrigin = local->GetEyePosition();
+		Vector myOrigin = local->GetAbsOrigin();
+
+		// 一般普感实体索引上限 512 就够了，太大会卡的
+		for (int i = 1; i <= 512; ++i)
 		{
-			float distmin = 65535.0f;
-			Vector myOrigin = local->GetEyePosition();
-			int maxEntity = Interfaces.Engine->GetMaxClients();
+			CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
+			if ((DWORD)entity == (DWORD)local || !IsAliveTarget(entity))
+				continue;
 
-			for (int i = 1; i <= maxEntity; ++i)
+			Vector head, foot, headbox, origin;
+			int classId = entity->GetClientClass()->m_ClassID;
+
+			// 目标的头部的位置
+			headbox = GetHeadHitboxPosition(entity);
+
+			// 目标脚下的位置
+			origin = (classId == ET_INFECTED || classId == ET_WITCH ? entity->GetOrigin() : entity->GetAbsOrigin());
+
+			// 检查目标是否在屏幕内
+			if (!headbox.IsValid() || !WorldToScreen(headbox, head) ||
+				!WorldToScreen(origin, foot))
+				continue;
+
+			// 目标是否可见
+			bool visible = IsTargetVisible(entity, headbox);
+
+			// 目标与自己的距离
+			float dist = myOrigin.DistTo(origin);
+
+			// 给玩家绘制一个框
+			if (bBoxEsp)
 			{
-				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
-				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local ||
-					!IsAliveTarget(entity))
-					continue;
-
-				Vector head, foot, headbox;
-				int classId = entity->GetClientClass()->m_ClassID;
-				headbox = GetHeadHitboxPosition(entity);
-
-				if (!headbox.IsValid() || !WorldToScreen(headbox, head) ||
-					!WorldToScreen(entity->GetAbsOrigin(), foot))
-					continue;
-
-				std::wstringstream ss;
-
-				// 去除 float 的小数位，因为没必要
-				ss << std::setprecision(0);
-
+				// 根据类型决定绘制的内容
 				if (classId != ET_INFECTED && classId != ET_WITCH)
 				{
+					// 用于格式化字符串
+					std::wstringstream ss;
+
+					// 去除 float 的小数位，因为没必要
+					ss << std::setprecision(0);
+					
+					// 检查是否为生还者
 					if (classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER)
 					{
 						if (IsIncapacitated(entity))
@@ -1256,108 +1293,170 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 							ss << L"[" << entity->GetHealth() << L"] ";
 						}
 					}
-				}
 
-				// 玩家类型
-				ss << Utils::c2w(GetZombieClassName(entity));
+					// 玩家类型
+					ss << Utils::c2w(GetZombieClassName(entity));
 
-				float height = fabs(head.y - foot.y);
-				float width = height * 0.65f;
+					float height = fabs(head.y - foot.y);
+					float width = height * 0.65f;
 
-				// 根据情况决定颜色
-				if ((classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER) &&
-					entity->GetNetProp<byte>("m_bIsOnThirdStrike", "DT_TerrorPlayer") != 0)
-				{
-					// 生还者黑白时使用白色
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 255, 255, font, ss.str().c_str());
-				}
-				else if ((classId == ET_BOOMER || classId == ET_SMOKER || classId == ET_HUNTER ||
-					classId == ET_SPITTER || classId == ET_CHARGER || classId == ET_JOCKEY) &&
-					entity->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer") != 0)
-				{
-					// 幽灵状态的特感，紫色
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 128, 0, 128, font, ss.str().c_str());
-				}
-				else
-				{
-					// 其他情况，橙色
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 128, 0, font, ss.str().c_str());
-				}
-
-				ss.str(L"");
-
-				bool visible = IsTargetVisible(entity, headbox);
-				float dist = local->GetAbsOrigin().DistTo(entity->GetAbsOrigin());
-
-				// 显示距离
-				ss << dist;
-
-				// 给生还者显示弹药
-				if (classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER)
-				{
-					CBaseEntity* weapon = (CBaseEntity*)entity->GetActiveWeapon();
-					if (weapon != nullptr)
-						weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
-					if (weapon != nullptr)
+					// 根据情况决定颜色
+					if ((classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER) &&
+						entity->GetNetProp<byte>("m_bIsOnThirdStrike", "DT_TerrorPlayer") != 0)
 					{
-						int ammoType = weapon->GetNetProp<int>("m_iPrimaryAmmoType", "DT_BaseCombatWeapon");
-						int clip = weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon");
-						// int* ammo = entity->GetNetProp<int*>("m_iAmmo", "DT_TerrorPlayer");
-						byte reloading = weapon->GetNetProp<byte>("m_bInReload", "DT_BaseCombatWeapon");
+						// 生还者黑白时使用白色
+						Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 255, 255, font, ss.str().c_str());
+					}
+					else if ((classId == ET_BOOMER || classId == ET_SMOKER || classId == ET_HUNTER ||
+						classId == ET_SPITTER || classId == ET_CHARGER || classId == ET_JOCKEY) &&
+						entity->GetNetProp<byte>("m_isGhost", "DT_TerrorPlayer") != 0)
+					{
+						// 幽灵状态的特感，紫色
+						Interfaces.Surface->drawString(foot.x - width / 2, head.y, 128, 0, 128, font, ss.str().c_str());
+					}
+					else
+					{
+						// 其他情况，橙色
+						Interfaces.Surface->drawString(foot.x - width / 2, head.y, 255, 128, 0, font, ss.str().c_str());
+					}
 
-						// 显示弹药和弹夹
-						if (ammoType > 0 && clip > -1)
+					ss.str(L"");
+
+					// 显示距离
+					ss << dist;
+
+					// 给生还者显示弹药
+					if (classId == ET_SURVIVORBOT || classId == ET_CTERRORPLAYER)
+					{
+						CBaseEntity* weapon = (CBaseEntity*)entity->GetActiveWeapon();
+						if (weapon != nullptr)
+							weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
+						if (weapon != nullptr)
 						{
-							if (reloading != 0)
+							int ammoType = weapon->GetNetProp<int>("m_iPrimaryAmmoType", "DT_BaseCombatWeapon");
+							int clip = weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon");
+							// int* ammo = entity->GetNetProp<int*>("m_iAmmo", "DT_TerrorPlayer");
+							byte reloading = weapon->GetNetProp<byte>("m_bInReload", "DT_BaseCombatWeapon");
+
+							// 显示弹药和弹夹
+							if (ammoType > 0 && clip > -1)
 							{
-								// 正在换子弹
-								ss << " (reloading)";
-							}
-							else
-							{
-								// 没有换子弹
-								ss << " (" << clip << ")";
+								if (reloading != 0)
+								{
+									// 正在换子弹
+									ss << " (reloading)";
+								}
+								else
+								{
+									// 没有换子弹
+									ss << " (" << clip << ")";
+								}
 							}
 						}
 					}
-				}
 
-				// 检查是否可以看见
-				if (visible)
-				{
-					// 看得见，显示蓝色
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 0, 255, 255, font, ss.str().c_str());
+					// 检查是否可以看见
+					if (visible)
+					{
+						// 看得见，显示蓝色
+						Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 0, 255, 255, font, ss.str().c_str());
+					}
+					else
+					{
+						// 看不见，显示黄色
+						Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 255, 255, 0, font, ss.str().c_str());
+					}
+
+					// 绘制一个框（虽然这个框只有上下两条线）
+					Interfaces.Surface->drawBox(foot.x - width / 2, foot.y, width, -height,
+						1, 255, 0, 0, 255);
 				}
 				else
 				{
-					// 看不见，显示黄色
-					Interfaces.Surface->drawString(foot.x - width / 2, head.y + FONT_SIZE, 255, 255, 0, font, ss.str().c_str());
-				}
+					// 这只是普感而已，太远了没必要显示出来
+					if (dist > 2500.0f)
+						continue;
 
-				// 绘制一个框（虽然这个框只有上下两条线）
-				Interfaces.Surface->drawBox(foot.x - width / 2, foot.y, width, -height,
-					1, 255, 0, 0, 255);
-
-				// 给 Aimbot 寻找目标
-				if (bAimBot && (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) || !IsAliveTarget(pCurrentAiming)))
-				{
-					pCurrentAiming = nullptr;
-					if (entity->GetTeam() != local->GetTeam())
+					// 画一个小方形，以标记为头部
+					if (classId == ET_WITCH)
 					{
-						Vector myAngles;
-						Interfaces.Engine->GetViewAngles(myAngles);
-						if (dist < distmin && visible &&
-							GetAnglesFieldOfView(myAngles, CalculateAim(myOrigin, headbox)) <= 30.0f)
-						{
-							pCurrentAiming = entity;
-							distmin = dist;
-						}
+						if(visible)
+							Interfaces.Surface->FillRGBA(head.x, head.y, 4, 4, 128, 0, 255, 255);
+						else
+							Interfaces.Surface->FillRGBA(head.x, head.y, 2, 2, 128, 0, 255, 255);
+					}
+					else
+					{
+						if (visible)
+							Interfaces.Surface->FillRGBA(head.x, head.y, 4, 4, 255, 128, 0, 255);
+						else
+							Interfaces.Surface->FillRGBA(head.x, head.y, 2, 2, 255, 128, 0, 255);
+					}
+				}
+			}
+
+			if (bAimBot && (!targetSelected || !(iCurrentButtons & IN_ATTACK)) &&
+				classId != ET_WITCH && (classId != ET_INFECTED || team == 2))
+			{
+				
+				// 已经选择过目标了，并且这是一个不重要的敌人
+				if (classId == ET_INFECTED && distmin < 65535.0f)
+					continue;
+
+				// 选择一个最接近的特感，因为特感越近对玩家来说越危险
+				if (entity->GetTeam() != team && dist < distmin && visible &&
+					GetAnglesFieldOfView(myViewAngles, CalculateAim(myEyeOrigin, headbox)) <= fAimbotFieldOfView)
+				{
+					pCurrentAiming = entity;
+					distmin = dist;
+				}
+			}
+
+			// 给 Aimbot 寻找一个有效的目标
+			if (bAimBot && classId != ET_WITCH && (classId != ET_INFECTED || team == 2) &&
+				(!IsAliveTarget(pCurrentAiming) || !(GetAsyncKeyState(VK_LBUTTON) & 0x8000)))
+			{
+				pCurrentAiming = nullptr;
+				if (entity->GetTeam() != team)
+				{
+					Vector myAngles;
+					Interfaces.Engine->GetViewAngles(myAngles);
+					if (dist < distmin && visible &&
+						GetAnglesFieldOfView(myAngles, CalculateAim(myEyeOrigin, headbox)) <= 30.0f)
+					{
+						pCurrentAiming = entity;
+						distmin = dist;
 					}
 				}
 			}
 		}
+
+		if (bDrawCrosshairs)
+		{
+			int width, height;
+			Interfaces.Engine->GetScreenSize(width, height);
+
+			int aiming = *(int*)(local + m_iCrosshairsId);
+			CBaseEntity* target = (aiming > 0 ? Interfaces.ClientEntList->GetClientEntity(aiming) : GetAimingTarget(-1));
+			if (IsAliveTarget(target))
+			{
+				int classId = target->GetClientClass()->m_ClassID;
+				if (target->GetTeam() == local->GetTeam())
+					Interfaces.Surface->drawCrosshair(width / 2, height / 2, 0, 0, 255);
+				else if (classId == ET_INFECTED)
+					Interfaces.Surface->drawCrosshair(width / 2, height / 2, 255, 128, 0);
+				else if (classId == ET_WITCH)
+					Interfaces.Surface->drawCrosshair(width / 2, height / 2, 128, 0, 255);
+				else
+					Interfaces.Surface->drawCrosshair(width / 2, height / 2, 255, 0, 0);
+			}
+			else
+				Interfaces.Surface->drawCrosshair(width / 2, height / 2, 0, 255, 0);
+		}
 	}
 
+
+finish_draw:
 	// ((FnPaintTraverse)Interfaces.PanelHook->GetOriginalFunction(indexes::PaintTraverse))(ecx, panel, forcePaint, allowForce);
 	oPaintTraverse(pPanel, panel, forcePaint, allowForce);
 }
@@ -1368,8 +1467,7 @@ void __stdcall Hooked_FrameStageNotify(ClientFrameStage_t stage)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << "Hooked_FrameStageNotify trigged." << std::endl;
-		Utils::log("Hooked_FrameStageNotify success");
+		Utils::log("Hooked_FrameStageNotify trigged.");
 	}
 
 	QAngle punch, velocity;
@@ -1688,8 +1786,7 @@ HRESULT WINAPI Hooked_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 	if (showHint)
 	{
 		showHint = false;
-		std::cout << "Hooked_Reset trigged." << std::endl;
-
+		Utils::log("Hooked_Reset trigged.");
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_Reset success");
 	}
@@ -1755,8 +1852,15 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 			ImGui::Render();
 		}
 		else if (ImGui::GetIO().MouseDrawCursor)
+		{
 			ImGui::GetIO().MouseDrawCursor = false;
+			Utils::log("remove imgui mouse cursor");
+		}
+	}
 
+	/*
+	if (Interfaces.Engine->IsInGame())
+	{
 		drawRender->BeginRendering();
 
 		if (bBoxEsp)
@@ -1765,7 +1869,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 			{
 				CBaseEntity* local = GetLocalClient();
 				int classId = other->GetClientClass()->m_ClassID;
-				
+
 				bool visible = IsTargetVisible(other, origin);
 				if (local->GetTeam() == other->GetTeam())
 				{
@@ -1782,19 +1886,14 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 					// 妹
 					return (visible ? COLORBOX_WITCH_VISIBLE : COLORBOX_WITCH);
 				}
-				
+
 				// 敌人
 				return (visible ? COLORBOX_ENEMY_VISIBLE : COLORBOX_ENEMY);
 			};
 
 			CBaseEntity* local = GetLocalClient();
-			int maxEntity = 255;
-			int maxClient = Interfaces.Engine->GetMaxClients();
-			static ConVar* limit = Interfaces.Cvar->FindVar("z_common_limit");
-			if (limit != nullptr)
-				maxEntity += limit->GetInt();
 
-			for (int i = maxClient + 1; i <= maxEntity; ++i)
+			for (int i = 64; i <= 300; ++i)
 			{
 				CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
 				if (entity == nullptr || entity->IsDormant() || (DWORD)entity == (DWORD)local ||
@@ -1803,7 +1902,7 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 
 				Vector head, foot;
 				head = GetHeadHitboxPosition(entity);
-				foot = entity->GetOrigin();
+				foot = entity->GetAbsOrigin();
 
 				D3DCOLOR color = getBoxColor(entity, head);
 
@@ -1818,9 +1917,21 @@ HRESULT WINAPI Hooked_EndScene(IDirect3DDevice9* device)
 				// drawRender->DrawRect(foot.x - width / 2, foot.y, width, -height, color);
 			}
 		}
+		
+		D3DVIEWPORT9 viewport;
+		device->GetViewport(&viewport);
+		int center[2];
+		center[0] = viewport.Width / 2;
+		center[1] = viewport.Height / 2;
+
+		// 绘制准星
+		drawRender->RenderCircle(D3DCOLOR_RGBA(0, 255, 0, 255), center[0], center[1], 15);
+		drawRender->RenderLine(D3DCOLOR_RGBA(255, 0, 0, 255), center[0] - 8, center[1], center[0] + 8, center[1]);
+		drawRender->RenderLine(D3DCOLOR_RGBA(255, 0, 0, 255), center[0], center[1] - 8, center[0], center[1] + 8);
 
 		drawRender->EndRendering();
 	}
+	*/
 
 	return oEndScene(device);
 }
@@ -1851,10 +1962,10 @@ HRESULT WINAPI Hooked_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIV
 		device->GetStreamSource(0, &stream, &offsetByte, &stride);
 		if (l4d2_special(stride, numVertices, primitiveCount) ||
 			l4d2_weapons(stride, numVertices, primitiveCount) ||
-			l4d2_stuff(stride, numVertices, primitiveCount) ||
-			l4d2_survivor(stride, numVertices, primitiveCount))
+			l4d2_stuff(stride, numVertices, primitiveCount))
 		{
-			static DWORD oldZEnable;
+			static DWORD oldZEnable = D3DZB_FALSE;
+
 			device->GetRenderState(D3DRS_ZENABLE, &oldZEnable);
 			device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
 			device->SetRenderState(D3DRS_ZFUNC, D3DCMP_NEVER);
@@ -1899,8 +2010,7 @@ HRESULT WINAPI Hooked_Present(IDirect3DDevice9* device, const RECT* source, cons
 	if (showHint)
 	{
 		showHint = false;
-		// printf("Hooked_Present trigged.");
-		// std::cout << "Hooked_Present trigged." << std::endl;
+		Utils::log("Hooked_Present trigged.");
 		if ((DWORD)dh::gDeviceInternal == (DWORD)device)
 			Utils::log("Hooked_Present success");
 	}
@@ -1958,17 +2068,17 @@ void thirdPerson()
 		/*
 		if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == -1)
 		{
-		// 鍒囨崲鍒扮涓変汉绉
-		local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
-		local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
-		local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
+			// 鍒囨崲鍒扮涓変汉绉
+			local->SetNetProp<int>("m_hObserverTarget", 0, "DT_BasePlayer");
+			local->SetNetProp<int>("m_iObserverMode", 1, "DT_BasePlayer");
+			local->SetNetProp<int>("m_bDrawViewmodel", 0, "DT_BasePlayer");
 		}
 		else if (local->GetNetProp<int>("m_hObserverTarget", "DT_BasePlayer") == 0)
 		{
-		// 鍒囨崲鍒扮涓�浜虹О
-		local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
-		local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
-		local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
+			// 鍒囨崲鍒扮涓�浜虹О
+			local->SetNetProp<int>("m_hObserverTarget", -1, "DT_BasePlayer");
+			local->SetNetProp<int>("m_iObserverMode", 0, "DT_BasePlayer");
+			local->SetNetProp<int>("m_bDrawViewmodel", 1, "DT_BasePlayer");
 		}
 		*/
 	}
@@ -2096,41 +2206,14 @@ void showSpectator()
 			else if (team == 3)
 			{
 				// 鎰熸煋鑰
-				int zombie = player->GetNetProp<int>("m_zombieClass", "DT_TerrorPlayer");
-				char zombieName[32];
-				switch (zombie)
-				{
-				case ZC_SMOKER:
-					strcpy_s(zombieName, "smoker");
-					break;
-				case ZC_BOOMER:
-					strcpy_s(zombieName, "boomer");
-					break;
-				case ZC_HUNTER:
-					strcpy_s(zombieName, "hunter");
-					break;
-				case ZC_SPITTER:
-					strcpy_s(zombieName, "spitter");
-					break;
-				case ZC_JOCKEY:
-					strcpy_s(zombieName, "jockey");
-					break;
-				case ZC_CHARGER:
-					strcpy_s(zombieName, "charger");
-					break;
-				case ZC_TANK:
-					strcpy_s(zombieName, "tank");
-					break;
-				default:
-					ZeroMemory(zombieName, 32);
-				}
+				std::string zombieName = GetZombieClassName(player);
 
 				if (player->IsAlive())
 				{
 					// 娲荤潃
 #ifdef USE_PLAYER_INFO
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is %s (%d)\"",
-						info.name, zombieName, player->GetHealth());
+						info.name, zombieName.c_str(), player->GetHealth());
 #else
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is %s (%d)\"",
 						player->GetIndex(), zombieName, player->GetHealth());
@@ -2141,7 +2224,7 @@ void showSpectator()
 					// 骞界伒鐘舵�
 #ifdef USE_PLAYER_INFO
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %s is ghost %s (%d)\"",
-						info.name, zombieName, player->GetHealth());
+						info.name, zombieName.c_str(), player->GetHealth());
 #else
 					Interfaces.Engine->ClientCmd("echo \"[infected] player %d is ghost %s (%d)\"",
 						player->GetIndex(), zombieName, player->GetHealth());

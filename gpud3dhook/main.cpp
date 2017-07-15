@@ -171,6 +171,40 @@ static HRESULT APIENTRY Hooked1_SetStreamSource(HANDLE, D3DDDIARG_SETSTREAMSOURC
 static HRESULT APIENTRY Hooked1_CreateQuery(HANDLE, D3DDDIARG_CREATEQUERY*);
 static HRESULT APIENTRY Hooked1_Present(HANDLE, D3DDDIARG_PRESENT*);
 
+typedef HRESULT(WINAPI* FnCreateFontA)(IDirect3DDevice9*, INT, UINT, UINT, UINT, BOOL, DWORD, DWORD, DWORD, DWORD, LPCSTR, ID3DXFont**);
+static HRESULT WINAPI Hooked_CreateFontA(IDirect3DDevice9*, INT, UINT, UINT, UINT, BOOL, DWORD, DWORD, DWORD, DWORD, LPCSTR, ID3DXFont**);
+static FnCreateFontA oCreateFontA;
+static DetourXS g_dxsCreateFontA;
+static std::function<void(IDirect3DDevice9*)> g_cbCreateFontA;
+
+bool SetupHookCreateFont(std::function<void(IDirect3DDevice9*)> callback)
+{
+	if (g_dxsCreateFontA.Created())
+		return false;
+
+	if (!g_dxsCreateFontA.Create(D3DXCreateFontA, Hooked_CreateFontA))
+		return false;
+
+	g_cbCreateFontA = callback;
+	oCreateFontA = (FnCreateFontA)g_dxsCreateFontA.GetTrampoline();
+	return true;
+}
+
+HRESULT WINAPI Hooked_CreateFontA(IDirect3DDevice9* device, INT height, UINT width, UINT weight,
+	UINT mipLevels, BOOL italic, DWORD charset, DWORD outputPrecicion, DWORD quality,
+	DWORD pitchFamily, LPCSTR faceName, ID3DXFont** font)
+{
+	
+	g_dxsCreateFontA.Destroy();
+	gDeviceInternal = device;
+
+	if (g_cbCreateFontA)
+		g_cbCreateFontA(device);
+
+	return D3DXCreateFontA(device, height, width, weight, mipLevels, italic, charset, outputPrecicion,
+		quality, pitchFamily, faceName, font);
+}
+
 static void StartStrideChange()
 {
 	for (;;)
@@ -947,41 +981,8 @@ void CreateOverlay(HWND window, HINSTANCE instance)
 NAMESPACE_END
 
 template<typename Fn>
-Fn * DetourFunction(Fn * src, Fn * dst, int len)
+Fn DetourFunction(Fn src, Fn dst, int len)
 {
-	/*
-	static auto func = [](BYTE* src, BYTE* dst, int len) -> void*
-	{
-	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
-	//BYTE *jmp = (BYTE*)malloc(len+5);
-	DWORD dwBack;
-
-	VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &dwBack);
-	memcpy(jmp, src, len);
-	jmp += len;
-	jmp[0] = 0xE9;
-	*(DWORD*)(jmp + 1) = (DWORD)(src + len - jmp) - 5;
-	src[0] = 0xE9;
-	*(DWORD*)(src + 1) = (DWORD)(dst - src) - 5;
-	for (int i = 5; i<len; i++)  src[i] = 0x90;
-	VirtualProtect(src, len, dwBack, &dwBack);
-	return (jmp - len);
-	};
-	*/
-
-	Fn* result = nullptr;
-#if defined(EASYHOOK_API)
-	HOOK_TRACE_INFO hti = { 0 };
-	if (FAILED(LhInstallHook(src, dst, NULL, &hti)))
-		return nullptr;
-
-#elif defined(DETOURS_VERSION)
-	DetourRestoreAfterWith();
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	result = (Fn*)DetourAttach((PVOID*)&src, dst);
-	DetourTransactionCommit();
-#else
 	BYTE *jmp = (BYTE*)VirtualAlloc(0, len + 5, MEM_COMMIT, 64);
 	// BYTE *jmp = (BYTE*)malloc(len+5);
 	DWORD dwBack;
@@ -998,35 +999,11 @@ Fn * DetourFunction(Fn * src, Fn * dst, int len)
 		((BYTE*)src)[i] = 0x90;
 
 	VirtualProtect(src, len, dwBack, &dwBack);
-	return (Fn*)(jmp - len);
-#endif
-
-	/*
-	Fn* result = nullptr;
-	#ifdef DETOURS_VERSION
-	#if DETOURS_VERSION >= 21000
-	DetourRestoreAfterWith();
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	result = (Fn*)DetourAttach((PVOID*)&src, dst);
-	DetourTransactionCommit();
-	#else
-	result = (Fn*)DetourFunction((BYTE*)src, (BYTE*)dst);
-	#endif
-
-	return result;
-	#else
-	return (Fn*)func((BYTE*)src, (BYTE*)dst, len);
-	#endif
-	*/
-
-#if defined(EASYHOOK_API) || defined(DETOURS_VERSION)
-	return result;
-#endif
+	return (Fn)(jmp - len);
 }
 
 template<typename Fn>
-Fn* RetourFunction(Fn* src, Fn* dst, int len)
+Fn RetourFunction(Fn src, Fn dst, int len)
 {
 	DWORD dwback;
 

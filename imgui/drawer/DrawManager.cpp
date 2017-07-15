@@ -265,4 +265,26 @@ void DrawManager::DrawCircle(int x, int y, int radius, D3DCOLOR color)
 	m_pLine->Draw(DotPoints, Points, color);
 }
 
+IDirect3DTexture9* DrawManager::GenerateTexture(D3DCOLOR color, UINT width, UINT height)
+{
+	IDirect3DTexture9* texture;
+	if (FAILED(m_pDevice->CreateTexture(8, 8, 1, 0, D3DFMT_A4R4G4B4, D3DPOOL_MANAGED, &texture, NULL)))
+		return nullptr;
 
+	WORD color16 = ((WORD)((color >> 28) & 0xF) << 12) |
+		(WORD)(((color >> 20) & 0xF) << 8) |
+		(WORD)(((color >> 12) & 0xF) << 4) |
+		(WORD)(((color >> 4) & 0xF) << 0);
+
+	D3DLOCKED_RECT rect;
+	texture->LockRect(0, &rect, nullptr, 0);
+
+	UINT size = width * height;
+	WORD *dst16 = (WORD*)rect.pBits;
+	for (int i = 0; i < size; ++i)
+		*dst16++ = color16;
+
+	texture->UnlockRect(0);
+
+	return texture;
+}

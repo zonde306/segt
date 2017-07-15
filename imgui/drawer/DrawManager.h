@@ -30,6 +30,8 @@ public:
      void RenderText(D3DCOLOR color, int x, int y, bool centered, const char* fmt, ...);
      void FillRect(D3DCOLOR color, int x, int y, int w, int h);
 
+	 IDirect3DTexture9* GenerateTexture(D3DCOLOR color, UINT width = 8, UINT height = 8);
+
 	 void DrawString(int x, int y, const std::string& text, D3DCOLOR color);
 	 void DrawString(int x, int y, D3DCOLOR color, const char* text, ...);
 	 void DrawRect(int x, int y, int width, int height, D3DCOLOR color);

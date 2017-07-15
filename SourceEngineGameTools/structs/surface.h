@@ -72,7 +72,18 @@ public:
 	void DrawPrintText(const wchar_t* Text, int Len, FontDrawType_t DrawType = FONT_DRAW_DEFAULT)
 	{
 		typedef void(__thiscall* Fn)(void*, wchar_t const*, int, int);
-		return ((Fn)VMT.GetFunction(this, indexes::DrawPrintText))(this, Text, Len, DrawType);
+		Fn func = (Fn)VMT.GetFunction(this, indexes::DrawPrintText);
+
+		__try
+		{
+			if(func != nullptr)
+				func(this, Text, Len, DrawType);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			printf("DrawPrintText Error");
+		}
+
 	}
 
 	virtual void DrawFilledRectFade(int x0, int y0, int x1, int y1, unsigned int alpha0, unsigned int alpha1, bool bHorizontal)
@@ -132,13 +143,13 @@ public:
 	void drawCrosshair(int x, int y, int r, int g, int b)
 	{
 		// Right
-		FillRGBA(x, y, 15, 2, r, g, b, 255);
+		FillRGBA(x, y, 10, 1, r, g, b, 255);
 		// Bottom
-		FillRGBA(x, y, 2, 15, r, g, b, 255);
+		FillRGBA(x, y, 1, 10, r, g, b, 255);
 		// Left
-		FillRGBA(x - 15, y, 15, 2, r, g, b, 255);
+		FillRGBA(x - 10, y, 10, 1, r, g, b, 255);
 		// Top
-		FillRGBA(x, y - 15, 2, 15, r, g, b, 255);
+		FillRGBA(x, y - 10, 1, 10, r, g, b, 255);
 	}
 
 	void drawHeader(INT x, INT y, INT w, INT r, INT g, INT b, INT HealthBarWidth)
