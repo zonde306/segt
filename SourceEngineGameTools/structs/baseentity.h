@@ -2,6 +2,10 @@
 #include "../../Utils.h"
 #include "../libraries/math.h"
 
+static std::map<std::string, unsigned int> g_offsetList;
+#define MAKE_NETPROP_GET(_fn,_nt,_np,_t)	inline _t& _fn()const{return this->GetNetProp<_t>(_np, _nt);}
+#define MAKE_NETPROP_SET(_fn,_nt,_np,_t)	inline _t& _fn(const _t& val){return this->SetNetProp(_np, val, _nt);}
+
 class CBaseEntity
 {
 public:
@@ -77,40 +81,66 @@ public:
 		return *(void**)(this + offset);
 	}
 
-	/*
-	const char* GetClassname()
-	{
-		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iClassname");
-		return *(const char**)(this + offset);
-	}
-
-	const char* GetModelName()
-	{
-		static int offset = netVars->GetOffset("DT_BaseEntity", "m_ModelName");
-		return *(const char**)(this + offset);
-	}
-
-	const char* GetName()
-	{
-		static int offset = netVars->GetOffset("DT_BaseEntity", "m_iName");
-		return *(const char**)(this + offset);
-	}
-	*/
-
-	template<typename T>
-	T& GetNetProp(std::string prop, std::string table = "DT_BaseEntity") const
-	{
-		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
-		VirtualProtect((T*)(this + offset), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
-		return *(T*)(this + offset);
-	}
+	MAKE_NETPROP_GET(GetClassname, "DT_BaseCombatCharacter", "m_iClassname", const char*);
+	MAKE_NETPROP_GET(GetModelName, "DT_BaseCombatCharacter", "m_ModelName", const char*);
+	MAKE_NETPROP_GET(GetName, "DT_BaseCombatCharacter", "m_iName", const char*);
+	MAKE_NETPROP_GET(GetOrigin, "DT_BaseCombatCharacter", "m_vecOrigin", Vector);
+	MAKE_NETPROP_GET(GetAngles, "DT_BaseCombatCharacter", "m_angRotation", Vector);
+	MAKE_NETPROP_GET(GetEffects, "DT_BaseCombatCharacter", "m_fEffects", int);
+	MAKE_NETPROP_GET(GetOwner, "DT_BaseCombatCharacter", "m_hOwnerEntity", void*);
+	MAKE_NETPROP_GET(GetCollisionGroup, "DT_BaseCombatCharacter", "m_CollisionGroup", int);
+	MAKE_NETPROP_GET(GetMins, "DT_BaseCombatCharacter", "m_vecMins", Vector);
+	MAKE_NETPROP_GET(GetMaxs, "DT_BaseCombatCharacter", "m_vecMaxs", Vector);
+	MAKE_NETPROP_GET(GetSolidType, "DT_BaseCombatCharacter", "m_nSolidType", int);
+	MAKE_NETPROP_GET(GetSolidFlags, "DT_BaseCombatCharacter", "m_usSolidFlags", int);
+	
+	// 屏幕
+	MAKE_NETPROP_GET(GetPunchAngles, "DT_BasePlayer", "m_vecPunchAngle", Vector);
+	MAKE_NETPROP_GET(GetPunchVelocity, "DT_BasePlayer", "m_vecPunchAngleVel", Vector);
+	MAKE_NETPROP_SET(SetPunchAngles, "DT_BasePlayer", "m_vecPunchAngle", Vector);
+	MAKE_NETPROP_SET(SetPunchVelocity, "DT_BasePlayer", "m_vecPunchAngleVel", Vector);
 
 	template<typename T>
-	T& SetNetProp(std::string prop, const T& value, std::string table = "DT_BaseEntity") const
+	T& GetNetProp(const std::string& prop, const std::string& table = "DT_BaseEntity") const
 	{
-		int offset = netVars->GetOffset(table.c_str(), prop.c_str());
-		VirtualProtect((T*)(this + offset), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
-		return (*(T*)(this + offset) = value);
+		if (g_offsetList.find(prop) == g_offsetList.end())
+		{
+			int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+			if (offset > -1)
+			{
+				Utils::log("%s %s offset is 0x%X", table.c_str(), prop.c_str(), offset);
+				g_offsetList[prop] = (int)offset;
+			}
+			else
+			{
+				Utils::log("%s %s not found!", table.c_str(), prop.c_str());
+			}
+		}
+		
+		// VirtualProtect((T*)(this + m_offset[prop]), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
+		return *(T*)(this + g_offsetList[prop]);
+	}
+
+	template<typename T>
+	T& SetNetProp(const std::string& prop, const T& value, const std::string& table = "DT_BaseEntity") const
+	{
+		if (g_offsetList.find(prop) == g_offsetList.end())
+		{
+			int offset = netVars->GetOffset(table.c_str(), prop.c_str());
+			if (offset > -1)
+			{
+				Utils::log("%s %s offset is 0x%X", table.c_str(), prop.c_str(), offset);
+				g_offsetList[prop] = (int)offset;
+			}
+			else
+			{
+				Utils::log("%s %s not found!", table.c_str(), prop.c_str());
+			}
+		}
+
+		// 一般来说，变量都是可读可写的
+		// VirtualProtect((T*)(this + m_offset[prop]), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
+		return (*(T*)(this + g_offsetList[prop]) = value);
 	}
 
 	Vector& GetAbsOrigin()
@@ -251,5 +281,4 @@ public:
 		return *(int*)(this + m_iCrosshairsId);
 	}
 #endif // m_iCrosshairsId
-
 };

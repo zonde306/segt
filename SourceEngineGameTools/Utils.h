@@ -449,7 +449,7 @@ public:
 		va_end(ap);
 
 		// 输出
-		file << buffer << "\n";
+		file << buffer << std::endl;
 
 		// 完毕
 		file.close();
@@ -458,6 +458,44 @@ public:
 		Interfaces.Engine->ClientCmd("echo \"%s\"", buffer);
 		std::cout << buffer << std::endl;
 	}
+
+	static void log(const wchar_t* text, ...)
+	{
+		wchar_t buffer[1024];
+		char buf[128];
+
+		time_t t;
+		time(&t);
+
+		tm tmp;
+		localtime_s(&tmp, &t);
+
+		// 文件创建日期
+		strftime(buf, 1024, "\\segt_%Y%m%d.log", &tmp);
+
+		std::wfstream file(c2w(GetPath()) + c2w(buf), std::ios::out | std::ios::app | std::ios::ate);
+
+		// 日志写入时间
+		strftime(buf, 1024, "[%H:%M:%S] ", &tmp);
+		file << c2w(buf);
+
+		// 格式化字符串
+		va_list ap;
+		va_start(ap, text);
+		vswprintf_s(buffer, text, ap);
+		va_end(ap);
+
+		// 输出
+		file << buffer << std::endl;
+
+		// 完毕
+		file.close();
+
+		// 输出到控制台
+		Interfaces.Engine->ClientCmd("echo \"%s\"", w2c(buffer).c_str());
+		std::cout << buffer << std::endl;
+	}
+
 };
 
 class CNetVars
@@ -468,7 +506,7 @@ public:
 		_tables.clear();
 
 		ClientClass* clientClass = Interfaces.Client->GetAllClasses();
-		if (!clientClass)
+		if (clientClass == nullptr)
 		{
 			Utils::log("ERROR: ClientClass was not found");
 			return;
@@ -487,12 +525,11 @@ public:
 	int GetOffset(const char* tableName, const char* propName)
 	{
 		int offset = GetProp(tableName, propName);
-		if (!offset)
+		if (offset <= -1)
 		{
 			Utils::log("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
-			return 0;
+			return -1;
 		}
-
 
 		return offset;
 	}
@@ -504,13 +541,13 @@ private:
 		if (!recvTable)
 		{
 			Utils::log("ERROR: Failed to find table: %s", tableName);
-			return 0;
+			return -1;
 		}
 		int offset = GetProp(recvTable, propName, prop);
-		if (!offset)
+		if (offset <= -1)
 		{
 			Utils::log("ERROR: Failed to find offset for prop: %s from table: %s", propName, tableName);
-			return 0;
+			return -1;
 		}
 
 		return offset;
@@ -549,7 +586,7 @@ private:
 		if (_tables.empty())
 		{
 			Utils::log("ERROR: Failed to find table: %s (_tables is empty)", tableName);
-			return 0;
+			return nullptr;
 		}
 
 		for each (RecvTable* table in _tables)
@@ -559,7 +596,7 @@ private:
 			if (_stricmp(table->m_pNetTableName, tableName) == 0)
 				return table;
 		}
-		return 0;
+		return nullptr;
 	}
 
 	std::vector<RecvTable*> _tables;
