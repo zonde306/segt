@@ -61,6 +61,25 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 		freopen("CONIN$", "r", stdin);
 		freopen("CONOUT$", "w", stdout);
 		// printf("RUN\n");
+
+		// 设置异常捕获器
+		_set_se_translator([](unsigned int code, EXCEPTION_POINTERS* exp) -> void
+		{
+			std::stringstream error;
+			error << "SE Exception: ";
+
+			if (code == 0xC0000005)
+			{
+				// 访问冲突
+				error << "Access Violation";
+				error << " - 0x" << std::setiosflags(std::ios::hex | std::ios::uppercase)
+					<< std::ios::hex << code << std::ios::oct <<
+					std::resetiosflags(std::ios::hex | std::ios::uppercase);
+			}
+
+			throw std::exception(error.str().c_str());
+		});
+
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
@@ -138,7 +157,7 @@ static DWORD gModuleClient, gModuleEngine, gModuleMaterial;
 static int iCurrentButtons = 0;
 static float fAimbotFieldOfView = 30.0f;
 static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
-	bRapidFire = true, bSilentAim = false, bAutoStrafe = false, bShowMenu = false, bDrawCrosshairs = true;
+	bRapidFire = true, bSilentAim = true, bAutoStrafe = false, bShowMenu = false, bDrawCrosshairs = true;
 
 void bindAlias(int);
 void meleeAttack();
@@ -1067,10 +1086,47 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 			// 閫熷害棰勬祴锛屼細瀵艰嚧灞忓箷鏅冨姩锛屾墍浠ヤ笉闇�瑕
 			// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
-			// Interfaces.Engine->SetViewAngles(CalculateAim(myOrigin, position));
+			// 自动瞄准数据备份
+			static QAngle oldViewAngles;
+			static float oldSidemove;
+			static float oldForwardmove;
+			static float oldUpmove;
 
-			if (position.IsValid())
+			// 上一 Frame 是否被忽略了
+			static bool lastIgnore = false;
+
+			// 关闭安静瞄准时还原设置
+			if (!bSilentAim && lastIgnore)
+				lastIgnore = false;
+
+			if ((!bSilentAim || !lastIgnore) && position.IsValid())
+			{
+				// 备份原数据
+				oldViewAngles = pCmd->viewangles;
+				oldSidemove = pCmd->sidemove;
+				oldForwardmove = pCmd->fowardmove;
+				oldUpmove = pCmd->upmove;
+
+				// 安静自瞄
+				if (bSilentAim)
+				{
+					// 将当前 frame 忽略掉（不发送到服务器）
+					*bSendPacket = false;
+					lastIgnore = true;
+				}
+
 				pCmd->viewangles = CalculateAim(myOrigin, position);
+			}
+			else if (lastIgnore)
+			{
+				// 还原数据
+				*bSendPacket = true;
+				lastIgnore = false;
+				pCmd->viewangles = oldViewAngles;
+				pCmd->sidemove = oldSidemove;
+				pCmd->fowardmove = oldForwardmove;
+				pCmd->upmove = oldUpmove;
+			}
 		}
 	}
 
@@ -1130,21 +1186,6 @@ end_aimbot:
 		{
 			// 取消开枪
 			pCmd->buttons &= ~IN_ATTACK;
-		}
-	}
-
-	// 没什么用
-	if (bSilentAim && weapon != nullptr)
-	{
-		if ((pCmd->buttons & IN_ATTACK) &&
-			weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
-			*bSendPacket = false;
-		else
-		{
-			*bSendPacket = true;
-			pCmd->viewangles = oldViewAngles;
-			pCmd->sidemove = oldSidemove;
-			pCmd->fowardmove = oldForwardmove;
 		}
 	}
 
