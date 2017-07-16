@@ -500,6 +500,9 @@ bool IsAliveTarget(CBaseEntity* entity)
 			return false;
 
 		id = cc->m_ClassID;
+		if (id == ET_WORLD)
+			return false;
+
 		solid = entity->GetNetProp<int>("m_usSolidFlags", "DT_BaseCombatCharacter");
 		sequence = entity->GetNetProp<int>("m_nSequence", "DT_BaseCombatCharacter");
 	}
@@ -861,10 +864,39 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 	return trace.m_pEnt;
 }
 
-bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
+bool IsBoneVisible(CBaseEntity* entity)
 {
 	CBaseEntity* client = GetLocalClient();
-	if (client == nullptr || !Interfaces.Engine->IsInGame())
+	if (client == nullptr || !Interfaces.Engine->IsInGame() || !IsAliveTarget(entity))
+		return false;
+
+	Ray_t ray;
+	trace_t trace;
+	Vector end, start;
+	CTraceFilter filter;
+	
+	filter.pSkip1 = client;
+	start = client->GetEyePosition();
+
+	for (int i = 0; i < 128; ++i)
+	{
+		end = entity->GetBonePosition(i);
+		if (!end.IsValid())
+			break;
+
+		ray.Init(start, end);
+		Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+		if ((DWORD)trace.m_pEnt == (DWORD)entity && trace.hitbox > 0)
+			return true;
+	}
+
+	return false;
+}
+
+bool IsTargetVisible(CBaseEntity* entity, Vector end, Vector start)
+{
+	CBaseEntity* client = GetLocalClient();
+	if (client == nullptr || !Interfaces.Engine->IsInGame() || !IsAliveTarget(entity))
 		return false;
 
 	trace_t trace;
@@ -873,22 +905,16 @@ bool IsTargetVisible(CBaseEntity* entity, const Vector& end = Vector())
 	CTraceFilter filter;
 	filter.pSkip1 = client;
 
-	if (end.IsValid())
-		ray.Init(client->GetEyePosition(), end);
-	else if (entity->GetClientClass()->m_ClassID == ET_INFECTED)
-		ray.Init(client->GetEyePosition(), entity->GetHitboxPosition(HITBOX_COMMON));
-	else
-		ray.Init(client->GetEyePosition(), entity->GetHitboxPosition(HITBOX_PLAYER));
-
+	if (!start.IsValid())
+		start = client->GetEyePosition();
+	if (!end.IsValid())
+		end = GetHeadHitboxPosition(entity);
+	
+	ray.Init(start, end);
 	Interfaces.Trace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 
-	// 检查目标是否为一个有效的实体
-	if (trace.m_pEnt == nullptr || trace.m_pEnt->IsDormant() ||
-		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
-		return false;
-
-	// 检查目标是否为一个可见的物体，或者该物体是否可以被击中，以及是否为指定位�
-	if (trace.hitbox == 0)
+	// ����Ƿ�Ϊָ��Ŀ��
+	if ((DWORD)trace.m_pEnt != (DWORD)entity || trace.hitbox <= 0)
 		return false;
 
 	return true;
@@ -1241,7 +1267,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				continue;
 
 			// Ŀ���Ƿ�ɼ�
-			bool visible = IsTargetVisible(entity, headbox);
+			bool visible = IsTargetVisible(entity, headbox, myEyeOrigin);
 
 			// Ŀ�����Լ��ľ���
 			float dist = myOrigin.DistTo(origin);
@@ -1398,7 +1424,6 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 			if (bAimBot && (!targetSelected || !(iCurrentButtons & IN_ATTACK)) &&
 				classId != ET_WITCH && (classId != ET_INFECTED || team == 2))
 			{
-				
 				// �Ѿ�ѡ���Ŀ���ˣ���������һ������Ҫ�ĵ���
 				if (classId == ET_INFECTED && distmin < 65535.0f)
 					continue;
@@ -1409,24 +1434,6 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				{
 					pCurrentAiming = entity;
 					distmin = dist;
-				}
-			}
-
-			// �� Aimbot Ѱ��һ����Ч��Ŀ��
-			if (bAimBot && classId != ET_WITCH && (classId != ET_INFECTED || team == 2) &&
-				(!IsAliveTarget(pCurrentAiming) || !(GetAsyncKeyState(VK_LBUTTON) & 0x8000)))
-			{
-				pCurrentAiming = nullptr;
-				if (entity->GetTeam() != team)
-				{
-					Vector myAngles;
-					Interfaces.Engine->GetViewAngles(myAngles);
-					if (dist < distmin && visible &&
-						GetAnglesFieldOfView(myAngles, CalculateAim(myEyeOrigin, headbox)) <= 30.0f)
-					{
-						pCurrentAiming = entity;
-						distmin = dist;
-					}
 				}
 			}
 		}
