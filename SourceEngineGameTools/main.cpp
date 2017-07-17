@@ -147,6 +147,9 @@ typedef void(__stdcall* FnDrawModel)(PVOID, PVOID, const ModelRenderInfo_t&, mat
 void __stdcall Hooked_DrawModel(PVOID, PVOID, const ModelRenderInfo_t&, matrix3x4_t*);
 static FnDrawModel oDrawModel;
 
+typedef int(__stdcall* FnCL_Move)(double what, float accumulation_extra_samples, bool bFinalTick);
+FnCL_Move oCL_Move;
+
 static DrawManager* drawRender;
 static CVMTHookManager gDirectXHook;
 static IGameEventListener2* gEventSpawn;
@@ -158,6 +161,15 @@ static int iCurrentButtons = 0;
 static float fAimbotFieldOfView = 30.0f;
 static bool bImGuiInitialized = false, bBoxEsp = true, bTriggerBot = false, bAimBot = false, bBhop = true,
 	bRapidFire = true, bSilentAim = true, bAutoStrafe = false, bShowMenu = false, bDrawCrosshairs = true;
+
+// 上一 frame 是否开过枪
+static bool g_bIsWeaponFired = false;
+
+// 是否成功杀死了当前敌人
+static int g_iTargetKilled = 0;
+
+// bSendPacket 地址
+static bool* g_pbSendPacket = nullptr;
 
 void bindAlias(int);
 void meleeAttack();
@@ -185,6 +197,13 @@ void StartCheat(HINSTANCE instance)
 	Utils::log("VEngineCvar 0x%X", (DWORD)Interfaces.Engine);
 	Utils::log("GlobalsVariable 0x%X", (DWORD)Interfaces.Globals);
 	Utils::log("Input 0x%X", (DWORD)Interfaces.Input);
+
+	oCL_Move = (FnCL_Move)Utils::FindPattern("client.dll", "55 8B EC B8 ? ? ? ? E8 ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 53 56 57 E8");
+	if (oCL_Move)
+	{
+		g_pbSendPacket = (bool*)((DWORD)oCL_Move + 0x91);
+		Utils::log("CL_Move = 0x%X | bSendPacket = 0x%X", (DWORD)oCL_Move, (DWORD)g_pbSendPacket);
+	}
 
 	typedef ClientModeShared*(*FnGetClientMode)();
 	FnGetClientMode GetClientModeNormal = nullptr;
@@ -473,6 +492,61 @@ void StartCheat(HINSTANCE instance)
 				}
 
 			end_player_info:
+
+				// 开枪
+				if (_strcmpi(eventName, "weapon_fire") == 0)
+				{
+					int client = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					if (client <= 0 || client != Interfaces.Engine->GetLocalPlayer())
+						goto end_weapon_fire;
+
+					g_bIsWeaponFired = true;
+				}
+
+			end_weapon_fire:
+
+				if (_strcmpi(eventName, "player_death") == 0)
+				{
+					int victim = Interfaces.Engine->GetPlayerForUserID(event->GetInt("userid", 0));
+					int attacker = Interfaces.Engine->GetPlayerForUserID(event->GetInt("attacker", 0));
+					if (victim <= 0)
+					{
+						// 死者不是玩家
+						victim = event->GetInt("entityid", 0);
+					}
+
+					if (attacker <= 0)
+					{
+						// 攻击者不是玩家
+						attacker = event->GetInt("attackerentid", 0);
+					}
+					if (victim <= 0)
+						goto end_player_death;
+
+					if (victim <= Interfaces.Engine->GetMaxClients())
+					{
+						player_info_t info;
+						if (Interfaces.Engine->GetPlayerInfo(victim, &info))
+							Utils::log("- player %s killed by %d", info.name, attacker);
+						else
+						{
+							Utils::log("- player %s killed by %d",
+								GetZombieClassName(Interfaces.ClientEntList->GetClientEntity(
+									victim)).c_str(), attacker);
+						}
+					}
+					else
+						Utils::log("- entity %d killed by %d", victim, attacker);
+
+					if(attacker != Interfaces.Engine->GetLocalPlayer() ||
+						(DWORD)pCurrentAiming != (DWORD)Interfaces.ClientEntList->GetClientEntity(attacker))
+						goto end_player_death;
+
+					pCurrentAiming = nullptr;
+					g_iTargetKilled = victim;
+				}
+
+			end_player_death:
 
 				return;
 			}
@@ -822,7 +896,8 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		trace.m_pEnt->GetClientClass()->m_ClassID == ET_WORLD)
 	{
 #ifdef _DEBUG
-		Interfaces.Engine->ClientCmd("echo \"invalid entity 0x%X\"", (DWORD)trace.m_pEnt);
+		Interfaces.Engine->ClientCmd("echo \"invalid entity 0x%X | start (%.2f %.2f %.2f) end (%.2f %.2f %.2f)\"",
+			(DWORD)trace.m_pEnt, trace.start.x, trace.start.y, trace.start.z, trace.end.x, trace.end.y, trace.end.z);
 #endif
 		return nullptr;
 	}
@@ -834,7 +909,6 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 		Interfaces.Engine->ClientCmd("echo \"invalid hitbox 0x%X | hitbox = %d | bone = %d | group = %d\"",
 			(DWORD)trace.m_pEnt, trace.hitbox, trace.physicsBone, trace.hitGroup);
 #endif
-
 		return nullptr;
 	}
 
@@ -877,7 +951,12 @@ CBaseEntity* GetAimingTarget(int hitbox = 0)
 	if (bAimBot && hitbox == 0 && trace.m_pEnt->GetClientClass()->m_ClassID == ET_INFECTED)
 	{
 		if (trace.hitbox < HITBOX_COMMON_1 || trace.hitbox > HITBOX_COMMON_4)
+		{
+#ifdef _DEBUG
+			Interfaces.Engine->ClientCmd("echo \"invalid hitbox by infected %d\"", trace.hitbox);
+#endif
 			return nullptr;
+		}
 	}
 
 	return trace.m_pEnt;
@@ -980,19 +1059,20 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		Utils::log("Hooked_CreateMove trigged.");
 	}
 
-	oCreateMove(sequence_number, input_sample_frametime, active);
-
 	DWORD dwEBP = NULL;
 	__asm mov dwEBP, ebp;
-	bool* bSendPacket = (bool*)(*(char**)dwEBP - 0x21);
+	bool* bSendPacket = (bool*)(*(byte**)dwEBP - 0x21);
+
+	oCreateMove(sequence_number, input_sample_frametime, active);
 
 	CVerifiedUserCmd *pVerifiedCmd = &(*(CVerifiedUserCmd**)((DWORD)Interfaces.Input + 0xE0))[sequence_number % 150];
 	CUserCmd *pCmd = &(*(CUserCmd**)((DWORD_PTR)Interfaces.Input + 0xDC))[sequence_number % 150];
 	if (showHint)
 	{
 		showHint = false;
-		Utils::log("pVerifiedCmd = 0x%X", (DWORD)pVerifiedCmd);
-		Utils::log("pCmd = 0x%X", (DWORD)pCmd);
+		Utils::log("Input->pVerifiedCmd = 0x%X", (DWORD)pVerifiedCmd);
+		Utils::log("Input->pCmd = 0x%X", (DWORD)pCmd);
+		Utils::log("CL_Move->bSendPacket = 0x%X | %d", (DWORD)bSendPacket, *bSendPacket);
 	}
 
 	CBaseEntity* client = GetLocalClient();
@@ -1053,12 +1133,23 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 	}
 
 	// 自动瞄准
-	if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+	if (bAimBot && GetAsyncKeyState(VK_LBUTTON) & 0x8000 && weapon != nullptr)
 	{
+		int weaponId = weapon->GetWeaponID();
 		Vector myOrigin = client->GetEyePosition(), myAngles = pCmd->viewangles;
+		float nextAttack = weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon");
+
+		// 自动瞄准数据备份
+		static QAngle oldViewAngles;
+		static float oldSidemove;
+		static float oldForwardmove;
+		static float oldUpmove;
+
+		bool runAimbot = false;
 
 		// 目标在另一个地方选择
-		if (pCurrentAiming != nullptr)
+		if (pCurrentAiming != nullptr && IsGunWeapon(weaponId) &&
+			nextAttack <= serverTime && !g_bIsWeaponFired)
 		{
 			// 鐩爣浣嶇疆
 			Vector position;
@@ -1083,23 +1174,10 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 					position.z -= 12.0f;
 			}
 
-			// 閫熷害棰勬祴锛屼細瀵艰嚧灞忓箷鏅冨姩锛屾墍浠ヤ笉闇�瑕
+			// 速度预测，这个没做好
 			// position += (pCurrentAiming->GetVelocity() * Interfaces.Globals->interval_per_tick);
 
-			// 自动瞄准数据备份
-			static QAngle oldViewAngles;
-			static float oldSidemove;
-			static float oldForwardmove;
-			static float oldUpmove;
-
-			// 上一 Frame 是否被忽略了
-			static bool lastIgnore = false;
-
-			// 关闭安静瞄准时还原设置
-			if (!bSilentAim && lastIgnore)
-				lastIgnore = false;
-
-			if ((!bSilentAim || !lastIgnore) && position.IsValid())
+			if (position.IsValid())
 			{
 				// 备份原数据
 				oldViewAngles = pCmd->viewangles;
@@ -1107,26 +1185,37 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 				oldForwardmove = pCmd->fowardmove;
 				oldUpmove = pCmd->upmove;
 
-				// 安静自瞄
-				if (bSilentAim)
-				{
-					// 将当前 frame 忽略掉（不发送到服务器）
-					*bSendPacket = false;
-					lastIgnore = true;
-				}
-
+				runAimbot = true;
 				pCmd->viewangles = CalculateAim(myOrigin, position);
 			}
-			else if (lastIgnore)
+		}
+#ifdef _DEBUG
+		else
+		{
+			Interfaces.Engine->ClientCmd("echo \"m_flNextPrimaryAttack = %.2f | serverTime = %.2f\"",
+				nextAttack, serverTime);
+			Interfaces.Engine->ClientCmd("echo \"interval_per_tick = %.2f | m_nTickBase = %d\"",
+				Interfaces.Globals->interval_per_tick, client->GetTickBase());
+		}
+#endif
+
+		if (bSilentAim)
+		{
+			if (!runAimbot)
 			{
 				// 还原数据
 				*bSendPacket = true;
-				lastIgnore = false;
-				pCmd->viewangles = oldViewAngles;
-				pCmd->sidemove = oldSidemove;
-				pCmd->fowardmove = oldForwardmove;
-				pCmd->upmove = oldUpmove;
+
+				if (oldViewAngles.IsValid())
+				{
+					pCmd->viewangles = oldViewAngles;
+					pCmd->sidemove = oldSidemove;
+					pCmd->fowardmove = oldForwardmove;
+					pCmd->upmove = oldUpmove;
+				}
 			}
+			else
+				*bSendPacket = false;
 		}
 	}
 
@@ -1156,6 +1245,7 @@ end_aimbot:
 			pCmd->buttons |= IN_ATTACK;
 	}
 
+	// 手枪连射
 	if (bRapidFire && weapon != nullptr && pCmd->buttons & IN_ATTACK)
 	{
 		int weaponId = weapon->GetWeaponID();
@@ -1175,7 +1265,7 @@ end_aimbot:
 	}
 
 	// 在开枪前检查，防止攻击队友
-	if ((pCmd->buttons & IN_ATTACK) && weapon != nullptr)
+	if ((pCmd->buttons & IN_ATTACK) && weapon != nullptr && client->GetTeam() == 2)
 	{
 		int cid = client->GetCrosshairsId();
 		CBaseEntity* aiming = (cid > 0 ? Interfaces.ClientEntList->GetClientEntity(cid) : nullptr);
@@ -1189,6 +1279,23 @@ end_aimbot:
 		}
 	}
 
+	// 近战武器快速攻击
+	if ((pCmd->buttons & IN_ATTACK) && (GetAsyncKeyState(VK_XBUTTON2)) && weapon != nullptr &&
+		weapon->GetWeaponID() == Weapon_Melee && client->GetTeam() == 2)
+	{
+		static bool lastSwing = false;
+		if (g_bIsWeaponFired)
+		{
+			lastSwing = true;
+			Interfaces.Engine->ClientCmd("lastinv");
+		}
+		else if (lastSwing)
+		{
+			lastSwing = false;
+			Interfaces.Engine->ClientCmd("lastinv");
+		}
+	}
+
 	// 修复角度不正确
 	ClampAngles(pCmd->viewangles);
 	AngleNormalize(pCmd->viewangles);
@@ -1199,6 +1306,9 @@ end_aimbot:
 
 	// 将当前按钮保存到全局变量，用于检查一些东西
 	iCurrentButtons = pCmd->buttons;
+
+	// 恢复上一 frame 的开枪检查
+	g_bIsWeaponFired = false;
 }
 
 bool __stdcall Hooked_CreateMoveShared(float flInputSampleTime, CUserCmd* cmd)
@@ -1290,7 +1400,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 		for (int i = 1; i <= 512; ++i)
 		{
 			CBaseEntity* entity = Interfaces.ClientEntList->GetClientEntity(i);
-			if ((DWORD)entity == (DWORD)local || !IsAliveTarget(entity))
+			if ((DWORD)entity == (DWORD)local || !IsAliveTarget(entity) || g_iTargetKilled == i)
 				continue;
 
 			Vector head, foot, headbox, origin;
@@ -1402,7 +1512,6 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 						{
 							int ammoType = weapon->GetNetProp<int>("m_iPrimaryAmmoType", "DT_BaseCombatWeapon");
 							int clip = weapon->GetNetProp<int>("m_iClip1", "DT_BaseCombatWeapon");
-							// int* ammo = entity->GetNetProp<int*>("m_iAmmo", "DT_TerrorPlayer");
 							byte reloading = weapon->GetNetProp<byte>("m_bInReload", "DT_BaseCombatWeapon");
 
 							// 显示弹药和弹夹
@@ -1416,7 +1525,9 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 								else
 								{
 									// 没有换子弹
-									ss << " (" << clip << ")";
+									ss << " (" << clip << " / " <<
+										entity->GetNetProp<int>("m_iAmmo", "DT_TerrorPlayer", (size_t)ammoType) <<
+										")";
 								}
 							}
 						}
@@ -1478,6 +1589,7 @@ void __fastcall Hooked_PaintTraverse(void* pPanel, void* edx, unsigned int panel
 				}
 			}
 		}
+		g_iTargetKilled = 0;
 
 		if (bDrawCrosshairs)
 		{

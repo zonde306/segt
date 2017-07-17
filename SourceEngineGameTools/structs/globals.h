@@ -8,7 +8,7 @@ public:
 	// This can be used to filter debug output or to catch the client or server in the act.
 	bool IsClient() const;
 
-	bool IsRemoteClient() const;
+	// bool IsRemoteClient() const;
 
 	// for encoding m_flSimulationTime, m_flAnimTime
 	int GetNetworkBase(int nTick, int nEntity);
@@ -23,7 +23,7 @@ public:
 	// Non-paused frametime
 	float			absoluteframetime;
 
-	float			absoluteframestarttimestddev;
+	// float			absoluteframestarttimestddev;
 
 	// Current time 
 	//
@@ -67,7 +67,7 @@ private:
 	bool			m_bClient;
 
 public:
-	bool			m_bRemoteClient;
+	// bool			m_bRemoteClient;
 
 private:
 	// 100 (i.e., tickcount is rounded down to this base and then the "delta" from this base is networked
@@ -80,9 +80,25 @@ private:
 class CPlayerInfoManager
 {
 public:
-	CGlobalVarsBase* GetGlobalVars()
-	{
-		typedef CGlobalVarsBase* (__thiscall* Fn)(void*);
-		((Fn)VMT.GetFunction(this, 1))(this);
-	}
+	virtual void* GetPlayerInfo(void* pEdict) = 0;
+	virtual CGlobalVarsBase* GetGlobalVars() = 0;
 };
+
+inline int CGlobalVarsBase::GetNetworkBase(int nTick, int nEntity)
+{
+	int nEntityMod = nEntity % nTimestampRandomizeWindow;
+	int nBaseTick = nTimestampNetworkingBase * (int)((nTick - nEntityMod) / nTimestampNetworkingBase);
+	return nBaseTick;
+}
+
+inline CGlobalVarsBase::CGlobalVarsBase(bool bIsClient) :
+	m_bClient(bIsClient),
+	nTimestampNetworkingBase(100),
+	nTimestampRandomizeWindow(32)
+{
+}
+
+inline bool CGlobalVarsBase::IsClient() const
+{
+	return m_bClient;
+}

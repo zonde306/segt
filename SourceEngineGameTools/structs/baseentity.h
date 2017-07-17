@@ -101,7 +101,7 @@ public:
 	MAKE_NETPROP_SET(SetPunchVelocity, "DT_BasePlayer", "m_vecPunchAngleVel", Vector);
 
 	template<typename T>
-	T& GetNetProp(const std::string& prop, const std::string& table = "DT_BaseEntity") const
+	T& GetNetProp(const std::string& prop, const std::string& table = "DT_BaseEntity", size_t element = 0) const
 	{
 		if (g_offsetList.find(prop) == g_offsetList.end())
 		{
@@ -118,11 +118,11 @@ public:
 		}
 		
 		// VirtualProtect((T*)(this + m_offset[prop]), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
-		return *(T*)(this + g_offsetList[prop]);
+		return *(T*)(this + g_offsetList[prop] + element * sizeof(T));
 	}
 
 	template<typename T>
-	T& SetNetProp(const std::string& prop, const T& value, const std::string& table = "DT_BaseEntity") const
+	T& SetNetProp(const std::string& prop, const T& value, const std::string& table = "DT_BaseEntity", size_t element = 0) const
 	{
 		if (g_offsetList.find(prop) == g_offsetList.end())
 		{
@@ -140,7 +140,7 @@ public:
 
 		// 一般来说，变量都是可读可写的
 		// VirtualProtect((T*)(this + m_offset[prop]), sizeof(T), PAGE_EXECUTE_READWRITE, NULL);
-		return (*(T*)(this + g_offsetList[prop]) = value);
+		return (*(T*)(this + g_offsetList[prop] + element * sizeof(T)) = value);
 	}
 
 	Vector& GetAbsOrigin()
