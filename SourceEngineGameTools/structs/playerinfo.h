@@ -33,36 +33,34 @@ typedef struct player_info_s
 } player_info_t;
 */
 
-/*
 typedef struct player_info_s
 {
 private:
-	__int64 unknown;
+	int64_t unknown;
 public:
 	union
 	{
-		__int64 xuid;
+		int64_t xuid;
 
 		struct
 		{
-			int xuid_low;
-			int xuid_high;
+			int xuidlow;
+			int xuidhigh;
 		};
 	};
 
-	char name[128];
-	int userid;
-	int m_nUserID;
-	char guid[32 + 1];
-	unsigned int friendsid;
-	char friendsname[128];
-	bool fakeplayer;
-	bool ishltv;
-	unsigned int customfiles[4];
-	unsigned char filesdownloaded;
+	char			name[128];
+	int				userid;
+	char			guid[33];
+	unsigned int	friendsid;
+	char			friendsname[128];
+	bool			fakeplayer;
+	bool			ishltv;
+	unsigned int	customfiles[4];
+	unsigned char	filesdownloaded;
 } player_info_t;
-*/
 
+/*
 struct player_info_t
 {
 private:
@@ -83,3 +81,4 @@ public:
 private:
 	char					___pad[0x4];
 };
+*/

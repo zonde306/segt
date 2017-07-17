@@ -80,6 +80,17 @@ BOOL WINAPI DllMain(HINSTANCE Instance, DWORD Reason, LPVOID Reserved)
 			throw std::exception(error.str().c_str());
 		});
 
+		_set_invalid_parameter_handler([](const wchar_t* expression, const wchar_t* function,
+			const wchar_t* file, unsigned int line, uintptr_t pReserved) -> void
+		{
+			throw std::exception(Utils::w2c(expression).c_str());
+		});
+
+		_set_purecall_handler([]() -> void
+		{
+			throw std::exception("unknown purecall expression");
+		});
+
 		Interfaces.GetInterfaces();
 		netVars = new CNetVars();
 
@@ -1086,10 +1097,6 @@ void __stdcall Hooked_CreateMove(int sequence_number, float input_sample_frameti
 		weapon = Interfaces.ClientEntList->GetClientEntityFromHandle(weapon);
 	else
 		weapon = nullptr;
-
-	QAngle oldViewAngles = pCmd->viewangles;
-	float oldSidemove = pCmd->sidemove;
-	float oldForwardmove = pCmd->fowardmove;
 
 	// ×Ô¶¯Á¬Ìø
 	if (bBhop && (GetAsyncKeyState(VK_SPACE) & 0x8000))
