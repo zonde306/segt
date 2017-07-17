@@ -1,4 +1,5 @@
 #pragma once
+/*
 typedef struct player_info_s
 {
 	// scoreboard information
@@ -30,3 +31,55 @@ typedef struct player_info_s
 
 	// byte buffer[200];
 } player_info_t;
+*/
+
+/*
+typedef struct player_info_s
+{
+private:
+	__int64 unknown;
+public:
+	union
+	{
+		__int64 xuid;
+
+		struct
+		{
+			int xuid_low;
+			int xuid_high;
+		};
+	};
+
+	char name[128];
+	int userid;
+	int m_nUserID;
+	char guid[32 + 1];
+	unsigned int friendsid;
+	char friendsname[128];
+	bool fakeplayer;
+	bool ishltv;
+	unsigned int customfiles[4];
+	unsigned char filesdownloaded;
+} player_info_t;
+*/
+
+struct player_info_t
+{
+private:
+	char __pad[0x8];
+
+public:
+	int32_t					xuidlow;
+	int32_t					xuidhigh;
+	char					name[0x80];
+	int32_t					userid;
+	char					steamid[0x21];
+	uint32_t				steam3id;
+	char					friendsname[0x80];
+	bool					fakeplayer;
+	bool					ishltv;
+	std::array<uint32_t, 4>	m_cCustomFiles;
+	byte					m_FilesDownloaded;
+private:
+	char					___pad[0x4];
+};

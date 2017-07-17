@@ -1280,19 +1280,13 @@ end_aimbot:
 	}
 
 	// 近战武器快速攻击
-	if ((pCmd->buttons & IN_ATTACK) && (GetAsyncKeyState(VK_XBUTTON2)) && weapon != nullptr &&
+	if ((GetAsyncKeyState(VK_XBUTTON2)) && weapon != nullptr &&
 		weapon->GetWeaponID() == Weapon_Melee && client->GetTeam() == 2)
 	{
-		static bool lastSwing = false;
-		if (g_bIsWeaponFired)
+		if (weapon->GetNetProp<float>("m_flNextPrimaryAttack", "DT_BaseCombatWeapon") <= serverTime)
 		{
-			lastSwing = true;
-			Interfaces.Engine->ClientCmd("lastinv");
-		}
-		else if (lastSwing)
-		{
-			lastSwing = false;
-			Interfaces.Engine->ClientCmd("lastinv");
+			pCmd->buttons |= IN_ATTACK;
+			Interfaces.Engine->ClientCmd("wait 5; slot1; wait 5; slot2");
 		}
 	}
 

@@ -74,12 +74,12 @@ public:
 		typedef void(__thiscall* Fn)(void*, wchar_t const*, int, int);
 		Fn func = (Fn)VMT.GetFunction(this, indexes::DrawPrintText);
 
-		__try
+		try
 		{
 			if(func != nullptr)
 				func(this, Text, Len, DrawType);
 		}
-		__except (EXCEPTION_EXECUTE_HANDLER)
+		catch(...)
 		{
 			printf("DrawPrintText Error");
 		}
